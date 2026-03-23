@@ -3568,7 +3568,7 @@ async function loadRanksTab(addr) {
     const isCurrent = userRankNum === rankNum;
     const isNext    = userRankNum + 1 === rankNum;
 
-    // Points and targets are plain integers (units = USDT/1e18), no wei scaling needed
+    // La barra principal debe reflejar el avance REAL del rango, no solo los puntos.
     const ptsNum    = Number(totalPts);
     const targetNum = Number(target);
     const ptsPct    = targetNum > 0
@@ -3580,7 +3580,21 @@ async function loadRanksTab(addr) {
     const pvOk   = addr ? (Number(persVol) >= Number(minPV)) : null;
     const dOk    = addr ? (directCount >= minD) : null;
     const dRkOk  = addr ? (minDRC === 0 || (qualifiedByRank[minDR]||0) >= minDRC) : null;
-    const allOk  = pvOk && dOk && dRkOk;
+    const pointsOk = addr ? (targetNum > 0 ? ptsNum >= targetNum : achieved) : null;
+    const allOk  = !!(pointsOk && pvOk && dOk && dRkOk);
+
+    const reqChecks = [pointsOk, pvOk, dOk, dRkOk].filter(v => v !== null);
+    const overallPct = reqChecks.length
+      ? Math.round((reqChecks.filter(Boolean).length * 100) / reqChecks.length)
+      : 0;
+    const progressPct = achieved ? 100 : overallPct;
+    const statusHint = !addr
+      ? '—'
+      : achieved
+        ? 'Todos los requisitos completos'
+        : (pointsOk && !allOk)
+          ? 'Puntos completos, faltan otros requisitos'
+          : 'Avance real del rango';
 
     const reqColor = (ok) => ok === null ? 'var(--gray-400)' : ok ? 'var(--green)' : 'var(--red)';
     const reqIcon  = (ok) => ok === null ? '—' : ok ? '✓' : '✗';
@@ -3606,16 +3620,21 @@ async function loadRanksTab(addr) {
           ${achieved     ? '<span class="badge badge-green">✓ Alcanzado</span>' : ''}
           ${isCurrent    ? '<span class="badge badge-blue">Rango actual</span>' : ''}
           ${isNext && allOk ? '<span class="badge badge-blue">Listo ↑</span>' : ''}
+          ${!achieved && pointsOk && !allOk ? '<span class="badge badge-gray">Puntos completos, faltan requisitos</span>' : ''}
           ${!achieved && !addr ? '<span class="badge badge-gray">Sin usuario</span>' : ''}
         </div>
       </div>
 
       <div style="margin-bottom:12px;">
         <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--gray-400);margin-bottom:5px;font-family:var(--mono);">
-          <span>Puntos: ${ptsDisplay} / ${targetDisplay} (×10¹⁵)</span>
-          <span>${addr ? ptsPct + '%' : '—'}</span>
+          <span>Avance real del rango</span>
+          <span>${addr ? progressPct + '%' : '—'}</span>
         </div>
-        <div class="prog"><div class="prog-fill" style="width:${ptsPct}%;background:${barColor};"></div></div>
+        <div class="prog"><div class="prog-fill" style="width:${progressPct}%;background:${barColor};"></div></div>
+        <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--gray-400);margin-top:5px;font-family:var(--mono);gap:8px;flex-wrap:wrap;">
+          <span>Puntos: ${ptsDisplay} / ${targetDisplay}</span>
+          <span>${statusHint}</span>
+        </div>
       </div>
 
       <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;font-size:11px;">
@@ -3850,4 +3869,3 @@ async function loadBinaryTree(addr) {
 
 </script>
 </html>
-
