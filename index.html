@@ -1029,17 +1029,6 @@ body {
               </div>
             </div>
           </div>
-          <div class="dist-box">
-            <div class="dist-title">Distribución del capital</div>
-            <div class="dist-grid">
-              <div class="dist-item"><div class="dist-dot"></div>45% Yield Pool</div>
-              <div class="dist-item"><div class="dist-dot"></div>35% Broker</div>
-              <div class="dist-item"><div class="dist-dot"></div>10% Bono upline</div>
-              <div class="dist-item"><div class="dist-dot"></div>5% Ranks/Binary</div>
-              <div class="dist-item"><div class="dist-dot"></div>5% Owner</div>
-              <div class="dist-item"><div class="dist-dot"></div>+5 USDT fee</div>
-            </div>
-          </div>
           <button class="btn btn-dark" id="btn-buy-yield" onclick="buyYield()" style="padding:11px 24px;font-size:13px;" disabled>Conecta wallet para comprar</button>
           <div id="yield-buy-error" style="display:none;margin-top:8px;font-size:12px;color:var(--red);"></div>
         </div>
@@ -3816,9 +3805,11 @@ async function loadBinaryTree(addr) {
       const color = node.isActive ? 'var(--green)' : 'var(--red)';
       const pkgName = PACKAGE_NAMES[node.pkg] || ('Paquete ' + node.pkg);
       const yieldColor = node.yieldActive ? 'var(--gold)' : (node.hasYield ? 'var(--blue)' : 'var(--gray-300)');
-      const personalValue = Number(node.personalPts || 0n);
-      const totalValue = Number(node.totalPts || 0n);
-      const personalLabel = personalValue > 0 ? `Pts pers.: ${personalValue.toLocaleString()}` : `Pts red: ${totalValue.toLocaleString()}`;
+      const personalRaw = BigInt(node.personalPts || 0n);
+      const totalRaw = BigInt(node.totalPts || 0n);
+      const personalValue = Number(personalRaw / (10n ** 18n));
+      const totalValue = Number(totalRaw);
+      const personalLabel = `Pts pers.: ${personalValue.toLocaleString()}`;
 
       return `
         <div style="border:1.5px solid ${color};border-radius:var(--radius-lg);padding:12px;text-align:center;min-width:152px;background:var(--white);position:relative;">
