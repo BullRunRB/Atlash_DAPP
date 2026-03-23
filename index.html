@@ -2109,7 +2109,14 @@ function renderEarnings(ranks, pools, cb, referralData = { amount: 0n, exact: fa
       canClaim: walletAddress && currentUser === walletAddress,
       onClaim: () => claimTopTen(pools.monthIndex)
     },
-    
+    {
+      name: '🤝 Bono de referido ganado',
+      desc: referralData?.exact ? 'Bono ATLASH niveles 1-3 + 10% Yield directo' : 'Lectura parcial del bono ATLASH/Yield',
+      amount: referralAmount,
+      poolInfo: referralData?.exact ? 'Histórico on-chain detectado' : 'Informativo - no reclamable',
+      canClaim: false,
+      onClaim: null
+    }
   ];
 
   const total = rows.reduce((s, r) => s + ((r.canClaim ? r.amount : 0n) || 0n), 0n);
@@ -4081,79 +4088,102 @@ async function loadBinaryTree(addr) {
       return node;
     }
 
-    function nodeCard(node, label) {
-      if (!node) return `<div style="border:1.5px dashed var(--gray-200);border-radius:var(--radius-lg);padding:12px;text-align:center;min-width:140px;">
-          <div style="font-size:11px;color:var(--gray-300);font-family:var(--mono);">Vacío</div>
-          <div style="font-size:10px;color:var(--gray-300);margin-top:2px;">${label}</div>
-        </div>`;
+    function compactNodeCard(node, label, emphasize = false) {
+      if (!node) return `<div style="border:1.5px dashed var(--gray-200);border-radius:var(--radius-lg);padding:10px 12px;text-align:center;min-width:150px;background:var(--white);">
+        <div style="font-size:11px;color:var(--gray-300);font-family:var(--mono);">Vacío</div>
+        <div style="font-size:10px;color:var(--gray-300);margin-top:2px;">${label}</div>
+      </div>`;
       const color = node.isActive ? 'var(--green)' : 'var(--red)';
       const pkgName = PACKAGE_NAMES[node.pkg] || ('Paquete ' + node.pkg);
       const yieldColor = node.yieldActive ? 'var(--gold)' : (node.hasYield ? 'var(--blue)' : 'var(--gray-300)');
       const personalValue = Number(BigInt(node.personalPts || 0n) / (10n ** 18n));
       const totalValue = Number(BigInt(node.totalPts || 0n));
-      return `<div style="border:1.5px solid ${color};border-radius:var(--radius-lg);padding:12px;text-align:center;min-width:152px;background:var(--white);position:relative;">
-          <div style="position:absolute;top:6px;right:8px;width:8px;height:8px;border-radius:50%;background:${color};"></div>
-          <div style="font-family:var(--mono);font-size:10px;color:var(--gray-500);margin-bottom:4px;">${shortAddr(node.addr)}</div>
-          <div style="font-size:11px;font-weight:700;color:var(--gray-800);margin-bottom:2px;">${pkgName}</div>
-          <div style="font-size:10px;color:${yieldColor};font-weight:600;margin-bottom:4px;">${node.yieldActive ? '★ ' : (node.hasYield ? '◔ ' : '○ ')}${node.yieldLabel}</div>
-          <div style="font-size:10px;color:var(--gray-500);font-family:var(--mono);">Pts pers.: ${personalValue.toLocaleString()}</div>
-          <div style="font-size:9px;color:var(--gray-400);font-family:var(--mono);">Pts red: ${totalValue.toLocaleString()}</div>
-          <div style="font-size:9px;color:var(--gray-300);margin-top:3px;">BV Izq: ${fmt18(node.lBV)}</div>
-          <div style="font-size:9px;color:var(--gray-300);">BV Der: ${fmt18(node.rBV)}</div>
-          <div style="font-size:9px;color:var(--gray-400);margin-top:3px;">${label}</div>
-        </div>`;
+      return `<div style="border:1.5px solid ${emphasize ? 'var(--blue)' : color};box-shadow:${emphasize ? '0 0 0 3px rgba(46,112,247,.08)' : 'none'};border-radius:var(--radius-lg);padding:10px 12px;text-align:center;min-width:155px;background:var(--white);position:relative;">
+        <div style="position:absolute;top:6px;right:8px;width:8px;height:8px;border-radius:50%;background:${color};"></div>
+        <div style="font-size:10px;color:var(--gray-400);margin-bottom:3px;">${label}</div>
+        <div style="font-family:var(--mono);font-size:10px;color:var(--gray-500);margin-bottom:4px;">${shortAddr(node.addr)}</div>
+        <div style="font-size:11px;font-weight:700;color:var(--gray-800);margin-bottom:2px;">${pkgName}</div>
+        <div style="font-size:10px;color:${yieldColor};font-weight:600;margin-bottom:4px;">${node.yieldActive ? '★ ' : (node.hasYield ? '◔ ' : '○ ')}${node.yieldLabel}</div>
+        <div style="font-size:10px;color:var(--gray-500);font-family:var(--mono);">Pts pers.: ${personalValue.toLocaleString()}</div>
+        <div style="font-size:9px;color:var(--gray-400);font-family:var(--mono);">Pts red: ${totalValue.toLocaleString()}</div>
+        <div style="font-size:9px;color:var(--gray-300);margin-top:3px;">BV I: ${fmt18(node.lBV)} | BV D: ${fmt18(node.rBV)}</div>
+        <div style="margin-top:6px;"><button onclick="document.getElementById('search-addr').value='${node.addr}';searchUser();" class="btn btn-outline" style="padding:3px 10px;font-size:10px;">Ver</button></div>
+      </div>`;
     }
 
-    const maxLevels = 10;
-    let current = [addr];
-    const levels = [];
-    for (let level = 1; level <= maxLevels && current.some(Boolean); level++) {
-      const infos = await Promise.all(current.map(a => getNodeInfo(a)));
-      levels.push(infos);
-      const next = [];
-      for (const node of infos) {
-        if (node) {
-          next.push(node.lChild || null);
-          next.push(node.rChild || null);
-        } else {
-          next.push(null, null);
-        }
-      }
-      current = next;
-      if (infos.every(n => !n || (!n.lChild && !n.rChild))) break;
-    }
-
-    const root = levels[0]?.[0];
+    const root = await getNodeInfo(addr);
     if (!root) {
       wrap.innerHTML = '<div class="empty"><div class="empty-icon">○</div><div class="empty-title">Sin datos de árbol</div></div>';
       return;
     }
 
+    const sponsorChain = [];
+    let currentParent = await bin.parentOf(addr).catch(() => ethers.ZeroAddress);
+    let sponsorGuard = 0;
+    while (currentParent && currentParent !== ethers.ZeroAddress && sponsorGuard < 8) {
+      const info = await getNodeInfo(currentParent);
+      if (!info) break;
+      sponsorChain.unshift(info);
+      currentParent = await bin.parentOf(currentParent).catch(() => ethers.ZeroAddress);
+      sponsorGuard += 1;
+    }
+
+    const maxLevels = 10;
+    let frontier = [{ addr, path: 'Raíz', sideLabel: 'Raíz' }];
+    const descendantRows = [];
+    for (let depth = 0; depth < maxLevels && frontier.length; depth++) {
+      const infos = [];
+      for (const item of frontier) {
+        const info = await getNodeInfo(item.addr);
+        infos.push({ ...item, info });
+      }
+      descendantRows.push(infos);
+      const next = [];
+      for (const item of infos) {
+        const node = item.info;
+        if (!node) continue;
+        if (node.lChild) next.push({ addr: node.lChild, path: item.path === 'Raíz' ? 'I' : item.path + '-I', sideLabel: 'Izquierda' });
+        if (node.rChild) next.push({ addr: node.rChild, path: item.path === 'Raíz' ? 'D' : item.path + '-D', sideLabel: 'Derecha' });
+      }
+      frontier = next;
+      if (!frontier.length) break;
+    }
+
     wrap.innerHTML = `
-      <div style="overflow-x:auto;padding-bottom:16px;">
-        <div style="min-width:${Math.max(700, (levels[levels.length - 1]?.length || 1) * 170)}px;">
-          ${levels.map((nodes, idx) => `
-            <div class="sec" style="margin:${idx===0?'0':'14px'} 0 10px 0;"><span class="sec-label">Nivel ${idx + 1}</span><span class="sec-line"></span></div>
-            <div style="display:flex;justify-content:center;gap:12px;flex-wrap:nowrap;overflow-x:auto;padding:4px 0 10px 0;">
-              ${nodes.map((node, nIdx) => {
-                let label = idx === 0 ? 'Raíz' : (nIdx % 2 === 0 ? 'Izquierda' : 'Derecha');
-                return `<div style="text-align:center;">${nodeCard(node, label)}</div>`;
-              }).join('')}
+      <div style="display:flex;flex-direction:column;gap:16px;overflow-x:auto;padding-bottom:8px;">
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;">
+          <div class="kpi"><div class="kpi-label">Patrocinador directo</div><div class="kpi-value" style="font-size:13px;letter-spacing:0;">${sponsorChain.length ? shortAddr(sponsorChain[sponsorChain.length - 1].addr) : 'Sin patrocinador'}</div><div class="kpi-sub">Upline binario</div></div>
+          <div class="kpi"><div class="kpi-label">Niveles cargados</div><div class="kpi-value c-blue">${descendantRows.length}</div><div class="kpi-sub">Vista hasta 10 niveles</div></div>
+          <div class="kpi"><div class="kpi-label">Pierna principal</div><div class="kpi-value c-green">${LEG_NAMES[Number(await contracts.core.userLeg(addr).catch(()=>0))] || 'No definida'}</div><div class="kpi-sub">Configuración actual</div></div>
+        </div>
+
+        <div class="sec" style="margin:0;"><span class="sec-label">Cadena de patrocinio</span><span class="sec-line"></span></div>
+        <div style="display:flex;gap:12px;align-items:center;flex-wrap:nowrap;overflow-x:auto;padding-bottom:6px;">
+          ${sponsorChain.length ? sponsorChain.map((node, idx) => `${compactNodeCard(node, idx === sponsorChain.length - 1 ? 'Patrocinador directo' : 'Upline', false)}<div style="display:flex;align-items:center;color:var(--gray-300);font-size:18px;">→</div>`).join('').replace(/<div style="display:flex;align-items:center;color:var\(--gray-300\);font-size:18px;">→<\/div>$/,'') : '<div class="empty" style="min-width:260px;"><div class="empty-icon">○</div><div class="empty-title">Sin patrocinador superior</div><div class="empty-desc">Este usuario está en la raíz o no tiene parent registrado</div></div>'}
+        </div>
+
+        <div class="sec" style="margin:0;"><span class="sec-label">Formación del árbol binario</span><span class="sec-line"></span></div>
+        <div style="display:flex;flex-direction:column;gap:12px;min-width:720px;">
+          ${descendantRows.map((row, idx) => `
+            <div style="display:flex;justify-content:center;gap:${idx === 0 ? '0' : '10px'};flex-wrap:nowrap;overflow-x:auto;padding:4px 0;">
+              ${row.map(item => `<div style="display:flex;flex-direction:column;align-items:center;gap:6px;min-width:165px;">
+                ${idx > 0 ? '<div style="width:1px;height:14px;background:var(--gray-300);"></div>' : ''}
+                ${compactNodeCard(item.info, idx === 0 ? 'Raíz consultada' : `${item.sideLabel} · ${item.path}`, idx === 0)}
+              </div>`).join('')}
             </div>
           `).join('')}
-          <div style="margin-top:20px;display:flex;gap:16px;font-size:11px;color:var(--gray-500);flex-wrap:wrap;padding:12px;background:var(--gray-50);border-radius:var(--radius);border:1px solid var(--gray-200);">
-            <span style="display:flex;align-items:center;gap:5px;"><span style="width:8px;height:8px;border-radius:50%;background:var(--green);display:inline-block;"></span>Activo</span>
-            <span style="display:flex;align-items:center;gap:5px;"><span style="width:8px;height:8px;border-radius:50%;background:var(--red);display:inline-block;"></span>Inactivo</span>
-            <span style="display:flex;align-items:center;gap:5px;color:var(--gold);">★ Yield activo</span>
-            <span style="display:flex;align-items:center;gap:5px;color:var(--blue);">◔ Yield registrado</span>
-            <span style="display:flex;align-items:center;gap:5px;">○ Sin yield</span>
-            <span>Vista expandida hasta 10 niveles | Pts pers. = compras/volumen propio | Pts red = puntos acumulados en rangos</span>
-          </div>
+        </div>
+
+        <div style="margin-top:2px;display:flex;gap:16px;font-size:11px;color:var(--gray-500);flex-wrap:wrap;padding:12px;background:var(--gray-50);border-radius:var(--radius);border:1px solid var(--gray-200);">
+          <span style="display:flex;align-items:center;gap:5px;"><span style="width:8px;height:8px;border-radius:50%;background:var(--green);display:inline-block;"></span>Activo</span>
+          <span style="display:flex;align-items:center;gap:5px;"><span style="width:8px;height:8px;border-radius:50%;background:var(--red);display:inline-block;"></span>Inactivo</span>
+          <span style="display:flex;align-items:center;gap:5px;color:var(--gold);">★ Yield activo</span>
+          <span style="display:flex;align-items:center;gap:5px;color:var(--blue);">◔ Yield registrado</span>
+          <span>La ruta I / D muestra cómo está formado el árbol desde la raíz consultada</span>
         </div>
       </div>`;
-
   } catch(e) {
-    wrap.innerHTML = `<div class="empty"><div class="empty-icon">⚠</div><div class="empty-title">Error cargando árbol</div><div class="empty-desc">${e.message.slice(0,100)}</div></div>`;
+    wrap.innerHTML = `<div class="empty"><div class="empty-icon">⚠</div><div class="empty-title">Error cargando árbol</div><div class="empty-desc">${escapeHtml(String(e?.message || e)).slice(0,140)}</div></div>`;
   }
 }
 
