@@ -2109,14 +2109,7 @@ function renderEarnings(ranks, pools, cb, referralData = { amount: 0n, exact: fa
       canClaim: walletAddress && currentUser === walletAddress,
       onClaim: () => claimTopTen(pools.monthIndex)
     },
-    {
-      name: '🤝 Bono de referido ganado',
-      desc: referralData?.exact ? 'Bono ATLASH niveles 1-3 + 10% Yield directo' : 'Lectura parcial del bono ATLASH/Yield',
-      amount: referralAmount,
-      poolInfo: referralData?.exact ? 'Histórico on-chain detectado' : 'Informativo - no reclamable',
-      canClaim: false,
-      onClaim: null
-    }
+    
   ];
 
   const total = rows.reduce((s, r) => s + ((r.canClaim ? r.amount : 0n) || 0n), 0n);
