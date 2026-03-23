@@ -1713,6 +1713,26 @@ const USDT_ABI = [
 
 
 
+async function getDownlineByLevels(rootAddr, maxLevels = 3, perParentLimit = 20) {
+  const levels = [];
+  if (!contracts.core || !rootAddr) return levels;
+  let current = [rootAddr];
+  for (let level = 1; level <= maxLevels; level++) {
+    const next = [];
+    for (const parent of current) {
+      const total = Number(await contracts.core.directCount(parent).catch(() => 0n));
+      const take = Math.min(total, perParentLimit);
+      if (!take) continue;
+      const arr = (await Promise.all(Array.from({ length: take }, (_, i) => contracts.core.directAt(parent, i).catch(() => null)))).filter(Boolean);
+      next.push(...arr);
+    }
+    levels.push(next);
+    current = next;
+    if (!current.length) break;
+  }
+  return levels;
+}
+
 async function detectReferralBonus(addr) {
   if (!provider || !contracts.core) return { amount: 0n, exact: false, method: "unavailable" };
   try {
@@ -1724,27 +1744,29 @@ async function detectReferralBonus(addr) {
     const currentBlock = await provider.getBlockNumber().catch(() => null);
     if (currentBlock == null) return { amount: 0n, exact: false, method: "no-block" };
 
-    const count = Number(await contracts.core.directCount(addr).catch(() => 0n));
-    if (!count) return { amount: 0n, exact: true, method: "no-directs" };
+    const downline = await getDownlineByLevels(addr, 3, 20).catch(() => []);
+    const level1 = (downline[0] || []).filter(Boolean);
+    const level2 = (downline[1] || []).filter(Boolean);
+    const level3 = (downline[2] || []).filter(Boolean);
+    if (!level1.length && !level2.length && !level3.length) {
+      return { amount: 0n, exact: true, method: 'no-downline', desc: 'Sin red para bono de referido' };
+    }
 
-    const limit = Math.min(count, 50);
-    const directs = (await Promise.all(Array.from({ length: limit }, (_, i) => contracts.core.directAt(addr, i).catch(() => null)))).filter(Boolean);
-    if (!directs.length) return { amount: 0n, exact: true, method: "no-directs" };
-
-    const startBlock = Math.max(0, currentBlock - 250000);
-    const directSet = new Set(directs.map(a => String(a).toLowerCase()));
+    const startBlock = Math.max(0, currentBlock - 350000);
     const toUser = ethers.getAddress(addr).toLowerCase();
-    const sourceSet = new Set([ethers.getAddress(addresses.core).toLowerCase(), ethers.getAddress(addresses.yield).toLowerCase()].filter(Boolean));
+    const coreAddr = ethers.getAddress(addresses.core).toLowerCase();
+    const yieldAddr = addresses.yield && !isZero(addresses.yield) ? ethers.getAddress(addresses.yield).toLowerCase() : null;
     const txHashes = new Set();
 
     if (contracts.core?.filters?.Paid) {
-      for (const child of directs) {
+      for (const child of [...level1, ...level2, ...level3]) {
         const logs = await contracts.core.queryFilter(contracts.core.filters.Paid(child), startBlock, currentBlock).catch(() => []);
         for (const log of logs) txHashes.add(log.transactionHash);
       }
     }
-    if (contracts.yield?.filters?.PositionOpened) {
-      for (const child of directs) {
+
+    if (yieldAddr && contracts.yield?.filters?.PositionOpened) {
+      for (const child of level1) {
         const logs = await contracts.yield.queryFilter(contracts.yield.filters.PositionOpened(null, child), startBlock, currentBlock).catch(() => []);
         for (const log of logs) txHashes.add(log.transactionHash);
       }
@@ -1761,7 +1783,8 @@ async function detectReferralBonus(addr) {
           if (!parsed || parsed.name !== 'Transfer') continue;
           const from = String(parsed.args.from || '').toLowerCase();
           const to = String(parsed.args.to || '').toLowerCase();
-          if (sourceSet.has(from) && to === toUser) total += BigInt(parsed.args.value || 0n);
+          if (to !== toUser) continue;
+          if (from === coreAddr || (yieldAddr && from === yieldAddr)) total += BigInt(parsed.args.value || 0n);
         } catch {}
       }
     }
@@ -1769,9 +1792,9 @@ async function detectReferralBonus(addr) {
     return {
       amount: total,
       exact: true,
-      method: 'direct-core-paid-plus-yield-opened',
-      lookbackBlocks: 250000,
-      desc: 'Bono directo ATLASH + bono 10% de Yield de referidos directos'
+      method: 'atlash-l1-l2-l3-plus-yield-l1',
+      lookbackBlocks: 350000,
+      desc: 'ATLASH niveles 1-3 + Yield directo nivel 1'
     };
   } catch {
     return { amount: 0n, exact: false, method: 'error' };
@@ -2088,7 +2111,7 @@ function renderEarnings(ranks, pools, cb, referralData = { amount: 0n, exact: fa
     },
     {
       name: '🤝 Bono de referido ganado',
-      desc: referralData?.exact ? 'Bono directo ATLASH + 10% Yield de referidos directos' : 'Lectura parcial del bono directo/referral',
+      desc: referralData?.exact ? 'Bono ATLASH niveles 1-3 + 10% Yield directo' : 'Lectura parcial del bono ATLASH/Yield',
       amount: referralAmount,
       poolInfo: referralData?.exact ? 'Histórico on-chain detectado' : 'Informativo - no reclamable',
       canClaim: false,
@@ -2304,11 +2327,9 @@ async function renderUnilevelTree(addr, directAddresses) {
       } catch {}
     }
 
-    const root = await getNetworkNodeInfo(addr, coreRead, ranksRead, yieldRead, yieldStatusCache);
-    if (!root) {
-      wrap.innerHTML = '<div class="empty"><div class="empty-icon">○</div><div class="empty-title">Sin datos</div></div>';
-      return;
-    }
+    const root = (await getNetworkNodeInfo(addr, coreRead, ranksRead, yieldRead, yieldStatusCache)) || {
+      addr, pkg: 0, exists: true, isActive: false, totalPts: 0n, personalPts: 0n, hasYield: false, yieldActive: false, yieldLabel: 'Sin yield'
+    };
 
     async function fetchChildren(parents, perParentLimit) {
       const groups = [];
@@ -2323,9 +2344,11 @@ async function renderUnilevelTree(addr, directAddresses) {
       return groups;
     }
 
-    const level1Addrs = directAddresses?.length ? directAddresses.slice(0, 8) : (await fetchChildren([addr], 8))[0]?.children?.map(x => x.addr) || [];
+    const level1Addrs = directAddresses?.length ? directAddresses.slice(0, 12) : ((await fetchChildren([addr], 12))[0]?.children?.map(x => x.addr) || []);
     const level1 = (await Promise.all(level1Addrs.map(a => getNetworkNodeInfo(a, coreRead, ranksRead, yieldRead, yieldStatusCache)))).filter(Boolean);
-    const level2Groups = await fetchChildren(level1.map(x => x.addr), 4);
+    const safeLevel1 = level1Addrs.length ? level1 : [];
+
+    const level2Groups = await fetchChildren((safeLevel1.length ? safeLevel1 : level1).map(x => x.addr), 4);
     const level2Nodes = level2Groups.flatMap(g => g.children);
     const level3Groups = await fetchChildren(level2Nodes.map(x => x.addr), 3);
 
@@ -2363,7 +2386,7 @@ async function renderUnilevelTree(addr, directAddresses) {
               </div>`).join('') : '<div class="empty"><div class="empty-icon">○</div><div class="empty-title">Sin nivel 3</div></div>'}
           </div>
 
-          <div style="font-size:11px;color:var(--gray-400);font-family:var(--mono);text-align:center;">Vista unilevel hasta 3 niveles | Pts pers. = volumen personal | Pts red = puntos acumulados en rangos</div>
+          <div style="font-size:11px;color:var(--gray-400);font-family:var(--mono);text-align:center;">Vista unilevel hasta 3 niveles | Pts pers. = volumen personal | Pts red = puntos acumulados en rangos | Yield solo refleja posiciones detectadas</div>
         </div>
       </div>`;
   } catch (e) {
