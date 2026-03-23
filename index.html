@@ -772,7 +772,7 @@ body {
     </div>
 
     <div class="setup-h1">Configuración</div>
-    <div class="setup-sub">Solo necesitas la dirección del <strong>Core Contract</strong>. Los demás módulos son opcionales.</div>
+    <div class="setup-sub">Solo necesitas la dirección del <strong>Core Contract</strong>. Los demás módulos son opcionales. La configuración de <strong>BSC Testnet</strong> queda precargada para arrancar rápido.</div>
 
     <!-- Network selector -->
     <div class="form-section">Red blockchain</div>
@@ -2081,7 +2081,7 @@ function renderEarnings(ranks, pools, cb, referralData = { amount: 0n, exact: fa
         </div>
         ${r.canClaim ? `<button class="btn-claim" ${r.amount === 0n ? 'disabled' : ''} onclick="(${r.onClaim.toString()})()">
           ${r.amount === 0n ? 'Sin saldo' : 'Reclamar'}
-        </button>` : '<span style="font-size:11px;color:var(--text-muted);font-family:'DM Mono',monospace;">Informativo</span>'}
+        </button>` : '<span style="font-size:11px;color:var(--text-muted);font-family:&quot;DM Mono&quot;,monospace;">Informativo</span>'}
       </div>
     `).join('')}
   `;
