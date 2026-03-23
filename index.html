@@ -1702,8 +1702,47 @@ function showWalletHelp() {
 const USDT_ABI = [
   "function approve(address spender, uint256 amount) returns (bool)",
   "function allowance(address owner, address spender) view returns (uint256)",
-  "function balanceOf(address) view returns (uint256)"
+  "function balanceOf(address) view returns (uint256)",
+  "event Transfer(address indexed from, address indexed to, uint256 value)"
 ];
+
+
+
+async function detectReferralBonus(addr) {
+  if (!provider || !contracts.core) return { amount: 0n, exact: false };
+  try {
+    const usdtAddr = await contracts.core.usdt().catch(() => null);
+    if (!usdtAddr || isZero(usdtAddr)) return { amount: 0n, exact: false };
+    const token = new ethers.Contract(usdtAddr, USDT_ABI, provider);
+    const currentBlock = await provider.getBlockNumber().catch(() => null);
+    if (currentBlock == null) return { amount: 0n, exact: false };
+
+    const fromContracts = [addresses.core, addresses.yield]
+      .filter(Boolean)
+      .map(a => ethers.getAddress(a));
+    const toUser = ethers.getAddress(addr);
+    const chunks = [];
+    const span = 120000;
+    const chunkSize = 4000;
+    const startBlock = Math.max(0, currentBlock - span);
+    for (let fromBlock = startBlock; fromBlock <= currentBlock; fromBlock += chunkSize + 1) {
+      const toBlock = Math.min(currentBlock, fromBlock + chunkSize);
+      chunks.push([fromBlock, toBlock]);
+    }
+
+    let total = 0n;
+    for (const sender of fromContracts) {
+      const filter = token.filters.Transfer(sender, toUser);
+      for (const [fromBlock, toBlock] of chunks) {
+        const logs = await token.queryFilter(filter, fromBlock, toBlock).catch(() => []);
+        for (const log of logs) total += BigInt(log.args?.value || 0n);
+      }
+    }
+    return { amount: total, exact: false, lookbackBlocks: span };
+  } catch {
+    return { amount: 0n, exact: false };
+  }
+}
 
 async function searchUser() {
   const addr = document.getElementById('search-addr').value.trim();
@@ -1757,6 +1796,7 @@ async function loadUserFromCore(addr) {
   let ranksData = {pendingUserUSDT: 0n, poolAvailableUSDT: 0n};
   let poolsData = {leadershipClaimableUSDT:0n, topTenClaimableUSDT:0n, leadershipPoolTotalUSDT:0n, topTenPoolTotalUSDT:0n, monthIndex:0n};
   let cashbackData = {balanceUSDT:0n, nextExpiryAt:0n, nextExpiryAmountUSDT:0n, expiringSoonAmountUSDT:0n};
+  let referralData = {amount:0n, exact:false};
 
   if (contracts.ranks) {
     try {
@@ -1792,6 +1832,8 @@ async function loadUserFromCore(addr) {
     } catch {}
   }
 
+  try { referralData = await detectReferralBonus(addr); } catch {}
+
   const pkg = highestPackage > 0 ? await contracts.core.packages(highestPackage).catch(()=>null) : null;
   const now = Math.floor(Date.now()/1000);
   const isActive = validUntil > 0n && Number(validUntil) >= now;
@@ -1800,7 +1842,7 @@ async function loadUserFromCore(addr) {
   renderUserCard({addr, exists, frozen, upline, highestPackage, validUntil, monthlyIncludedUntil, isActive, inactiveSecs, directs});
   renderStatsFromCore({highestPackage, validUntil, isActive, frozen}, cashbackData, directs, upline);
   renderMembership(validUntil, monthlyIncludedUntil, isActive, frozen);
-  renderEarnings(ranksData, poolsData, cashbackData);
+  renderEarnings(ranksData, poolsData, cashbackData, referralData);
   renderCashback(cashbackData, null);
   renderPools(poolsData);
 
@@ -1982,8 +2024,9 @@ function renderPools(pools) {
   `;
 }
 
-function renderEarnings(ranks, pools, cb) {
+function renderEarnings(ranks, pools, cb, referralData = { amount: 0n, exact: false }) {
   const el = document.getElementById('earnings-list');
+  const referralAmount = BigInt(referralData?.amount || 0n);
   const rows = [
     {
       name: '🏆 Bonos de Rango',
@@ -2008,10 +2051,18 @@ function renderEarnings(ranks, pools, cb) {
       poolInfo: 'Total pool: ' + fmt18(pools.topTenPoolTotalUSDT || 0n) + ' USDT',
       canClaim: walletAddress && currentUser === walletAddress,
       onClaim: () => claimTopTen(pools.monthIndex)
+    },
+    {
+      name: '🤝 Bono de referido ganado',
+      desc: referralData?.exact ? 'Historico on-chain acumulado' : 'Transferencias detectadas desde Core/Yield (ventana reciente)',
+      amount: referralAmount,
+      poolInfo: referralData?.exact ? 'Acumulado total' : 'Informativo - no reclamable',
+      canClaim: false,
+      onClaim: null
     }
   ];
 
-  const total = rows.reduce((s, r) => s + (r.amount||0n), 0n);
+  const total = rows.reduce((s, r) => s + ((r.canClaim ? r.amount : 0n) || 0n), 0n);
 
   el.innerHTML = `
     <div class="claim-hero">
@@ -2030,7 +2081,7 @@ function renderEarnings(ranks, pools, cb) {
         </div>
         ${r.canClaim ? `<button class="btn-claim" ${r.amount === 0n ? 'disabled' : ''} onclick="(${r.onClaim.toString()})()">
           ${r.amount === 0n ? 'Sin saldo' : 'Reclamar'}
-        </button>` : '<span style="font-size:11px;color:var(--text-muted);font-family:\'DM Mono\',monospace;">Solo lectura</span>'}
+        </button>` : '<span style="font-size:11px;color:var(--text-muted);font-family:'DM Mono',monospace;">Informativo</span>'}
       </div>
     `).join('')}
   `;
@@ -2208,7 +2259,7 @@ async function renderUnilevelTree(addr, directAddresses) {
     const level1Infos = await Promise.all(level1.map(a => getNetworkNodeInfo(a, coreRead, ranksRead, yieldRead, yieldStatusCache)));
     const level2Groups = [];
     for (const parent of level1) {
-      const n = await coreRead.directsCount(parent).catch(() => 0n);
+      const n = await coreRead.directCount(parent).catch(() => 0n);
       const cnt = Math.min(Number(n || 0n), 3);
       const childs = await Promise.all(Array.from({length: cnt}, (_, i) => coreRead.directAt(parent, i).catch(() => null)));
       const valid = childs.filter(Boolean);
@@ -3880,6 +3931,7 @@ async function loadBinaryTree(addr) {
     const ranksRead = contracts.ranks ? new ethers.Contract(addresses.ranks, RANKS_EXTENDED_ABI, provider) : null;
     const yieldRead = contracts.yield ? new ethers.Contract(addresses.yield, YIELD_ABI, provider) : null;
     const yieldStatusCache = new Map();
+    const nodeCache = new Map();
 
     async function buildYieldStatusCache() {
       if (!yieldRead) return;
@@ -3887,10 +3939,8 @@ async function loadBinaryTree(addr) {
         const nextId = await yieldRead.nextPositionId().catch(() => 1n);
         const total = Math.max(0, Number(nextId) - 1);
         if (!total) return;
-
-        const scanCount = total <= 300 ? total : 300;
+        const scanCount = total <= 400 ? total : 400;
         const startId = Math.max(1, total - scanCount + 1);
-
         for (let id = startId; id <= total; id++) {
           try {
             const p = await yieldRead.positions(id);
@@ -3914,6 +3964,9 @@ async function loadBinaryTree(addr) {
 
     async function getNodeInfo(nodeAddr) {
       if (!nodeAddr || nodeAddr === ethers.ZeroAddress) return null;
+      const key = String(nodeAddr).toLowerCase();
+      if (nodeCache.has(key)) return nodeCache.get(key);
+      let node = null;
       try {
         const [userData, lChild, rChild, lBV, rBV, totalPts, personalPts] = await Promise.all([
           contracts.core.users(nodeAddr).catch(() => null),
@@ -3924,67 +3977,39 @@ async function loadBinaryTree(addr) {
           ranksRead ? ranksRead.totalPoints(nodeAddr).catch(() => 0n) : Promise.resolve(0n),
           ranksRead ? ranksRead.personalVolume(nodeAddr).catch(() => 0n) : Promise.resolve(0n),
         ]);
-
-        const yieldMeta = yieldStatusCache.get(String(nodeAddr).toLowerCase()) || { hasAny: false, active: false, positions: 0, principal: 0n };
-        const yieldLabel = yieldMeta.active ? 'Yield activo' : (yieldMeta.hasAny ? 'Yield registrado' : 'Sin yield');
-
-        return {
+        const yieldMeta = yieldStatusCache.get(key) || { hasAny: false, active: false, positions: 0, principal: 0n };
+        node = {
           addr: nodeAddr,
           pkg: userData ? Number(userData[3]) : 0,
           isActive: userData ? (Number(userData[4]) > Math.floor(Date.now()/1000)) : false,
           lChild: lChild === ethers.ZeroAddress ? null : lChild,
           rChild: rChild === ethers.ZeroAddress ? null : rChild,
-          lBV,
-          rBV,
-          totalPts,
-          personalPts,
+          lBV, rBV, totalPts, personalPts,
           hasYield: yieldMeta.hasAny,
           yieldActive: yieldMeta.active,
-          yieldLabel,
-          yieldPositions: yieldMeta.positions,
-          yieldPrincipal: yieldMeta.principal,
+          yieldLabel: yieldMeta.active ? 'Yield activo' : (yieldMeta.hasAny ? 'Yield registrado' : 'Sin yield')
         };
-      } catch { return null; }
+      } catch {}
+      nodeCache.set(key, node);
+      return node;
     }
 
-    const root = await getNodeInfo(addr);
-    if (!root) { wrap.innerHTML = '<div class="empty"><div class="empty-icon">○</div><div class="empty-title">Sin datos de árbol</div></div>'; return; }
-
-    const [lNode, rNode] = await Promise.all([
-      root.lChild ? getNodeInfo(root.lChild) : Promise.resolve(null),
-      root.rChild ? getNodeInfo(root.rChild) : Promise.resolve(null),
-    ]);
-
-    const [llNode, lrNode, rlNode, rrNode] = await Promise.all([
-      lNode?.lChild ? getNodeInfo(lNode.lChild) : Promise.resolve(null),
-      lNode?.rChild ? getNodeInfo(lNode.rChild) : Promise.resolve(null),
-      rNode?.lChild ? getNodeInfo(rNode.lChild) : Promise.resolve(null),
-      rNode?.rChild ? getNodeInfo(rNode.rChild) : Promise.resolve(null),
-    ]);
-
     function nodeCard(node, label) {
-      if (!node) return `
-        <div style="border:1.5px dashed var(--gray-200);border-radius:var(--radius-lg);padding:12px;text-align:center;min-width:140px;">
+      if (!node) return `<div style="border:1.5px dashed var(--gray-200);border-radius:var(--radius-lg);padding:12px;text-align:center;min-width:140px;">
           <div style="font-size:11px;color:var(--gray-300);font-family:var(--mono);">Vacío</div>
           <div style="font-size:10px;color:var(--gray-300);margin-top:2px;">${label}</div>
         </div>`;
-
       const color = node.isActive ? 'var(--green)' : 'var(--red)';
       const pkgName = PACKAGE_NAMES[node.pkg] || ('Paquete ' + node.pkg);
       const yieldColor = node.yieldActive ? 'var(--gold)' : (node.hasYield ? 'var(--blue)' : 'var(--gray-300)');
-      const personalRaw = BigInt(node.personalPts || 0n);
-      const totalRaw = BigInt(node.totalPts || 0n);
-      const personalValue = Number(personalRaw / (10n ** 18n));
-      const totalValue = Number(totalRaw);
-      const personalLabel = `Pts pers.: ${personalValue.toLocaleString()}`;
-
-      return `
-        <div style="border:1.5px solid ${color};border-radius:var(--radius-lg);padding:12px;text-align:center;min-width:152px;background:var(--white);position:relative;">
+      const personalValue = Number(BigInt(node.personalPts || 0n) / (10n ** 18n));
+      const totalValue = Number(BigInt(node.totalPts || 0n));
+      return `<div style="border:1.5px solid ${color};border-radius:var(--radius-lg);padding:12px;text-align:center;min-width:152px;background:var(--white);position:relative;">
           <div style="position:absolute;top:6px;right:8px;width:8px;height:8px;border-radius:50%;background:${color};"></div>
           <div style="font-family:var(--mono);font-size:10px;color:var(--gray-500);margin-bottom:4px;">${shortAddr(node.addr)}</div>
           <div style="font-size:11px;font-weight:700;color:var(--gray-800);margin-bottom:2px;">${pkgName}</div>
           <div style="font-size:10px;color:${yieldColor};font-weight:600;margin-bottom:4px;">${node.yieldActive ? '★ ' : (node.hasYield ? '◔ ' : '○ ')}${node.yieldLabel}</div>
-          <div style="font-size:10px;color:var(--gray-500);font-family:var(--mono);">${personalLabel}</div>
+          <div style="font-size:10px;color:var(--gray-500);font-family:var(--mono);">Pts pers.: ${personalValue.toLocaleString()}</div>
           <div style="font-size:9px;color:var(--gray-400);font-family:var(--mono);">Pts red: ${totalValue.toLocaleString()}</div>
           <div style="font-size:9px;color:var(--gray-300);margin-top:3px;">BV Izq: ${fmt18(node.lBV)}</div>
           <div style="font-size:9px;color:var(--gray-300);">BV Der: ${fmt18(node.rBV)}</div>
@@ -3992,40 +4017,50 @@ async function loadBinaryTree(addr) {
         </div>`;
     }
 
+    const maxLevels = 10;
+    let current = [addr];
+    const levels = [];
+    for (let level = 1; level <= maxLevels && current.some(Boolean); level++) {
+      const infos = await Promise.all(current.map(a => getNodeInfo(a)));
+      levels.push(infos);
+      const next = [];
+      for (const node of infos) {
+        if (node) {
+          next.push(node.lChild || null);
+          next.push(node.rChild || null);
+        } else {
+          next.push(null, null);
+        }
+      }
+      current = next;
+      if (infos.every(n => !n || (!n.lChild && !n.rChild))) break;
+    }
+
+    const root = levels[0]?.[0];
+    if (!root) {
+      wrap.innerHTML = '<div class="empty"><div class="empty-icon">○</div><div class="empty-title">Sin datos de árbol</div></div>';
+      return;
+    }
+
     wrap.innerHTML = `
       <div style="overflow-x:auto;padding-bottom:16px;">
-        <div style="min-width:600px;">
-          <div style="display:flex;justify-content:center;margin-bottom:16px;">
-            ${nodeCard(root, 'Raíz')}
-          </div>
-          <div style="display:flex;justify-content:center;gap:200px;margin-bottom:4px;">
-            <div style="width:1px;height:16px;background:var(--gray-300);"></div>
-            <div style="width:1px;height:16px;background:var(--gray-300);"></div>
-          </div>
-          <div style="display:flex;justify-content:center;gap:40px;margin-bottom:16px;">
-            <div style="text-align:center;">
-              <div style="font-size:10px;color:var(--blue);font-weight:700;margin-bottom:4px;font-family:var(--mono);">← IZQUIERDA (${fmt18(root.lBV)} BV)</div>
-              ${nodeCard(lNode, 'Hijo Izq')}
+        <div style="min-width:${Math.max(700, (levels[levels.length - 1]?.length || 1) * 170)}px;">
+          ${levels.map((nodes, idx) => `
+            <div class="sec" style="margin:${idx===0?'0':'14px'} 0 10px 0;"><span class="sec-label">Nivel ${idx + 1}</span><span class="sec-line"></span></div>
+            <div style="display:flex;justify-content:center;gap:12px;flex-wrap:nowrap;overflow-x:auto;padding:4px 0 10px 0;">
+              ${nodes.map((node, nIdx) => {
+                let label = idx === 0 ? 'Raíz' : (nIdx % 2 === 0 ? 'Izquierda' : 'Derecha');
+                return `<div style="text-align:center;">${nodeCard(node, label)}</div>`;
+              }).join('')}
             </div>
-            <div style="text-align:center;">
-              <div style="font-size:10px;color:var(--purple);font-weight:700;margin-bottom:4px;font-family:var(--mono);">DERECHA → (${fmt18(root.rBV)} BV)</div>
-              ${nodeCard(rNode, 'Hijo Der')}
-            </div>
-          </div>
-          <div style="display:flex;justify-content:center;gap:12px;">
-            <div style="text-align:center;">${nodeCard(llNode, 'Izq-Izq')}</div>
-            <div style="text-align:center;">${nodeCard(lrNode, 'Izq-Der')}</div>
-            <div style="width:24px;"></div>
-            <div style="text-align:center;">${nodeCard(rlNode, 'Der-Izq')}</div>
-            <div style="text-align:center;">${nodeCard(rrNode, 'Der-Der')}</div>
-          </div>
+          `).join('')}
           <div style="margin-top:20px;display:flex;gap:16px;font-size:11px;color:var(--gray-500);flex-wrap:wrap;padding:12px;background:var(--gray-50);border-radius:var(--radius);border:1px solid var(--gray-200);">
             <span style="display:flex;align-items:center;gap:5px;"><span style="width:8px;height:8px;border-radius:50%;background:var(--green);display:inline-block;"></span>Activo</span>
             <span style="display:flex;align-items:center;gap:5px;"><span style="width:8px;height:8px;border-radius:50%;background:var(--red);display:inline-block;"></span>Inactivo</span>
             <span style="display:flex;align-items:center;gap:5px;color:var(--gold);">★ Yield activo</span>
             <span style="display:flex;align-items:center;gap:5px;color:var(--blue);">◔ Yield registrado</span>
             <span style="display:flex;align-items:center;gap:5px;">○ Sin yield</span>
-            <span>Pts pers. = compras/volumen propio | Pts red = puntos acumulados en rangos</span>
+            <span>Vista expandida hasta 10 niveles | Pts pers. = compras/volumen propio | Pts red = puntos acumulados en rangos</span>
           </div>
         </div>
       </div>`;
