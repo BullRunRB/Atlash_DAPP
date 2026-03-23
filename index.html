@@ -1297,7 +1297,7 @@ const YIELD_ABI = [
   "function buyFee() view returns (uint256)",
   "function minDailyRateBP() view returns (uint16)",
   "function maxDailyRateBP() view returns (uint16)",
-  "function positions(uint256) view returns (uint256 basePrincipal, uint256 principal, uint256 paidOut, uint256 pendingAccrued, uint256 accruedTotal, uint32 lastDay, uint32 grantedDay, uint32 deadlineDay, uint32 compoundLockUntilDay, bool compound, uint8 voucherStatus)",
+  "function positions(uint256) view returns (address user, uint256 basePrincipal, uint256 principal, uint256 paidOut, uint256 pendingAccrued, uint256 accruedTotal, uint32 lastDay, uint32 grantedDay, uint32 deadlineDay, uint32 compoundLockUntilDay, bool compound, bool completed, uint8 voucherStatus)",
   "function isAllowedPackage(uint256) view returns (bool)",
   "function buyYield(uint256 amount, bool startCompound) returns (uint256 positionId)",
   "function sync(uint256 positionId) returns ()",
@@ -1327,7 +1327,7 @@ let signer = null;
 let walletAddress = null;
 let currentUser = null;
 
-const PACKAGE_NAMES = {1:'Core 1 - Trader', 2:'Core 2 - Builder', 3:'Core 3 - Leader', 4:'Core 4 - Partner'};
+const PACKAGE_NAMES = {1:'Trader', 2:'Network Builder', 3:'Network Leader', 4:'Ecosystem Partner'};
 const LEG_NAMES = {0:'No definida', 1:'Izquierda', 2:'Derecha'};
 
 // ─── UTILS ───
@@ -3713,7 +3713,6 @@ async function loadBinaryTree(addr) {
   wrap.innerHTML = '<div style="color:var(--gray-400);font-size:13px;padding:16px;font-family:var(--mono);">Cargando árbol binario...</div>';
 
   try {
-    // Get binary placement data for this node and 2 levels down
     const BINARY_TREE_ABI = [
       "function parentOf(address) view returns (address)",
       "function leftChildOf(address) view returns (address)",
@@ -3722,40 +3721,56 @@ async function loadBinaryTree(addr) {
       "function rightBV(address) view returns (uint256)",
     ];
     const bin = new ethers.Contract(addresses.binary, BINARY_TREE_ABI, provider);
+    const ranksRead = contracts.ranks ? new ethers.Contract(addresses.ranks, RANKS_EXTENDED_ABI, provider) : null;
+    const yieldRead = contracts.yield ? new ethers.Contract(addresses.yield, YIELD_ABI, provider) : null;
+    const yieldStatusCache = new Map();
 
-    // Load node info helper
+    async function buildYieldStatusCache() {
+      if (!yieldRead) return;
+      try {
+        const nextId = await yieldRead.nextPositionId().catch(() => 1n);
+        const total = Math.max(0, Number(nextId) - 1);
+        if (!total) return;
+
+        const scanCount = total <= 300 ? total : 300;
+        const startId = Math.max(1, total - scanCount + 1);
+
+        for (let id = startId; id <= total; id++) {
+          try {
+            const p = await yieldRead.positions(id);
+            const user = String(p.user || '').toLowerCase();
+            if (!user) continue;
+            const completed = !!p.completed;
+            const voucherStatus = Number(p.voucherStatus || 0);
+            const isYieldOpen = !completed && (voucherStatus === 0 || voucherStatus === 1 || voucherStatus === 2);
+            const current = yieldStatusCache.get(user) || { hasAny: false, active: false, positions: 0, principal: 0n };
+            current.hasAny = true;
+            current.positions += 1;
+            current.principal += BigInt(p.principal || 0n);
+            if (isYieldOpen) current.active = true;
+            yieldStatusCache.set(user, current);
+          } catch {}
+        }
+      } catch {}
+    }
+
+    await buildYieldStatusCache();
+
     async function getNodeInfo(nodeAddr) {
       if (!nodeAddr || nodeAddr === ethers.ZeroAddress) return null;
       try {
-        const [userData, lChild, rChild, lBV, rBV] = await Promise.all([
+        const [userData, lChild, rChild, lBV, rBV, totalPts, personalPts] = await Promise.all([
           contracts.core.users(nodeAddr).catch(() => null),
           bin.leftChildOf(nodeAddr).catch(() => ethers.ZeroAddress),
           bin.rightChildOf(nodeAddr).catch(() => ethers.ZeroAddress),
           bin.leftBV(nodeAddr).catch(() => 0n),
           bin.rightBV(nodeAddr).catch(() => 0n),
+          ranksRead ? ranksRead.totalPoints(nodeAddr).catch(() => 0n) : Promise.resolve(0n),
+          ranksRead ? ranksRead.personalVolume(nodeAddr).catch(() => 0n) : Promise.resolve(0n),
         ]);
 
-        // Check yield: query YieldModule for PositionOpened events from this address
-        let hasYield = false;
-        let yieldPts = 0n;
-        // Get points from RanksModule (shows yield contribution)
-        if (contracts.ranks) {
-          try {
-            const ranksExt2 = new ethers.Contract(addresses.ranks, RANKS_EXTENDED_ABI, provider);
-            yieldPts = await ranksExt2.totalPoints(nodeAddr).catch(() => 0n);
-          } catch {}
-        }
-        // Check actual yield positions from YieldModule events
-        if (contracts.yield) {
-          try {
-            const yFilter = contracts.yield.filters.PositionOpened(null, nodeAddr);
-            const yEvents = await contracts.yield.queryFilter(yFilter, 0, 'latest').catch(() => []);
-            hasYield = yEvents.length > 0;
-          } catch {
-            // Fallback: if events unavailable, use points as proxy
-            hasYield = yieldPts > 0n;
-          }
-        }
+        const yieldMeta = yieldStatusCache.get(String(nodeAddr).toLowerCase()) || { hasAny: false, active: false, positions: 0, principal: 0n };
+        const yieldLabel = yieldMeta.active ? 'Yield activo' : (yieldMeta.hasAny ? 'Yield registrado' : 'Sin yield');
 
         return {
           addr: nodeAddr,
@@ -3763,22 +3778,27 @@ async function loadBinaryTree(addr) {
           isActive: userData ? (Number(userData[4]) > Math.floor(Date.now()/1000)) : false,
           lChild: lChild === ethers.ZeroAddress ? null : lChild,
           rChild: rChild === ethers.ZeroAddress ? null : rChild,
-          lBV, rBV, hasYield, yieldPts
+          lBV,
+          rBV,
+          totalPts,
+          personalPts,
+          hasYield: yieldMeta.hasAny,
+          yieldActive: yieldMeta.active,
+          yieldLabel,
+          yieldPositions: yieldMeta.positions,
+          yieldPrincipal: yieldMeta.principal,
         };
       } catch { return null; }
     }
 
-    // Build 3-level tree (root + 2 levels)
     const root = await getNodeInfo(addr);
     if (!root) { wrap.innerHTML = '<div class="empty"><div class="empty-icon">○</div><div class="empty-title">Sin datos de árbol</div></div>'; return; }
 
-    // Level 1 children
     const [lNode, rNode] = await Promise.all([
       root.lChild ? getNodeInfo(root.lChild) : Promise.resolve(null),
       root.rChild ? getNodeInfo(root.rChild) : Promise.resolve(null),
     ]);
 
-    // Level 2 children
     const [llNode, lrNode, rlNode, rrNode] = await Promise.all([
       lNode?.lChild ? getNodeInfo(lNode.lChild) : Promise.resolve(null),
       lNode?.rChild ? getNodeInfo(lNode.rChild) : Promise.resolve(null),
@@ -3794,36 +3814,36 @@ async function loadBinaryTree(addr) {
         </div>`;
 
       const color = node.isActive ? 'var(--green)' : 'var(--red)';
-      const pkgName = ['—','Core 1','Core 2','Core 3','Core 4'][node.pkg] || 'Pkg '+node.pkg;
-      const yieldColor = node.hasYield ? 'var(--gold)' : 'var(--gray-300)';
+      const pkgName = PACKAGE_NAMES[node.pkg] || ('Paquete ' + node.pkg);
+      const yieldColor = node.yieldActive ? 'var(--gold)' : (node.hasYield ? 'var(--blue)' : 'var(--gray-300)');
+      const personalValue = Number(node.personalPts || 0n);
+      const totalValue = Number(node.totalPts || 0n);
+      const personalLabel = personalValue > 0 ? `Pts pers.: ${personalValue.toLocaleString()}` : `Pts red: ${totalValue.toLocaleString()}`;
 
       return `
-        <div style="border:1.5px solid ${color};border-radius:var(--radius-lg);padding:12px;text-align:center;min-width:140px;background:var(--white);position:relative;">
+        <div style="border:1.5px solid ${color};border-radius:var(--radius-lg);padding:12px;text-align:center;min-width:152px;background:var(--white);position:relative;">
           <div style="position:absolute;top:6px;right:8px;width:8px;height:8px;border-radius:50%;background:${color};"></div>
           <div style="font-family:var(--mono);font-size:10px;color:var(--gray-500);margin-bottom:4px;">${shortAddr(node.addr)}</div>
           <div style="font-size:11px;font-weight:700;color:var(--gray-800);margin-bottom:2px;">${pkgName}</div>
-          <div style="font-size:10px;color:${yieldColor};font-weight:600;margin-bottom:4px;">${node.hasYield ? '★ Yield activo' : '○ Sin yield'}</div>
-          <div style="font-size:10px;color:var(--gray-400);font-family:var(--mono);">Pts: ${Number(node.yieldPts).toLocaleString()}</div>
+          <div style="font-size:10px;color:${yieldColor};font-weight:600;margin-bottom:4px;">${node.yieldActive ? '★ ' : (node.hasYield ? '◔ ' : '○ ')}${node.yieldLabel}</div>
+          <div style="font-size:10px;color:var(--gray-500);font-family:var(--mono);">${personalLabel}</div>
+          <div style="font-size:9px;color:var(--gray-400);font-family:var(--mono);">Pts red: ${totalValue.toLocaleString()}</div>
           <div style="font-size:9px;color:var(--gray-300);margin-top:3px;">BV Izq: ${fmt18(node.lBV)}</div>
           <div style="font-size:9px;color:var(--gray-300);">BV Der: ${fmt18(node.rBV)}</div>
           <div style="font-size:9px;color:var(--gray-400);margin-top:3px;">${label}</div>
         </div>`;
     }
 
-    // Render tree
     wrap.innerHTML = `
       <div style="overflow-x:auto;padding-bottom:16px;">
         <div style="min-width:600px;">
-          <!-- ROOT -->
           <div style="display:flex;justify-content:center;margin-bottom:16px;">
             ${nodeCard(root, 'Raíz')}
           </div>
-          <!-- Level 1 connector -->
           <div style="display:flex;justify-content:center;gap:200px;margin-bottom:4px;">
             <div style="width:1px;height:16px;background:var(--gray-300);"></div>
             <div style="width:1px;height:16px;background:var(--gray-300);"></div>
           </div>
-          <!-- Level 1 -->
           <div style="display:flex;justify-content:center;gap:40px;margin-bottom:16px;">
             <div style="text-align:center;">
               <div style="font-size:10px;color:var(--blue);font-weight:700;margin-bottom:4px;font-family:var(--mono);">← IZQUIERDA (${fmt18(root.lBV)} BV)</div>
@@ -3834,7 +3854,6 @@ async function loadBinaryTree(addr) {
               ${nodeCard(rNode, 'Hijo Der')}
             </div>
           </div>
-          <!-- Level 2 -->
           <div style="display:flex;justify-content:center;gap:12px;">
             <div style="text-align:center;">${nodeCard(llNode, 'Izq-Izq')}</div>
             <div style="text-align:center;">${nodeCard(lrNode, 'Izq-Der')}</div>
@@ -3842,13 +3861,13 @@ async function loadBinaryTree(addr) {
             <div style="text-align:center;">${nodeCard(rlNode, 'Der-Izq')}</div>
             <div style="text-align:center;">${nodeCard(rrNode, 'Der-Der')}</div>
           </div>
-          <!-- Legend -->
           <div style="margin-top:20px;display:flex;gap:16px;font-size:11px;color:var(--gray-500);flex-wrap:wrap;padding:12px;background:var(--gray-50);border-radius:var(--radius);border:1px solid var(--gray-200);">
             <span style="display:flex;align-items:center;gap:5px;"><span style="width:8px;height:8px;border-radius:50%;background:var(--green);display:inline-block;"></span>Activo</span>
             <span style="display:flex;align-items:center;gap:5px;"><span style="width:8px;height:8px;border-radius:50%;background:var(--red);display:inline-block;"></span>Inactivo</span>
-            <span style="display:flex;align-items:center;gap:5px;color:var(--gold);">★ Con posición Yield</span>
-            <span style="display:flex;align-items:center;gap:5px;">○ Sin posición Yield</span>
-            <span>Pts = Puntos acumulados en módulo de rangos</span>
+            <span style="display:flex;align-items:center;gap:5px;color:var(--gold);">★ Yield activo</span>
+            <span style="display:flex;align-items:center;gap:5px;color:var(--blue);">◔ Yield registrado</span>
+            <span style="display:flex;align-items:center;gap:5px;">○ Sin yield</span>
+            <span>Pts pers. = compras/volumen propio | Pts red = puntos acumulados en rangos</span>
           </div>
         </div>
       </div>`;
