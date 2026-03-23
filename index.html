@@ -949,7 +949,7 @@ body {
         <div class="kpi"><div class="kpi-label">Rango actual</div><div class="kpi-value c-gold" id="rank-current">—</div><div class="kpi-sub" id="rank-next-label">Busca un usuario</div></div>
         <div class="kpi"><div class="kpi-label">Puntos totales</div><div class="kpi-value" id="rank-personal-pts">—</div><div class="kpi-sub">Acumulados</div></div>
         <div class="kpi"><div class="kpi-label">Volumen personal</div><div class="kpi-value c-blue" id="rank-personal-vol">—</div><div class="kpi-sub">USDT calificado</div></div>
-        <div class="kpi"><div class="kpi-label">Pendiente de cobro</div><div class="kpi-value c-green" id="rank-pending-total">—</div><div class="kpi-sub"><button class="btn btn-green" onclick="claimRanks()" style="padding:4px 12px;font-size:11px;margin-top:4px;">Reclamar todo</button></div></div>
+        <div class="kpi"><div class="kpi-label">Pendiente de cobro</div><div class="kpi-value c-green" id="rank-pending-total">—</div><div class="kpi-sub" style="display:flex;gap:6px;flex-wrap:wrap;justify-content:center;"><button class="btn btn-outline" onclick="evaluateRank()" style="padding:4px 12px;font-size:11px;margin-top:4px;">Actualizar rango</button><button class="btn btn-green" onclick="claimRanks()" style="padding:4px 12px;font-size:11px;margin-top:4px;">Cobrar premios</button></div></div>
       </div>
       <div class="sec"><span class="sec-label">Progresión de rangos</span><span class="sec-line"></span></div>
       <div id="ranks-progression">
@@ -1195,8 +1195,8 @@ const TESTNET_ADDRESSES = {
   roleResolver:'0x926f16Af1Bdd93ea920974F377c124Ae7f1103ED',
   admin:'0x08D82794243047b24D2db05F0413D2745F09857d',
   registry:'0x282F5123a912e058774088262f83B3D7f10ffD07',
-  mktRegistry:'', mktCatalog:'', mktCheckout:'',
-  mktTreasury:'', mktAccess:'', mktViews:''
+  mktRegistry:'0xad0f0E93F2f09F187A83c64edcA25d8268f2BAB8', mktCatalog:'0x1c6427ECF3ad5CF8BBdB7d1E25738B24A0Ee70CD', mktCheckout:'0x13C497E0f4F9eb8C8E55B90651625d5B8Eda4CE6',
+  mktTreasury:'0xc707cF2B889618102e55e3539f185A1F34c6D203', mktAccess:'0xC0BEe0E9FC0274C5956F4Ec88846eAEAE1AeE66E', mktViews:'0x42DC248E95af5bf3E91026bE3AfE4b87dE2032f4'
 };
 
 
@@ -1239,7 +1239,18 @@ const CORE_ABI = [
   "function brokerWallet() view returns (address)",
   "function academyWallet() view returns (address)",
   "function feeWallet() view returns (address)",
-  "function roleResolver() view returns (address)"
+  "function roleResolver() view returns (address)",
+  "function claimRank() returns (uint8)",
+  "function claimRankReward(uint8 rank) returns (uint256)",
+  "function claimLeadership(uint256 monthIndex) returns (uint256)",
+  "function claimTopTen(uint256 monthIndex) returns (uint256)",
+  "function claimAll(uint256 monthIndex) returns (uint256 leadershipAmt, uint256 topTenAmt, uint256 ranksAmt)",
+  "error UserMissing()",
+  "error Frozen()",
+  "error NothingToClaim()",
+  "error NotEligible()",
+  "error InsufficientPool()",
+  "error Paused()"
 ];
 
 const LENS_ABI = [
@@ -2268,72 +2279,144 @@ async function ensureSigner() {
   return true;
 }
 
-async function claimRanks() {
-  if (!await ensureSigner()) return;
-  if (!contracts.ranks) { toast('RanksModule no configurado', 'error'); return; }
+function formatContractError(e) {
   try {
-    const c = contracts.ranks.connect(signer);
-    const tx = await c.claimAllRanks(walletAddress);
-    toast('Transaccion enviada...', 'info');
+    const txTo = String(e?.transaction?.to || e?.info?.transaction?.to || '').toLowerCase();
+    const txData = String(e?.transaction?.data || e?.info?.transaction?.data || '').toLowerCase();
+    const raw = [
+      e?.revert?.name,
+      e?.info?.error?.message,
+      e?.shortMessage,
+      e?.reason,
+      e?.message,
+      e?.data,
+      e?.info?.error?.data
+    ].filter(Boolean).join(' | ');
+
+    if (txTo && addresses?.ranks && txTo === String(addresses.ranks).toLowerCase() && txData.startsWith('0x47d1b616')) {
+      return 'La interfaz sigue intentando cobrar en RanksModule. Usa este index corregido y limpia caché.';
+    }
+    if (raw.includes('NothingToClaim')) return 'No hay saldo para reclamar';
+    if (raw.includes('UserMissing')) return 'El usuario no existe en Core';
+    if (raw.includes('Frozen')) return 'La cuenta esta congelada';
+    if (raw.includes('NotEligible')) return 'El usuario no es elegible para este cobro';
+    if (raw.includes('InsufficientPool')) return 'El pool no tiene fondos suficientes';
+    if (raw.includes('Paused')) return 'El contrato esta pausado';
+    if (raw.includes('OnlyCore')) return 'Esa función solo puede ejecutarla el Core';
+    if (raw.includes('0xdc96dfde')) return 'El contrato rechazó la llamada. Si el destino fue RanksModule, la interfaz aún está usando el flujo viejo.';
+    if (raw.includes('execution reverted')) return 'La transacción fue revertida por el contrato. Revisa si hay saldo pendiente y que la llamada salga por Core.';
+    return raw || 'Transaccion revertida';
+  } catch {
+    return 'Transaccion revertida';
+  }
+}
+
+async function evaluateRank() {
+  if (!await ensureSigner()) return;
+  if (!contracts.core) { toast('Core no configurado', 'error'); return; }
+  if (!walletAddress || !currentUser || walletAddress.toLowerCase() !== currentUser.toLowerCase()) {
+    toast('Conecta y busca tu misma wallet para actualizar tu rango', 'error');
+    return;
+  }
+  try {
+    const c = contracts.core.connect(signer);
+    toast('Actualizando rango desde Core...', 'info');
+    const tx = await c.claimRank();
     await tx.wait();
-    toast('✅ Rangos reclamados exitosamente', 'success');
+    toast('✅ Rango actualizado', 'success');
     await searchUser();
   } catch(e) {
-    toast('Error: ' + (e.reason || e.message || e), 'error');
+    toast('Error: ' + formatContractError(e), 'error');
+  }
+}
+
+async function claimRanks() {
+  if (!await ensureSigner()) return;
+  if (!contracts.core || !contracts.ranks || !addresses.ranks) { toast('Core o RanksModule no configurado', 'error'); return; }
+  if (!walletAddress || !currentUser || walletAddress.toLowerCase() !== currentUser.toLowerCase()) {
+    toast('Conecta y busca tu misma wallet para cobrar premios de rango', 'error');
+    return;
+  }
+
+  try {
+    const ranksRead = new ethers.Contract(addresses.ranks, RANKS_EXTENDED_ABI, provider);
+    const pendingCalls = [];
+    for (let i = 1; i <= 10; i++) pendingCalls.push(ranksRead.pendingRankReward(walletAddress, i).catch(()=>0n));
+    const pendingPerRank = await Promise.all(pendingCalls);
+    const claimableRanks = pendingPerRank
+      .map((amt, idx) => ({ rank: idx + 1, amount: amt }))
+      .filter(x => x.amount > 0n);
+
+    if (!claimableRanks.length) {
+      toast('No hay premios de rango pendientes', 'info');
+      return;
+    }
+
+    const c = contracts.core.connect(signer);
+    for (const item of claimableRanks) {
+      toast(`Reclamando premio de rango ${item.rank}...`, 'info');
+      const tx = await c.claimRankReward(item.rank);
+      await tx.wait();
+    }
+
+    toast('✅ Premios de rango reclamados', 'success');
+    await searchUser();
+  } catch(e) {
+    toast('Error: ' + formatContractError(e), 'error');
   }
 }
 
 async function claimLeadership(monthIndex) {
   if (!await ensureSigner()) return;
-  if (!contracts.pools) { toast('PoolsModule no configurado', 'error'); return; }
+  if (!contracts.core) { toast('Core no configurado', 'error'); return; }
+  if (!walletAddress || !currentUser || walletAddress.toLowerCase() !== currentUser.toLowerCase()) {
+    toast('Conecta y busca tu misma wallet para reclamar', 'error');
+    return;
+  }
   try {
-    const c = contracts.pools.connect(signer);
-    const tx = await c.claimLeadership(monthIndex, walletAddress);
+    const c = contracts.core.connect(signer);
+    const tx = await c.claimLeadership(monthIndex);
     toast('Transaccion enviada...', 'info');
     await tx.wait();
     toast('✅ Pool Liderazgo reclamado', 'success');
     await searchUser();
   } catch(e) {
-    toast('Error: ' + (e.reason || e.message || e), 'error');
+    toast('Error: ' + formatContractError(e), 'error');
   }
 }
 
 async function claimTopTen(monthIndex) {
   if (!await ensureSigner()) return;
-  if (!contracts.pools) { toast('PoolsModule no configurado', 'error'); return; }
+  if (!contracts.core) { toast('Core no configurado', 'error'); return; }
+  if (!walletAddress || !currentUser || walletAddress.toLowerCase() !== currentUser.toLowerCase()) {
+    toast('Conecta y busca tu misma wallet para reclamar', 'error');
+    return;
+  }
   try {
-    const c = contracts.pools.connect(signer);
-    const tx = await c.claimTopTen(monthIndex, walletAddress);
+    const c = contracts.core.connect(signer);
+    const tx = await c.claimTopTen(monthIndex);
     toast('Transaccion enviada...', 'info');
     await tx.wait();
     toast('✅ Pool Top 10 reclamado', 'success');
     await searchUser();
   } catch(e) {
-    toast('Error: ' + (e.reason || e.message || e), 'error');
+    toast('Error: ' + formatContractError(e), 'error');
   }
 }
 
 async function claimAll() {
   if (!await ensureSigner()) return;
+  if (!contracts.core) { toast('Core no configurado', 'error'); return; }
+  if (!walletAddress || !currentUser || walletAddress.toLowerCase() !== currentUser.toLowerCase()) {
+    toast('Conecta y busca tu misma wallet para reclamar todo', 'error');
+    return;
+  }
+
   toast('Iniciando proceso de reclamo total...', 'info');
 
   let didAny = false;
   const errors = [];
-
-  try {
-    if (contracts.ranks) {
-      const pending = await contracts.ranks.pendingTotal(walletAddress).catch(() => 0n);
-      if (pending > 0n) {
-        const c = contracts.ranks.connect(signer);
-        const tx = await c.claimAllRanks(walletAddress);
-        toast('Reclamando ranks...', 'info');
-        await tx.wait();
-        didAny = true;
-      }
-    }
-  } catch (e) {
-    errors.push('Ranks: ' + (e.reason || e.message || e));
-  }
+  const coreWithSigner = contracts.core.connect(signer);
 
   try {
     if (contracts.pools) {
@@ -2344,23 +2427,40 @@ async function claimAll() {
       ]);
 
       if (leadershipAmt > 0n) {
-        const cp = contracts.pools.connect(signer);
-        const tx = await cp.claimLeadership(monthIndex, walletAddress);
         toast('Reclamando pool de liderazgo...', 'info');
+        const tx = await coreWithSigner.claimLeadership(monthIndex);
         await tx.wait();
         didAny = true;
       }
 
       if (topTenAmt > 0n) {
-        const cp = contracts.pools.connect(signer);
-        const tx = await cp.claimTopTen(monthIndex, walletAddress);
         toast('Reclamando pool Top 10...', 'info');
+        const tx = await coreWithSigner.claimTopTen(monthIndex);
         await tx.wait();
         didAny = true;
       }
     }
   } catch (e) {
-    errors.push('Pools: ' + (e.reason || e.message || e));
+    errors.push('Pools: ' + formatContractError(e));
+  }
+
+  try {
+    if (contracts.ranks && addresses.ranks) {
+      const ranksRead = new ethers.Contract(addresses.ranks, RANKS_EXTENDED_ABI, provider);
+      const pendingCalls = [];
+      for (let i = 1; i <= 10; i++) pendingCalls.push(ranksRead.pendingRankReward(walletAddress, i).catch(()=>0n));
+      const pendingPerRank = await Promise.all(pendingCalls);
+      for (let i = 0; i < pendingPerRank.length; i++) {
+        if (pendingPerRank[i] > 0n) {
+          toast(`Reclamando premio de rango ${i+1}...`, 'info');
+          const tx = await coreWithSigner.claimRankReward(i + 1);
+          await tx.wait();
+          didAny = true;
+        }
+      }
+    }
+  } catch (e) {
+    errors.push('Rangos: ' + formatContractError(e));
   }
 
   if (!didAny) {
@@ -2371,6 +2471,7 @@ async function claimAll() {
 
   if (errors.length) {
     console.warn('claimAll warnings:', errors);
+    toast(errors[0], 'error');
   }
 
   await searchUser();
@@ -3549,17 +3650,21 @@ async function loadRanksTab(addr) {
 
 async function claimSingleRank(rankNum) {
   if (!await ensureSigner()) return;
-  if (!contracts.ranks) { toast('RanksModule no configurado', 'error'); return; }
+  if (!contracts.core) { toast('Core no configurado', 'error'); return; }
+  if (!walletAddress || !currentUser || walletAddress.toLowerCase() !== currentUser.toLowerCase()) {
+    toast('Conecta y busca tu misma wallet para reclamar', 'error');
+    return;
+  }
   try {
-    // claimRank goes through Core
     const coreWithSigner = contracts.core.connect(signer);
-    toast('Reclamando rango ' + rankNum + '...', 'info');
-    const tx = await coreWithSigner.claimRank(walletAddress);
+    toast('Reclamando premio del rango ' + rankNum + '...', 'info');
+    const tx = await coreWithSigner.claimRankReward(rankNum);
     await tx.wait();
-    toast('✅ Rango reclamado', 'success');
+    toast('✅ Premio de rango reclamado', 'success');
     if (currentUser) await loadRanksTab(currentUser);
+    await searchUser();
   } catch(e) {
-    toast('Error: ' + (e.reason || e.message || ''), 'error');
+    toast('Error: ' + formatContractError(e), 'error');
   }
 }
 
@@ -3745,3 +3850,4 @@ async function loadBinaryTree(addr) {
 
 </script>
 </html>
+
