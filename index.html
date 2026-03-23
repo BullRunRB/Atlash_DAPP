@@ -983,7 +983,7 @@ body {
           <div class="kpi"><div class="kpi-label">Pierna Derecha BV</div><div class="kpi-value c-blue" id="right-bv">—</div><div class="kpi-sub">Business Volume</div></div>
         </div>
         <div style="margin-bottom:12px;font-size:13px;color:var(--gray-600);">Pierna: <span id="user-leg" style="font-weight:700;color:var(--gray-800);">—</span></div>
-        <div class="sec"><span class="sec-label">Árbol binario (3 niveles)</span><span class="sec-line"></span></div>
+        <div class="sec"><span class="sec-label">Árbol binario (hasta 10 niveles)</span><span class="sec-line"></span></div>
         <div id="binary-tree-wrap"><div class="empty"><div class="empty-icon">○</div><div class="empty-title">Busca un usuario para ver el árbol</div></div></div>
       </div>
     </div>
@@ -1204,6 +1204,7 @@ let activeNetwork = null;
 
 // ABI fragments
 const CORE_ABI = [
+  "event Paid(address indexed user, uint8 indexed packageId, uint256 totalPaid, uint256 baseAmount, uint256 ts)",
   "function usdt() view returns (address)",
   "function owner() view returns (address)",
   "function guardian() view returns (address)",
@@ -1221,6 +1222,7 @@ const CORE_ABI = [
   "function pendingLeadershipAmount() view returns (uint256)",
   "function pendingTopTenAmount() view returns (uint256)",
   "function totalUsers() view returns (uint256)",
+  "function getUserStatus(address) view returns (uint8 highestPackage, uint256 validUntil, address upline, bool exists, bool frozen)",
   "function users(address) view returns (bool exists, bool frozen, address upline, uint8 highestPackage, uint256 validUntil, uint256 monthlyIncludedUntil)",
   "function packages(uint8) view returns (uint256 price, uint256 brokerFee, uint16 includedMonths, bool enabled, bool exists)",
   "function directCount(address) view returns (uint256)",
@@ -1254,6 +1256,8 @@ const RANKS_ABI = [
   "function availablePool() view returns (uint256)",
   "function rankTargets(uint256) view returns (uint256)",
   "function rankBonuses(uint256) view returns (uint256)",
+  "function totalPoints(address) view returns (uint256)",
+  "function personalVolume(address) view returns (uint256)",
   "function claimRank(address) returns (uint8)",
   "function claimAllRanks(address) returns (uint256)"
 ];
@@ -1282,6 +1286,7 @@ const BINARY_ABI = [
   "function rightBV(address) view returns (uint256)"
 ];
 const YIELD_ABI = [
+  "event PositionOpened(uint256 indexed positionId, address indexed user, uint256 amount, bool compound)",
   "function yieldPoolBalance() view returns (uint256)",
   "function totalActivePrincipal() view returns (uint256)",
   "function nextPositionId() view returns (uint256)",
@@ -1709,38 +1714,67 @@ const USDT_ABI = [
 
 
 async function detectReferralBonus(addr) {
-  if (!provider || !contracts.core) return { amount: 0n, exact: false };
+  if (!provider || !contracts.core) return { amount: 0n, exact: false, method: "unavailable" };
   try {
     const usdtAddr = await contracts.core.usdt().catch(() => null);
-    if (!usdtAddr || isZero(usdtAddr)) return { amount: 0n, exact: false };
-    const token = new ethers.Contract(usdtAddr, USDT_ABI, provider);
-    const currentBlock = await provider.getBlockNumber().catch(() => null);
-    if (currentBlock == null) return { amount: 0n, exact: false };
+    if (!usdtAddr || isZero(usdtAddr)) return { amount: 0n, exact: false, method: "no-usdt" };
 
-    const fromContracts = [addresses.core, addresses.yield]
-      .filter(Boolean)
-      .map(a => ethers.getAddress(a));
-    const toUser = ethers.getAddress(addr);
-    const chunks = [];
-    const span = 120000;
-    const chunkSize = 4000;
-    const startBlock = Math.max(0, currentBlock - span);
-    for (let fromBlock = startBlock; fromBlock <= currentBlock; fromBlock += chunkSize + 1) {
-      const toBlock = Math.min(currentBlock, fromBlock + chunkSize);
-      chunks.push([fromBlock, toBlock]);
+    const token = new ethers.Contract(usdtAddr, USDT_ABI, provider);
+    const tokenIface = token.interface;
+    const currentBlock = await provider.getBlockNumber().catch(() => null);
+    if (currentBlock == null) return { amount: 0n, exact: false, method: "no-block" };
+
+    const count = Number(await contracts.core.directCount(addr).catch(() => 0n));
+    if (!count) return { amount: 0n, exact: true, method: "no-directs" };
+
+    const limit = Math.min(count, 50);
+    const directs = (await Promise.all(Array.from({ length: limit }, (_, i) => contracts.core.directAt(addr, i).catch(() => null)))).filter(Boolean);
+    if (!directs.length) return { amount: 0n, exact: true, method: "no-directs" };
+
+    const startBlock = Math.max(0, currentBlock - 250000);
+    const directSet = new Set(directs.map(a => String(a).toLowerCase()));
+    const toUser = ethers.getAddress(addr).toLowerCase();
+    const sourceSet = new Set([ethers.getAddress(addresses.core).toLowerCase(), ethers.getAddress(addresses.yield).toLowerCase()].filter(Boolean));
+    const txHashes = new Set();
+
+    if (contracts.core?.filters?.Paid) {
+      for (const child of directs) {
+        const logs = await contracts.core.queryFilter(contracts.core.filters.Paid(child), startBlock, currentBlock).catch(() => []);
+        for (const log of logs) txHashes.add(log.transactionHash);
+      }
+    }
+    if (contracts.yield?.filters?.PositionOpened) {
+      for (const child of directs) {
+        const logs = await contracts.yield.queryFilter(contracts.yield.filters.PositionOpened(null, child), startBlock, currentBlock).catch(() => []);
+        for (const log of logs) txHashes.add(log.transactionHash);
+      }
     }
 
     let total = 0n;
-    for (const sender of fromContracts) {
-      const filter = token.filters.Transfer(sender, toUser);
-      for (const [fromBlock, toBlock] of chunks) {
-        const logs = await token.queryFilter(filter, fromBlock, toBlock).catch(() => []);
-        for (const log of logs) total += BigInt(log.args?.value || 0n);
+    for (const txHash of txHashes) {
+      const receipt = await provider.getTransactionReceipt(txHash).catch(() => null);
+      if (!receipt?.logs?.length) continue;
+      for (const lg of receipt.logs) {
+        if (String(lg.address).toLowerCase() !== usdtAddr.toLowerCase()) continue;
+        try {
+          const parsed = tokenIface.parseLog(lg);
+          if (!parsed || parsed.name !== 'Transfer') continue;
+          const from = String(parsed.args.from || '').toLowerCase();
+          const to = String(parsed.args.to || '').toLowerCase();
+          if (sourceSet.has(from) && to === toUser) total += BigInt(parsed.args.value || 0n);
+        } catch {}
       }
     }
-    return { amount: total, exact: false, lookbackBlocks: span };
+
+    return {
+      amount: total,
+      exact: true,
+      method: 'direct-core-paid-plus-yield-opened',
+      lookbackBlocks: 250000,
+      desc: 'Bono directo ATLASH + bono 10% de Yield de referidos directos'
+    };
   } catch {
-    return { amount: 0n, exact: false };
+    return { amount: 0n, exact: false, method: 'error' };
   }
 }
 
@@ -2054,9 +2088,9 @@ function renderEarnings(ranks, pools, cb, referralData = { amount: 0n, exact: fa
     },
     {
       name: '🤝 Bono de referido ganado',
-      desc: referralData?.exact ? 'Historico on-chain acumulado' : 'Transferencias detectadas desde Core/Yield (ventana reciente)',
+      desc: referralData?.exact ? 'Bono directo ATLASH + 10% Yield de referidos directos' : 'Lectura parcial del bono directo/referral',
       amount: referralAmount,
-      poolInfo: referralData?.exact ? 'Acumulado total' : 'Informativo - no reclamable',
+      poolInfo: referralData?.exact ? 'Histórico on-chain detectado' : 'Informativo - no reclamable',
       canClaim: false,
       onClaim: null
     }
@@ -2167,10 +2201,15 @@ function makeTreeNodeCard(node, label, compact = false) {
 async function getNetworkNodeInfo(nodeAddr, coreRead = contracts.core, ranksRead = contracts.ranks, yieldRead = contracts.yield, yieldStatusCache = null) {
   if (!nodeAddr || isZero(nodeAddr) || !coreRead) return null;
   try {
-    const [userData, totalPts, personalPts] = await Promise.all([
-      coreRead.users(nodeAddr).catch(() => null),
-      ranksRead ? ranksRead.totalPoints(nodeAddr).catch(() => 0n) : Promise.resolve(0n),
-      ranksRead ? ranksRead.personalVolume(nodeAddr).catch(() => 0n) : Promise.resolve(0n),
+    let userData = await coreRead.users(nodeAddr).catch(() => null);
+    let status = null;
+    if (!userData && coreRead.getUserStatus) {
+      status = await coreRead.getUserStatus(nodeAddr).catch(() => null);
+    }
+
+    const [totalPts, personalPts] = await Promise.all([
+      ranksRead && typeof ranksRead.totalPoints === 'function' ? ranksRead.totalPoints(nodeAddr).catch(() => 0n) : Promise.resolve(0n),
+      ranksRead && typeof ranksRead.personalVolume === 'function' ? ranksRead.personalVolume(nodeAddr).catch(() => 0n) : Promise.resolve(0n),
     ]);
 
     let yieldMeta = { hasAny: false, active: false, positions: 0, principal: 0n };
@@ -2196,10 +2235,16 @@ async function getNetworkNodeInfo(nodeAddr, coreRead = contracts.core, ranksRead
       } catch {}
     }
 
+    const nowTs = Math.floor(Date.now()/1000);
+    const pkg = userData ? Number(userData[3]) : status ? Number(status[0]) : 0;
+    const validUntil = userData ? Number(userData[4] || 0) : status ? Number(status[1] || 0) : 0;
+    const exists = userData ? !!userData[0] : status ? !!status[3] : true;
+
     return {
       addr: nodeAddr,
-      pkg: userData ? Number(userData[3]) : 0,
-      isActive: userData ? (Number(userData[4]) > Math.floor(Date.now()/1000)) : false,
+      pkg,
+      exists,
+      isActive: validUntil > nowTs,
       totalPts,
       personalPts,
       hasYield: yieldMeta.hasAny,
@@ -2207,7 +2252,17 @@ async function getNetworkNodeInfo(nodeAddr, coreRead = contracts.core, ranksRead
       yieldLabel: yieldMeta.active ? 'Yield activo' : (yieldMeta.hasAny ? 'Yield registrado' : 'Sin yield'),
     };
   } catch {
-    return null;
+    return {
+      addr: nodeAddr,
+      pkg: 0,
+      exists: true,
+      isActive: false,
+      totalPts: 0n,
+      personalPts: 0n,
+      hasYield: false,
+      yieldActive: false,
+      yieldLabel: 'Sin yield'
+    };
   }
 }
 
@@ -2255,44 +2310,60 @@ async function renderUnilevelTree(addr, directAddresses) {
       return;
     }
 
-    const level1 = directAddresses.slice(0, 6);
-    const level1Infos = await Promise.all(level1.map(a => getNetworkNodeInfo(a, coreRead, ranksRead, yieldRead, yieldStatusCache)));
-    const level2Groups = [];
-    for (const parent of level1) {
-      const n = await coreRead.directCount(parent).catch(() => 0n);
-      const cnt = Math.min(Number(n || 0n), 3);
-      const childs = await Promise.all(Array.from({length: cnt}, (_, i) => coreRead.directAt(parent, i).catch(() => null)));
-      const valid = childs.filter(Boolean);
-      const infos = await Promise.all(valid.map(a => getNetworkNodeInfo(a, coreRead, ranksRead, yieldRead, yieldStatusCache)));
-      level2Groups.push({ parent, parentInfo: level1Infos.find(x => x && x.addr.toLowerCase() === parent.toLowerCase()) || null, children: infos.filter(Boolean), extra: Math.max(0, Number(n || 0n) - valid.length) });
+    async function fetchChildren(parents, perParentLimit) {
+      const groups = [];
+      for (const parent of parents) {
+        const cntRaw = await coreRead.directCount(parent).catch(() => 0n);
+        const total = Number(cntRaw || 0n);
+        const cnt = Math.min(total, perParentLimit);
+        const children = (await Promise.all(Array.from({ length: cnt }, (_, i) => coreRead.directAt(parent, i).catch(() => null)))).filter(Boolean);
+        const infos = (await Promise.all(children.map(a => getNetworkNodeInfo(a, coreRead, ranksRead, yieldRead, yieldStatusCache)))).filter(Boolean);
+        groups.push({ parent, total, shown: infos.length, children: infos, extra: Math.max(0, total - infos.length) });
+      }
+      return groups;
     }
+
+    const level1Addrs = directAddresses?.length ? directAddresses.slice(0, 8) : (await fetchChildren([addr], 8))[0]?.children?.map(x => x.addr) || [];
+    const level1 = (await Promise.all(level1Addrs.map(a => getNetworkNodeInfo(a, coreRead, ranksRead, yieldRead, yieldStatusCache)))).filter(Boolean);
+    const level2Groups = await fetchChildren(level1.map(x => x.addr), 4);
+    const level2Nodes = level2Groups.flatMap(g => g.children);
+    const level3Groups = await fetchChildren(level2Nodes.map(x => x.addr), 3);
 
     wrap.innerHTML = `
       <div style="overflow-x:auto;padding-bottom:16px;">
-        <div style="min-width:780px;">
-          <div style="display:flex;justify-content:center;margin-bottom:16px;">
-            ${makeTreeNodeCard(root, 'Raíz')}
+        <div style="min-width:920px;display:flex;flex-direction:column;gap:16px;">
+          <div style="display:flex;justify-content:center;">${makeTreeNodeCard(root, 'Raíz')}</div>
+
+          <div class="sec" style="margin:0;"><span class="sec-label">Nivel 1</span><span class="sec-line"></span></div>
+          <div style="display:flex;justify-content:center;gap:18px;flex-wrap:wrap;align-items:flex-start;">
+            ${level1.length ? level1.map(node => `<div style="display:flex;flex-direction:column;align-items:center;gap:8px;min-width:152px;"><div style="width:1px;height:16px;background:var(--gray-300);"></div>${makeTreeNodeCard(node, 'Nivel 1', true)}</div>`).join('') : '<div class="empty" style="min-width:260px;"><div class="empty-icon">👤</div><div class="empty-title">Sin directos</div></div>'}
           </div>
-          <div style="display:flex;justify-content:center;gap:18px;flex-wrap:wrap;margin-bottom:18px;align-items:flex-start;">
-            ${level1Infos.length ? level1Infos.map((node, i) => `
-              <div style="display:flex;flex-direction:column;align-items:center;gap:8px;min-width:152px;">
-                <div style="width:1px;height:16px;background:var(--gray-300);"></div>
-                ${makeTreeNodeCard(node, 'Nivel 1', true)}
-              </div>`).join('') : '<div class="empty" style="min-width:260px;"><div class="empty-icon">👤</div><div class="empty-title">Sin directos</div></div>'}
-          </div>
-          ${level2Groups.some(g => g.children.length) ? `
-          <div class="sec" style="margin:0 0 10px 0;"><span class="sec-label">Nivel 2</span><span class="sec-line"></span></div>
+
+          <div class="sec" style="margin:0;"><span class="sec-label">Nivel 2</span><span class="sec-line"></span></div>
           <div style="display:flex;gap:16px;align-items:flex-start;overflow-x:auto;padding-bottom:8px;">
-            ${level2Groups.map(g => `
+            ${level2Groups.length ? level2Groups.map(g => `
               <div style="min-width:220px;background:var(--gray-50);border:1px solid var(--gray-200);border-radius:14px;padding:10px;">
-                <div style="font-size:10px;color:var(--gray-400);font-family:var(--mono);margin-bottom:8px;">Bajo ${g.parentInfo ? shortAddr(g.parentInfo.addr) : shortAddr(g.parent)}</div>
+                <div style="font-size:10px;color:var(--gray-400);font-family:var(--mono);margin-bottom:8px;">Bajo ${shortAddr(g.parent)}</div>
                 <div style="display:flex;flex-direction:column;gap:8px;align-items:center;">
-                  ${g.children.map(ch => makeTreeNodeCard(ch, 'Nivel 2', true)).join('') || '<div style="font-size:11px;color:var(--gray-400);">Sin descendientes</div>'}
+                  ${g.children.length ? g.children.map(ch => makeTreeNodeCard(ch, 'Nivel 2', true)).join('') : '<div style="font-size:11px;color:var(--gray-400);">Sin descendientes</div>'}
                   ${g.extra > 0 ? `<div style="font-size:10px;color:var(--gray-400);">+ ${g.extra} más</div>` : ''}
                 </div>
-              </div>`).join('')}
-          </div>` : ''}
-          ${directAddresses.length > 6 ? `<div style="margin-top:12px;font-size:11px;color:var(--gray-400);font-family:var(--mono);text-align:center;">Mostrando 6 directos en árbol de ${directAddresses.length} totales</div>` : ''}
+              </div>`).join('') : '<div class="empty"><div class="empty-icon">○</div><div class="empty-title">Sin nivel 2</div></div>'}
+          </div>
+
+          <div class="sec" style="margin:0;"><span class="sec-label">Nivel 3</span><span class="sec-line"></span></div>
+          <div style="display:flex;gap:16px;align-items:flex-start;overflow-x:auto;padding-bottom:8px;">
+            ${level3Groups.length ? level3Groups.map(g => `
+              <div style="min-width:220px;background:var(--gray-50);border:1px solid var(--gray-200);border-radius:14px;padding:10px;">
+                <div style="font-size:10px;color:var(--gray-400);font-family:var(--mono);margin-bottom:8px;">Bajo ${shortAddr(g.parent)}</div>
+                <div style="display:flex;flex-direction:column;gap:8px;align-items:center;">
+                  ${g.children.length ? g.children.map(ch => makeTreeNodeCard(ch, 'Nivel 3', true)).join('') : '<div style="font-size:11px;color:var(--gray-400);">Sin descendientes</div>'}
+                  ${g.extra > 0 ? `<div style="font-size:10px;color:var(--gray-400);">+ ${g.extra} más</div>` : ''}
+                </div>
+              </div>`).join('') : '<div class="empty"><div class="empty-icon">○</div><div class="empty-title">Sin nivel 3</div></div>'}
+          </div>
+
+          <div style="font-size:11px;color:var(--gray-400);font-family:var(--mono);text-align:center;">Vista unilevel hasta 3 niveles | Pts pers. = volumen personal | Pts red = puntos acumulados en rangos</div>
         </div>
       </div>`;
   } catch (e) {
