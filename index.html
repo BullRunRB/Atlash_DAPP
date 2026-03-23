@@ -1,0 +1,3747 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>ATLASH Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.7.0/ethers.umd.min.js"></script>
+<style>
+/* ─────────────────────────────────────────
+   ATLASH · Clean White · Design System
+───────────────────────────────────────── */
+:root {
+  --white:   #ffffff;
+  --gray-50: #f9fafb;
+  --gray-100:#f3f4f6;
+  --gray-200:#e5e7eb;
+  --gray-300:#d1d5db;
+  --gray-400:#9ca3af;
+  --gray-500:#6b7280;
+  --gray-600:#4b5563;
+  --gray-700:#374151;
+  --gray-800:#1f2937;
+  --gray-900:#111827;
+  --black:   #030712;
+
+  --gold:    #b8860b;
+  --gold-bg: #fffbeb;
+  --gold-border: #fde68a;
+
+  --green:   #16a34a;
+  --green-bg:#f0fdf4;
+  --green-border:#bbf7d0;
+
+  --red:     #dc2626;
+  --red-bg:  #fef2f2;
+  --red-border:#fecaca;
+
+  --blue:    #2563eb;
+  --blue-bg: #eff6ff;
+  --blue-border:#bfdbfe;
+
+  --amber:   #d97706;
+  --amber-bg:#fffbeb;
+  --amber-border:#fde68a;
+
+  --purple:  #7c3aed;
+  --purple-bg:#f5f3ff;
+  --purple-border:#ddd6fe;
+
+  --font:    'Geist', -apple-system, sans-serif;
+  --mono:    'Geist Mono', 'SF Mono', monospace;
+
+  --radius:  8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+
+  --shadow-sm: 0 1px 2px 0 rgba(0,0,0,.05);
+  --shadow:    0 1px 3px 0 rgba(0,0,0,.1), 0 1px 2px -1px rgba(0,0,0,.1);
+  --shadow-md: 0 4px 6px -1px rgba(0,0,0,.1), 0 2px 4px -2px rgba(0,0,0,.1);
+  --shadow-lg: 0 10px 15px -3px rgba(0,0,0,.1), 0 4px 6px -4px rgba(0,0,0,.1);
+}
+
+*,*::before,*::after { margin:0; padding:0; box-sizing:border-box; }
+html { font-size:14px; }
+
+body {
+  background: var(--gray-50);
+  color: var(--gray-900);
+  font-family: var(--font);
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  min-height: 100vh;
+}
+
+/* ── SETUP ── */
+#setup-overlay {
+  position: fixed; inset: 0; z-index: 1000;
+  background: var(--white);
+  display: flex; align-items: center; justify-content: center;
+  padding: 24px;
+  overflow-y: auto;
+  transition: opacity .4s, visibility .4s;
+}
+#setup-overlay.hidden { opacity: 0; visibility: hidden; pointer-events: none; }
+
+.setup-card {
+  width: 100%; max-width: 640px;
+  animation: rise .4s ease both;
+}
+@keyframes rise { from{opacity:0;transform:translateY(16px)} to{opacity:1;transform:translateY(0)} }
+
+.setup-logo {
+  display: flex; align-items: center; gap: 12px;
+  margin-bottom: 40px;
+}
+.setup-logo-mark {
+  width: 40px; height: 40px;
+  background: var(--gray-900);
+  border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+}
+.setup-logo-mark svg { width: 22px; height: 22px; }
+.setup-logo-name {
+  font-size: 20px; font-weight: 700;
+  letter-spacing: -0.5px;
+  color: var(--gray-900);
+}
+.setup-logo-env {
+  font-size: 11px; font-weight: 500;
+  color: var(--gray-400);
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  margin-top: 1px;
+}
+
+.setup-h1 {
+  font-size: 24px; font-weight: 700;
+  letter-spacing: -0.5px;
+  color: var(--gray-900);
+  margin-bottom: 6px;
+}
+.setup-sub {
+  font-size: 14px; color: var(--gray-500);
+  margin-bottom: 32px; line-height: 1.6;
+}
+
+/* Network selector */
+.net-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 28px; }
+.net-opt {
+  border: 1.5px solid var(--gray-200);
+  border-radius: var(--radius-lg);
+  padding: 14px 16px;
+  cursor: pointer;
+  transition: all .15s;
+  background: var(--white);
+  display: flex; align-items: center; gap: 12px;
+  user-select: none;
+}
+.net-opt:hover { border-color: var(--gray-300); background: var(--gray-50); }
+.net-opt.active-main { border-color: var(--gray-900); background: var(--white); }
+.net-opt.active-test { border-color: var(--purple); background: var(--purple-bg); }
+.net-dot {
+  width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+}
+.net-dot-main { background: #22c55e; }
+.net-dot-test { background: var(--purple); }
+.net-label { font-size: 13px; font-weight: 600; color: var(--gray-800); }
+.net-sub { font-size: 11px; color: var(--gray-400); font-family: var(--mono); margin-top: 1px; }
+
+/* Section label */
+.form-section {
+  font-size: 11px; font-weight: 600; letter-spacing: 0.8px;
+  text-transform: uppercase; color: var(--gray-400);
+  margin-bottom: 10px; margin-top: 20px;
+  display: flex; align-items: center; gap: 10px;
+}
+.form-section::after { content: ''; flex: 1; height: 1px; background: var(--gray-100); }
+
+/* Inputs */
+.field { margin-bottom: 10px; }
+.field-label {
+  font-size: 12px; font-weight: 500; color: var(--gray-600);
+  margin-bottom: 5px; display: block;
+}
+.field-label .opt { color: var(--gray-400); font-weight: 400; }
+.addr-inp {
+  width: 100%;
+  border: 1.5px solid var(--gray-200);
+  border-radius: var(--radius);
+  padding: 9px 12px;
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--gray-800);
+  background: var(--white);
+  outline: none;
+  transition: border-color .15s, box-shadow .15s;
+}
+.addr-inp::placeholder { color: var(--gray-300); }
+.addr-inp:focus { border-color: var(--gray-400); box-shadow: 0 0 0 3px rgba(0,0,0,.06); }
+.addr-inp.ok  { border-color: #86efac; background: #f0fdf4; }
+.addr-inp.bad { border-color: #fca5a5; background: #fef2f2; }
+.field-hint { font-size: 11px; color: var(--gray-400); margin-top: 4px; }
+.field-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+/* Autofill button */
+.btn-autofill {
+  width: 100%; padding: 10px;
+  border: 1.5px dashed var(--purple-border);
+  border-radius: var(--radius);
+  background: var(--purple-bg);
+  color: var(--purple);
+  font-family: var(--font);
+  font-size: 13px; font-weight: 600;
+  cursor: pointer;
+  transition: all .15s;
+  margin-bottom: 10px;
+}
+.btn-autofill:hover { background: #ede9fe; border-color: var(--purple); }
+
+/* Primary button */
+.btn-primary {
+  width: 100%; padding: 13px;
+  background: var(--gray-900);
+  border: none; border-radius: var(--radius-lg);
+  color: var(--white);
+  font-family: var(--font); font-size: 14px; font-weight: 600;
+  cursor: pointer; letter-spacing: -0.2px;
+  transition: all .15s;
+  margin-top: 10px;
+}
+.btn-primary:hover { background: var(--gray-800); }
+.btn-primary:active { transform: scale(.99); }
+.btn-primary:disabled { background: var(--gray-300); cursor: not-allowed; }
+
+.setup-err {
+  display: none;
+  margin-top: 10px; padding: 10px 12px;
+  background: var(--red-bg); border: 1px solid var(--red-border);
+  border-radius: var(--radius);
+  font-size: 12px; color: var(--red);
+}
+
+/* ── CALLOUT ── */
+.callout {
+  display: flex; gap: 10px;
+  padding: 12px 14px;
+  border-radius: var(--radius);
+  font-size: 12px; line-height: 1.6;
+  margin-top: 14px; margin-bottom: 0;
+}
+.callout-blue { background: var(--blue-bg); border: 1px solid var(--blue-border); color: #1d4ed8; }
+.callout-amber { background: var(--amber-bg); border: 1px solid var(--amber-border); color: #92400e; }
+
+/* ══════════════════════════════════════
+   APP SHELL
+══════════════════════════════════════ */
+#app { opacity: 0; transition: opacity .4s; min-height: 100vh; display: flex; flex-direction: column; }
+#app.visible { opacity: 1; }
+
+/* ── TOPNAV ── */
+.topnav {
+  height: 56px;
+  background: var(--white);
+  border-bottom: 1px solid var(--gray-200);
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 24px;
+  position: sticky; top: 0; z-index: 100;
+}
+.nav-brand {
+  display: flex; align-items: center; gap: 10px;
+  text-decoration: none;
+}
+.nav-brand-mark {
+  width: 28px; height: 28px;
+  background: var(--gray-900); border-radius: 7px;
+  display: flex; align-items: center; justify-content: center;
+}
+.nav-brand-mark svg { width: 16px; height: 16px; }
+.nav-brand-name { font-size: 15px; font-weight: 700; letter-spacing: -0.3px; color: var(--gray-900); }
+
+.nav-tabs { display: flex; align-items: center; gap: 1px; }
+.nav-tab {
+  padding: 6px 14px; border: none; background: none;
+  font-family: var(--font); font-size: 13px; font-weight: 500;
+  color: var(--gray-500); cursor: pointer; border-radius: 6px;
+  transition: all .15s; white-space: nowrap;
+}
+.nav-tab:hover { color: var(--gray-800); background: var(--gray-100); }
+.nav-tab.active { color: var(--gray-900); background: var(--gray-100); font-weight: 600; }
+
+.nav-right { display: flex; align-items: center; gap: 8px; }
+
+.net-chip {
+  display: flex; align-items: center; gap: 6px;
+  padding: 5px 10px;
+  border: 1px solid var(--gray-200);
+  border-radius: 20px;
+  font-family: var(--mono); font-size: 11px;
+  color: var(--gray-600);
+  background: var(--white);
+}
+.net-chip.mainnet { border-color: #bbf7d0; color: var(--green); background: var(--green-bg); }
+.net-chip.testnet { border-color: var(--purple-border); color: var(--purple); background: var(--purple-bg); }
+.chip-dot { width: 6px; height: 6px; border-radius: 50%; }
+.chip-dot-main { background: #22c55e; }
+.chip-dot-test { background: var(--purple); }
+
+.wallet-btn {
+  display: flex; align-items: center; gap: 8px;
+  padding: 6px 12px;
+  border: 1.5px solid var(--gray-200);
+  border-radius: 20px;
+  background: var(--white);
+  font-family: var(--font); font-size: 12px; font-weight: 500;
+  color: var(--gray-600); cursor: pointer;
+  transition: all .15s;
+}
+.wallet-btn:hover { border-color: var(--gray-300); color: var(--gray-900); }
+.wallet-btn.connected { border-color: var(--gray-900); color: var(--gray-900); background: var(--white); }
+.wallet-avatar {
+  width: 18px; height: 18px; border-radius: 50%;
+  background: linear-gradient(135deg, var(--gray-700), var(--gray-400));
+  flex-shrink: 0;
+}
+
+.btn-cfg {
+  width: 32px; height: 32px;
+  border: 1px solid var(--gray-200); border-radius: var(--radius);
+  background: var(--white); color: var(--gray-400);
+  cursor: pointer; font-size: 14px;
+  display: flex; align-items: center; justify-content: center;
+  transition: all .15s;
+}
+.btn-cfg:hover { border-color: var(--gray-300); color: var(--gray-700); }
+
+/* ── MAIN ── */
+.main { flex: 1; padding: 24px; max-width: 1280px; margin: 0 auto; width: 100%; }
+
+/* ── TAB PANES ── */
+.tab-pane { display: none; animation: rise .25s ease both; }
+.tab-pane.active { display: block; }
+
+/* ── SEARCH ── */
+.search-wrap {
+  position: relative; max-width: 520px; margin-bottom: 24px;
+}
+.search-ico {
+  position: absolute; left: 12px; top: 50%; transform: translateY(-50%);
+  color: var(--gray-400); font-size: 14px; pointer-events: none;
+}
+.search-inp {
+  width: 100%;
+  border: 1.5px solid var(--gray-200);
+  border-radius: var(--radius-lg);
+  padding: 10px 110px 10px 38px;
+  font-family: var(--mono); font-size: 12px;
+  color: var(--gray-800); background: var(--white);
+  outline: none; transition: border-color .15s, box-shadow .15s;
+}
+.search-inp::placeholder { color: var(--gray-300); font-family: var(--font); }
+.search-inp:focus { border-color: var(--gray-400); box-shadow: 0 0 0 3px rgba(0,0,0,.05); }
+.search-go {
+  position: absolute; right: 6px; top: 50%; transform: translateY(-50%);
+  padding: 6px 16px;
+  background: var(--gray-900); border: none; border-radius: var(--radius);
+  color: var(--white); font-family: var(--font); font-size: 12px; font-weight: 600;
+  cursor: pointer; transition: background .15s;
+}
+.search-go:hover { background: var(--gray-700); }
+
+/* ── USER CARD ── */
+.user-card {
+  background: var(--white);
+  border: 1px solid var(--gray-200);
+  border-radius: var(--radius-xl);
+  padding: 20px 24px;
+  display: flex; align-items: center; gap: 18px;
+  margin-bottom: 20px;
+  box-shadow: var(--shadow-sm);
+}
+.user-avatar {
+  width: 48px; height: 48px; border-radius: 12px;
+  background: var(--gray-900);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 16px; font-weight: 700; color: var(--white);
+  flex-shrink: 0;
+}
+.user-addr {
+  font-family: var(--mono); font-size: 13px;
+  color: var(--gray-700); margin-bottom: 6px;
+  display: flex; align-items: center; gap: 6px;
+}
+.user-tags { display: flex; flex-wrap: wrap; gap: 5px; }
+.user-right { margin-left: auto; text-align: right; flex-shrink: 0; }
+.user-right-label { font-size: 11px; color: var(--gray-400); margin-bottom: 2px; }
+.user-right-value { font-size: 15px; font-weight: 700; }
+.user-right-sub { font-size: 11px; color: var(--gray-400); margin-top: 1px; font-family: var(--mono); }
+
+/* ── BADGE ── */
+.badge {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 2px 8px; border-radius: 20px;
+  font-size: 11px; font-weight: 500; border: 1px solid transparent;
+}
+.badge-green  { background: var(--green-bg);  border-color: var(--green-border);  color: var(--green); }
+.badge-red    { background: var(--red-bg);    border-color: var(--red-border);    color: var(--red); }
+.badge-gold   { background: var(--gold-bg);   border-color: var(--gold-border);   color: var(--gold); }
+.badge-blue   { background: var(--blue-bg);   border-color: var(--blue-border);   color: var(--blue); }
+.badge-purple { background: var(--purple-bg); border-color: var(--purple-border); color: var(--purple); }
+.badge-amber  { background: var(--amber-bg);  border-color: var(--amber-border);  color: var(--amber); }
+.badge-gray   { background: var(--gray-100);  border-color: var(--gray-200);      color: var(--gray-600); }
+
+/* ── STAT GRID ── */
+.grid { display: grid; gap: 12px; margin-bottom: 20px; }
+.g4 { grid-template-columns: repeat(4,1fr); }
+.g3 { grid-template-columns: repeat(3,1fr); }
+.g2 { grid-template-columns: repeat(2,1fr); }
+
+/* ── KPI CARD ── */
+.kpi {
+  background: var(--white);
+  border: 1px solid var(--gray-200);
+  border-radius: var(--radius-lg);
+  padding: 18px 20px;
+  box-shadow: var(--shadow-sm);
+}
+.kpi-label {
+  font-size: 11px; font-weight: 500;
+  text-transform: uppercase; letter-spacing: 0.6px;
+  color: var(--gray-400); margin-bottom: 10px;
+}
+.kpi-value {
+  font-size: 24px; font-weight: 700;
+  letter-spacing: -1px; color: var(--gray-900);
+  line-height: 1; margin-bottom: 5px;
+}
+.kpi-value.c-green { color: var(--green); }
+.kpi-value.c-gold  { color: var(--gold); }
+.kpi-value.c-blue  { color: var(--blue); }
+.kpi-value.c-amber { color: var(--amber); }
+.kpi-sub { font-size: 11px; color: var(--gray-400); }
+
+/* ── PANEL ── */
+.panel {
+  background: var(--white);
+  border: 1px solid var(--gray-200);
+  border-radius: var(--radius-xl);
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+  margin-bottom: 16px;
+}
+.panel-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--gray-100);
+}
+.panel-title {
+  font-size: 13px; font-weight: 600; color: var(--gray-800);
+  display: flex; align-items: center; gap: 8px;
+}
+.panel-body { padding: 18px 20px; }
+
+/* ── SECTION HEADING ── */
+.sec { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+.sec-label {
+  font-size: 11px; font-weight: 600; letter-spacing: 0.6px;
+  text-transform: uppercase; color: var(--gray-400);
+}
+.sec-line { flex: 1; height: 1px; background: var(--gray-200); }
+
+/* ── PROGRESS ── */
+.prog { height: 4px; background: var(--gray-100); border-radius: 2px; overflow: hidden; margin-top: 6px; }
+.prog-fill { height: 100%; background: var(--gray-900); border-radius: 2px; transition: width .8s; }
+
+/* ── TABLE ── */
+.tbl { width: 100%; border-collapse: collapse; }
+.tbl th {
+  font-size: 11px; font-weight: 600; letter-spacing: 0.5px;
+  text-transform: uppercase; color: var(--gray-400);
+  padding: 8px 14px; text-align: left;
+  border-bottom: 1px solid var(--gray-200);
+}
+.tbl td {
+  padding: 11px 14px; font-size: 13px;
+  border-bottom: 1px solid var(--gray-100);
+  color: var(--gray-700);
+}
+.tbl tr:last-child td { border-bottom: none; }
+.tbl tbody tr:hover td { background: var(--gray-50); }
+
+/* ── CLAIM ROW ── */
+.claim-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 16px;
+  border: 1px solid var(--gray-200);
+  border-radius: var(--radius-lg);
+  margin-bottom: 8px;
+  background: var(--white);
+  transition: border-color .15s;
+}
+.claim-row:hover { border-color: var(--gray-300); }
+.claim-name { font-size: 13px; font-weight: 600; color: var(--gray-800); margin-bottom: 3px; }
+.claim-amount { font-size: 20px; font-weight: 700; color: var(--green); letter-spacing: -0.5px; font-family: var(--mono); }
+.claim-sub { font-size: 11px; color: var(--gray-400); margin-top: 2px; }
+
+/* Total claim hero */
+.claim-hero {
+  background: var(--gray-900);
+  border-radius: var(--radius-xl);
+  padding: 20px 22px;
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 14px;
+  color: var(--white);
+}
+.claim-hero-label { font-size: 11px; font-weight: 500; color: rgba(255,255,255,.5); text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 4px; }
+.claim-hero-amount { font-size: 28px; font-weight: 700; letter-spacing: -1px; }
+
+/* ── BUTTONS ── */
+.btn {
+  padding: 7px 16px;
+  border-radius: var(--radius);
+  font-family: var(--font); font-size: 12px; font-weight: 600;
+  cursor: pointer; border: 1.5px solid transparent;
+  transition: all .15s; white-space: nowrap;
+}
+.btn-dark   { background: var(--gray-900); color: var(--white); border-color: var(--gray-900); }
+.btn-dark:hover { background: var(--gray-700); border-color: var(--gray-700); }
+.btn-outline { background: var(--white); color: var(--gray-700); border-color: var(--gray-200); }
+.btn-outline:hover { border-color: var(--gray-400); color: var(--gray-900); }
+.btn-green  { background: var(--green-bg); color: var(--green); border-color: var(--green-border); }
+.btn-green:hover { background: #dcfce7; }
+.btn:disabled { opacity: .4; cursor: not-allowed; }
+
+/* ── MEM ROWS ── */
+.mem-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 0; border-bottom: 1px solid var(--gray-100);
+  font-size: 13px;
+}
+.mem-row:last-child { border-bottom: none; }
+.mem-label { color: var(--gray-500); }
+.mem-val { font-weight: 600; color: var(--gray-800); font-family: var(--mono); font-size: 12px; }
+
+/* ── POOL ROW ── */
+.pool-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 0; border-bottom: 1px solid var(--gray-100);
+}
+.pool-row:last-child { border-bottom: none; }
+.pool-name { font-size: 13px; font-weight: 600; color: var(--gray-800); margin-bottom: 2px; display: flex; align-items: center; gap: 6px; }
+.pool-info { font-size: 11px; color: var(--gray-400); }
+.pool-amount { font-size: 18px; font-weight: 700; color: var(--gray-900); font-family: var(--mono); letter-spacing: -0.5px; text-align: right; }
+.pool-sub { font-size: 10px; color: var(--gray-400); text-transform: uppercase; letter-spacing: 0.5px; margin-top: 1px; }
+
+/* ── LEG BOX ── */
+.legs { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.leg-box {
+  background: var(--gray-50); border: 1px solid var(--gray-200);
+  border-radius: var(--radius-lg); padding: 18px; text-align: center;
+}
+.leg-label { font-size: 11px; color: var(--gray-400); text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 8px; }
+.leg-val { font-size: 22px; font-weight: 700; color: var(--blue); font-family: var(--mono); letter-spacing: -1px; }
+
+/* ── PKG CARDS ── */
+.pkg-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 12px; }
+.pkg-card {
+  background: var(--white); border: 1px solid var(--gray-200);
+  border-radius: var(--radius-xl); padding: 18px;
+  transition: border-color .15s, box-shadow .15s;
+  position: relative;
+}
+.pkg-card:hover { border-color: var(--gray-300); box-shadow: var(--shadow); }
+.pkg-card.mine { border-color: var(--gray-900); }
+.pkg-num { position: absolute; top: 14px; right: 16px; font-size: 40px; font-weight: 900; color: var(--gray-100); line-height: 1; letter-spacing: -3px; }
+.pkg-name { font-size: 14px; font-weight: 700; color: var(--gray-900); margin-bottom: 2px; }
+.pkg-role { font-size: 11px; color: var(--gray-400); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px; }
+.pkg-price { font-size: 20px; font-weight: 700; color: var(--gray-900); font-family: var(--mono); letter-spacing: -0.5px; margin-bottom: 12px; }
+.pkg-feat { font-size: 11px; color: var(--gray-500); padding: 3px 0; display: flex; align-items: center; gap: 6px; }
+.pkg-feat::before { content: ''; width: 3px; height: 3px; border-radius: 50%; background: var(--gray-400); flex-shrink: 0; }
+.pkg-mine-label { margin-top: 10px; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.8px; color: var(--gray-900); }
+
+/* ── YIELD ── */
+.pos-card {
+  background: var(--white); border: 1px solid var(--gray-200);
+  border-radius: var(--radius-xl); overflow: hidden;
+  margin-bottom: 12px; box-shadow: var(--shadow-sm);
+}
+.pos-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 18px; background: var(--gray-50);
+  border-bottom: 1px solid var(--gray-100);
+}
+.pos-title { font-size: 13px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+.pos-body { padding: 16px 18px; }
+.pos-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 14px; margin-bottom: 14px; }
+.pos-stat-label { font-size: 10px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px; color: var(--gray-400); margin-bottom: 4px; }
+.pos-stat-val { font-size: 14px; font-weight: 700; color: var(--gray-900); font-family: var(--mono); letter-spacing: -0.5px; }
+
+/* Amount chips */
+.chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 18px; }
+.chip {
+  padding: 5px 12px; border-radius: 20px;
+  border: 1.5px solid var(--gray-200);
+  background: var(--white); color: var(--gray-600);
+  font-family: var(--mono); font-size: 12px; font-weight: 500;
+  cursor: pointer; transition: all .15s;
+}
+.chip:hover { border-color: var(--gray-400); color: var(--gray-900); }
+.chip.sel { background: var(--gray-900); color: var(--white); border-color: var(--gray-900); }
+
+/* Mode cards */
+.modes { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.mode-card {
+  border: 1.5px solid var(--gray-200); border-radius: var(--radius-lg);
+  padding: 14px; cursor: pointer; transition: all .15s; text-align: center;
+  background: var(--white);
+}
+.mode-card:hover { border-color: var(--gray-300); }
+.mode-card.sel-c { border-color: var(--gray-900); background: var(--gray-50); }
+.mode-card.sel-w { border-color: var(--green); background: var(--green-bg); }
+.mode-icon { font-size: 20px; margin-bottom: 5px; }
+.mode-name { font-size: 13px; font-weight: 700; color: var(--gray-800); margin-bottom: 2px; }
+.mode-desc { font-size: 11px; color: var(--gray-400); }
+
+/* Dist box */
+.dist-box {
+  background: var(--gray-50); border: 1px solid var(--gray-200);
+  border-radius: var(--radius); padding: 12px 14px; margin-bottom: 16px;
+}
+.dist-title { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.6px; color: var(--gray-400); margin-bottom: 8px; }
+.dist-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 5px; }
+.dist-item { font-size: 11px; color: var(--gray-500); display: flex; align-items: center; gap: 5px; }
+.dist-dot { width: 4px; height: 4px; border-radius: 50%; background: var(--gray-400); flex-shrink: 0; }
+
+/* ── MARKETPLACE ── */
+.mkt-filters { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 14px; }
+.prod-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 14px; }
+.prod-card {
+  background: var(--white); border: 1px solid var(--gray-200);
+  border-radius: var(--radius-xl); padding: 18px;
+  display: flex; flex-direction: column; gap: 10px;
+  transition: border-color .15s, box-shadow .15s;
+}
+.prod-card:hover { border-color: var(--gray-300); box-shadow: var(--shadow); }
+.prod-type { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.6px; color: var(--gray-400); }
+.prod-name { font-size: 14px; font-weight: 700; color: var(--gray-900); line-height: 1.3; }
+.prod-price { font-size: 20px; font-weight: 700; color: var(--gray-900); font-family: var(--mono); letter-spacing: -0.5px; }
+.prod-footer { margin-top: auto; display: flex; gap: 8px; padding-top: 4px; }
+
+/* Seller sub tabs */
+.sub-tabs { display: flex; gap: 1px; background: var(--gray-100); border-radius: var(--radius); padding: 3px; margin-bottom: 18px; width: fit-content; }
+.sub-tab {
+  padding: 6px 14px; border: none; border-radius: 6px;
+  background: none; font-family: var(--font); font-size: 12px; font-weight: 500;
+  color: var(--gray-500); cursor: pointer; transition: all .15s;
+}
+.sub-tab.active { background: var(--white); color: var(--gray-900); box-shadow: var(--shadow-sm); font-weight: 600; }
+
+/* Contract row */
+.ctr-row {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 0; border-bottom: 1px solid var(--gray-100);
+}
+.ctr-row:last-child { border-bottom: none; }
+.ctr-name { font-size: 13px; font-weight: 500; color: var(--gray-700); min-width: 200px; }
+.ctr-addr { flex: 1; font-family: var(--mono); font-size: 11px; color: var(--gray-400); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ctr-chip { font-size: 10px; font-weight: 500; padding: 2px 8px; border-radius: 10px; white-space: nowrap; }
+.chip-ok  { background: var(--green-bg);  border: 1px solid var(--green-border);  color: var(--green); }
+.chip-no  { background: var(--gray-100);  border: 1px solid var(--gray-200);      color: var(--gray-400); }
+
+/* Section divider for contracts */
+.ctr-section-sep {
+  padding: 8px 0 4px;
+  font-size: 10px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: 0.8px;
+  color: var(--gray-400);
+  border-top: 1px solid var(--gray-100);
+  margin-top: 6px;
+}
+
+/* ── ALERTS ── */
+.alert { display: flex; gap: 10px; padding: 10px 14px; border-radius: var(--radius); font-size: 12px; line-height: 1.6; margin-bottom: 12px; }
+.alert-warn  { background: var(--amber-bg); border: 1px solid var(--amber-border); color: #92400e; }
+.alert-danger{ background: var(--red-bg);   border: 1px solid var(--red-border);   color: var(--red); }
+
+/* ── EMPTY ── */
+.empty { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 48px 24px; text-align: center; }
+.empty-icon { font-size: 32px; margin-bottom: 10px; opacity: .4; }
+.empty-title { font-size: 14px; font-weight: 600; color: var(--gray-700); margin-bottom: 5px; }
+.empty-desc { font-size: 12px; color: var(--gray-400); max-width: 260px; line-height: 1.6; }
+
+/* ── SKEL ── */
+.skel { background: linear-gradient(90deg,var(--gray-100) 25%,var(--gray-200) 50%,var(--gray-100) 75%); background-size:200% 100%; animation: shimmer 1.4s infinite; border-radius: var(--radius); }
+@keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
+
+/* ── SPINNER ── */
+.spinner { display:inline-block; width:14px; height:14px; border:2px solid var(--gray-200); border-top-color:var(--gray-600); border-radius:50%; animation:spin .6s linear infinite; vertical-align:middle; }
+@keyframes spin { to{transform:rotate(360deg)} }
+
+/* ── COPY BTN ── */
+.copy-btn { background:none; border:none; color:var(--gray-300); cursor:pointer; font-size:12px; padding:2px 4px; border-radius:4px; transition:color .15s; }
+.copy-btn:hover { color:var(--gray-600); }
+
+/* ── TOASTS ── */
+.toast-wrap { position:fixed; bottom:20px; right:20px; z-index:9999; display:flex; flex-direction:column; gap:6px; }
+.toast {
+  background: var(--white); border: 1px solid var(--gray-200);
+  border-radius: var(--radius-lg); padding: 11px 16px;
+  font-size: 13px; max-width: 320px;
+  box-shadow: var(--shadow-lg);
+  display: flex; align-items: center; gap: 10px;
+  animation: slideUp .25s ease;
+}
+.toast-bar { width: 3px; height: 36px; border-radius: 2px; flex-shrink: 0; }
+.toast-bar-info    { background: var(--blue); }
+.toast-bar-success { background: var(--green); }
+.toast-bar-error   { background: var(--red); }
+@keyframes slideUp { from{transform:translateY(12px);opacity:0} to{transform:translateY(0);opacity:1} }
+
+/* ── SEP ── */
+.sep { height: 1px; background: var(--gray-200); margin: 20px 0; }
+
+/* ── WALLET HELP MODAL ── */
+.modal-bg { position:fixed;inset:0;z-index:9000;background:rgba(0,0,0,.4);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;padding:24px; }
+.modal {
+  background:var(--white); border:1px solid var(--gray-200);
+  border-radius:var(--radius-xl); padding:32px;
+  max-width:480px; width:100%;
+  box-shadow: var(--shadow-lg);
+}
+.modal-title { font-size:18px; font-weight:700; color:var(--gray-900); margin-bottom:6px; }
+.modal-sub { font-size:13px; color:var(--gray-500); line-height:1.6; margin-bottom:20px; }
+.cmd-block {
+  background:var(--gray-50); border:1px solid var(--gray-200);
+  border-radius:var(--radius); padding:10px 12px;
+  font-family:var(--mono); font-size:12px; color:var(--green);
+  cursor:pointer; margin-top:6px; display:flex;
+  justify-content:space-between; align-items:center;
+  transition:border-color .15s;
+}
+.cmd-block:hover { border-color:var(--gray-300); }
+.step-title { font-size:13px; font-weight:600; color:var(--gray-800); margin-bottom:5px; margin-top:14px; }
+
+/* ── FILE WARNING ── */
+#file-warn {
+  position:fixed; bottom:0; left:0; right:0; z-index:500;
+  background:var(--white); border-top:1px solid var(--amber-border);
+  padding:10px 24px; display:flex; align-items:center;
+  justify-content:space-between; gap:16px; box-shadow:0 -2px 8px rgba(0,0,0,.06);
+}
+
+/* ── PAGINATION ── */
+.pagination { display:flex; gap:6px; justify-content:center; margin-top:16px; }
+
+/* ── RESPONSIVE ── */
+@media(max-width:1100px) { .g4,.pkg-grid { grid-template-columns:repeat(2,1fr); } }
+@media(max-width:768px) {
+  .main { padding:16px; }
+  .topnav { padding:0 16px; }
+  .nav-tabs { display:none; }
+  .g4,.g3,.g2,.legs,.modes,.field-grid { grid-template-columns:1fr; }
+  .pkg-grid { grid-template-columns:1fr 1fr; }
+  .prod-grid { grid-template-columns:1fr; }
+  .pos-grid { grid-template-columns:repeat(2,1fr); }
+  .user-card { flex-wrap:wrap; }
+  .net-row { grid-template-columns:1fr; }
+  .claim-hero { flex-direction:column; gap:12px; align-items:flex-start; }
+}
+</style>
+</head>
+<body>
+
+<!-- ═══════ SETUP ═══════ -->
+<div id="setup-overlay">
+  <div class="setup-card">
+
+    <div class="setup-logo">
+      <div class="setup-logo-mark">
+        <svg viewBox="0 0 22 22" fill="none">
+          <path d="M11 2L19 6.5V15.5L11 20L3 15.5V6.5L11 2Z" stroke="white" stroke-width="1.5" fill="none"/>
+          <path d="M11 2V20M3 6.5L19 15.5M19 6.5L3 15.5" stroke="white" stroke-width="1" opacity=".4"/>
+        </svg>
+      </div>
+      <div>
+        <div class="setup-logo-name">ATLASH</div>
+        <div class="setup-logo-env">Ecosystem Dashboard</div>
+      </div>
+    </div>
+
+    <div class="setup-h1">Configuración</div>
+    <div class="setup-sub">Solo necesitas la dirección del <strong>Core Contract</strong>. Los demás módulos son opcionales.</div>
+
+    <!-- Network selector -->
+    <div class="form-section">Red blockchain</div>
+    <div class="net-row">
+      <div class="net-opt active-main" id="net-mainnet" onclick="selectNetwork('mainnet')">
+        <div class="net-dot net-dot-main"></div>
+        <div>
+          <div class="net-label">BSC Mainnet</div>
+          <div class="net-sub">Chain ID: 56 · Producción</div>
+        </div>
+        <div style="margin-left:auto;font-size:11px;font-weight:600;color:var(--gray-400);" id="net-check-main">✓</div>
+      </div>
+      <div class="net-opt" id="net-testnet" onclick="selectNetwork('testnet')">
+        <div class="net-dot net-dot-test"></div>
+        <div>
+          <div class="net-label">BSC Testnet</div>
+          <div class="net-sub">Chain ID: 97 · Pruebas</div>
+        </div>
+        <div style="margin-left:auto;font-size:11px;font-weight:600;color:var(--purple);display:none;" id="net-check-test">✓</div>
+      </div>
+    </div>
+
+    <!-- Core - always visible -->
+    <div class="form-section">Core Contract <span style="color:var(--red);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0;margin-left:4px;">requerido</span></div>
+    <div class="field" style="margin-bottom:16px;">
+      <input class="addr-inp" id="inp-core" placeholder="0x…  Dirección del Core Contract" spellcheck="false" style="font-size:13px;padding:11px 14px;"/>
+    </div>
+
+    <!-- Optional toggle -->
+    <button type="button" onclick="toggleOptional()" id="btn-optional"
+      style="width:100%;padding:10px;border:1px dashed var(--gray-300);border-radius:var(--radius);background:none;color:var(--gray-500);font-family:var(--font);font-size:13px;cursor:pointer;margin-bottom:14px;transition:all .15s;display:flex;align-items:center;justify-content:center;gap:6px;"
+      onmouseover="this.style.borderColor='var(--gray-400)';this.style.color='var(--gray-800)'"
+      onmouseout="this.style.borderColor='var(--gray-300)';this.style.color='var(--gray-500)'">
+      <span id="optional-arrow">▸</span> Módulos adicionales (opcionales)
+    </button>
+
+    <div id="optional-fields" style="display:none;">
+
+      <!-- Auto-fill testnet -->
+      <button class="btn-autofill" onclick="autoFillTestnet()" style="margin-bottom:16px;">
+        ↓ Auto-completar con direcciones BSC Testnet
+      </button>
+
+      <div class="form-section">Módulos del ecosistema</div>
+      <div class="field-grid">
+        <div class="field"><label class="field-label">DashboardLens</label><input class="addr-inp" id="inp-lens" placeholder="0x…" spellcheck="false"/></div>
+        <div class="field"><label class="field-label">YieldProgramModule</label><input class="addr-inp" id="inp-yield" placeholder="0x…" spellcheck="false"/></div>
+        <div class="field"><label class="field-label">RanksModule</label><input class="addr-inp" id="inp-ranks" placeholder="0x…" spellcheck="false"/></div>
+        <div class="field"><label class="field-label">PoolsModule</label><input class="addr-inp" id="inp-pools" placeholder="0x…" spellcheck="false"/></div>
+        <div class="field"><label class="field-label">BinaryModule</label><input class="addr-inp" id="inp-binary" placeholder="0x…" spellcheck="false"/></div>
+        <div class="field"><label class="field-label">CashbackEngine</label><input class="addr-inp" id="inp-cashback" placeholder="0x…" spellcheck="false"/></div>
+        <div class="field"><label class="field-label">RoleResolver</label><input class="addr-inp" id="inp-role" placeholder="0x…" spellcheck="false"/></div>
+        <div class="field"><label class="field-label">EcosystemAdminModule</label><input class="addr-inp" id="inp-admin" placeholder="0x…" spellcheck="false"/></div>
+      </div>
+
+      <div class="form-section">Marketplace</div>
+      <div class="field-grid">
+        <div class="field"><label class="field-label">MarketplaceRegistry</label><input class="addr-inp" id="inp-mkt-registry" placeholder="0x…" spellcheck="false"/></div>
+        <div class="field"><label class="field-label">MarketplaceCatalog</label><input class="addr-inp" id="inp-mkt-catalog" placeholder="0x…" spellcheck="false"/></div>
+        <div class="field"><label class="field-label">MarketplaceCheckout</label><input class="addr-inp" id="inp-mkt-checkout" placeholder="0x…" spellcheck="false"/></div>
+        <div class="field"><label class="field-label">MarketplaceTreasury</label><input class="addr-inp" id="inp-mkt-treasury" placeholder="0x…" spellcheck="false"/></div>
+        <div class="field"><label class="field-label">MarketplaceAccess</label><input class="addr-inp" id="inp-mkt-access" placeholder="0x…" spellcheck="false"/></div>
+        <div class="field"><label class="field-label">MarketplaceViews</label><input class="addr-inp" id="inp-mkt-views" placeholder="0x…" spellcheck="false"/></div>
+      </div>
+    </div>
+
+    <div class="callout callout-blue" style="margin-top:4px;">
+      <span>ℹ</span>
+      <span>Los módulos se auto-detectan desde el Core. Solo ingresa los adicionales si los tienes desplegados.</span>
+    </div>
+
+    <button class="btn-primary" id="btn-launch" onclick="launchDapp()">Iniciar dashboard</button>
+    <div class="setup-err" id="setup-error"></div>
+  </div>
+</div>
+
+<!-- ═══════ APP ═══════ -->
+<div id="app">
+  <nav class="topnav">
+    <div style="display:flex;align-items:center;gap:24px;">
+      <a class="nav-brand" href="#">
+        <div class="nav-brand-mark">
+          <svg viewBox="0 0 16 16" fill="none">
+            <path d="M8 1L14 4.5V11.5L8 15L2 11.5V4.5L8 1Z" stroke="white" stroke-width="1.2" fill="none"/>
+            <path d="M8 1V15M2 4.5L14 11.5M14 4.5L2 11.5" stroke="white" stroke-width=".8" opacity=".5"/>
+          </svg>
+        </div>
+        <span class="nav-brand-name">ATLASH</span>
+      </a>
+      <div class="nav-tabs">
+        <button class="nav-tab active" onclick="switchTab('overview')">Overview</button>
+        <button class="nav-tab" onclick="switchTab('earnings')">Ganancias</button>
+        <button class="nav-tab" onclick="switchTab('cashback')">Cashback</button>
+        <button class="nav-tab" onclick="switchTab('ranks')">Rangos</button>
+        <button class="nav-tab" onclick="switchTab('network')">Red</button>
+        <button class="nav-tab" onclick="switchTab('yield')">Yield</button>
+        <button class="nav-tab" onclick="switchTab('marketplace')">Marketplace</button>
+        <button class="nav-tab" onclick="switchTab('contracts')">Contratos</button>
+      </div>
+    </div>
+    <div class="nav-right">
+      <div class="net-chip" id="nav-net-chip">
+        <div class="chip-dot chip-dot-main" id="nav-net-dot"></div>
+        <span id="nav-net-label">-</span>
+      </div>
+      <button class="wallet-btn" id="wallet-btn" onclick="toggleWallet()">
+        <div class="wallet-avatar" id="wallet-avatar"></div>
+        <span id="wallet-label">Conectar wallet</span>
+      </button>
+      <button class="btn-cfg" onclick="openConfig()">⚙</button>
+    </div>
+  </nav>
+
+  <div class="main">
+
+    <!-- Search -->
+    <div class="search-wrap">
+      <span class="search-ico">⌕</span>
+      <input class="search-inp" id="search-addr" placeholder="Buscar dirección BSC…" spellcheck="false"/>
+      <button class="search-go" onclick="searchUser()">Buscar</button>
+    </div>
+
+    <!-- OVERVIEW -->
+    <div class="tab-pane active" id="tab-overview">
+      <div id="user-card-section"></div>
+      <div class="grid g4">
+        <div class="kpi"><div class="kpi-label">Paquete activo</div><div class="kpi-value c-gold" id="stat-package">-</div><div class="kpi-sub" id="stat-package-name">Sin datos</div></div>
+        <div class="kpi"><div class="kpi-label">Rango</div><div class="kpi-value" id="stat-rank">-</div><div class="kpi-sub" id="stat-rank-sub">Módulo de rangos</div></div>
+        <div class="kpi"><div class="kpi-label">Cashback disponible</div><div class="kpi-value c-green" id="stat-cashback">-</div><div class="kpi-sub" id="stat-cashback-sub">Saldo activo</div></div>
+        <div class="kpi"><div class="kpi-label">Referidos directos</div><div class="kpi-value c-blue" id="stat-directs">-</div><div class="kpi-sub" id="stat-upline">Upline: -</div></div>
+      </div>
+      <div class="grid g2">
+        <div class="panel">
+          <div class="panel-head"><div class="panel-title">Membresía</div><div id="membership-status-tag"></div></div>
+          <div class="panel-body" id="membership-body"><div class="empty"><div class="empty-icon">○</div><div class="empty-title">Sin usuario</div><div class="empty-desc">Busca una dirección</div></div></div>
+        </div>
+        <div class="panel">
+          <div class="panel-head"><div class="panel-title">Pools del mes</div><div id="pools-month-badge"></div></div>
+          <div class="panel-body" id="pools-body"><div class="empty"><div class="empty-icon">○</div><div class="empty-title">Sin usuario</div><div class="empty-desc">Busca una dirección</div></div></div>
+        </div>
+      </div>
+      <div class="sec"><span class="sec-label">Paquetes del ecosistema</span><span class="sec-line"></span></div>
+      <div class="pkg-grid" id="packages-grid"><div class="empty" style="grid-column:1/-1"><div class="empty-icon">○</div><div class="empty-title">Cargando paquetes…</div></div></div>
+    </div>
+
+    <!-- EARNINGS -->
+    <div class="tab-pane" id="tab-earnings">
+      <div class="sec"><span class="sec-label">Ganancias reclamables</span><span class="sec-line"></span></div>
+      <div id="earnings-list"><div class="empty"><div class="empty-icon">○</div><div class="empty-title">Sin usuario</div><div class="empty-desc">Busca o conecta tu wallet</div></div></div>
+      <div class="sep"></div>
+      <div class="sec"><span class="sec-label">Pools globales</span><span class="sec-line"></span></div>
+      <div class="grid g2">
+        <div class="kpi"><div class="kpi-label">Pool Liderazgo</div><div class="kpi-value c-gold" id="pool-leadership-total">-</div><div class="kpi-sub">Total disponible</div></div>
+        <div class="kpi"><div class="kpi-label">Pool Top 10</div><div class="kpi-value c-gold" id="pool-topten-total">-</div><div class="kpi-sub">Total disponible</div></div>
+      </div>
+    </div>
+
+    <!-- CASHBACK -->
+    <div class="tab-pane" id="tab-cashback">
+      <div class="grid g3">
+        <div class="kpi"><div class="kpi-label">Saldo cashback</div><div class="kpi-value c-green" id="cb-balance">-</div><div class="kpi-sub" id="cb-balance-sub">Disponible</div></div>
+        <div class="kpi"><div class="kpi-label">Próximo vencimiento</div><div class="kpi-value" id="cb-expiry">-</div><div class="kpi-sub" id="cb-expiry-sub">Fecha</div></div>
+        <div class="kpi"><div class="kpi-label">Vence en 30 días</div><div class="kpi-value c-amber" id="cb-expiring-soon">-</div><div class="kpi-sub">Ventana de alerta</div></div>
+      </div>
+      <div class="panel">
+        <div class="panel-head"><div class="panel-title">Cashback Lots</div><span id="cb-lots-count" style="font-size:11px;color:var(--gray-400);font-family:var(--mono);"></span></div>
+        <div class="panel-body" id="cashback-lots-body"><div class="empty"><div class="empty-icon">○</div><div class="empty-title">Sin datos</div><div class="empty-desc">Busca un usuario</div></div></div>
+      </div>
+    </div>
+
+    <!-- TAB: RANKS -->
+    <div class="tab-pane" id="tab-ranks">
+      <div class="grid g4" style="margin-bottom:20px;">
+        <div class="kpi"><div class="kpi-label">Rango actual</div><div class="kpi-value c-gold" id="rank-current">—</div><div class="kpi-sub" id="rank-next-label">Busca un usuario</div></div>
+        <div class="kpi"><div class="kpi-label">Puntos totales</div><div class="kpi-value" id="rank-personal-pts">—</div><div class="kpi-sub">Acumulados</div></div>
+        <div class="kpi"><div class="kpi-label">Volumen personal</div><div class="kpi-value c-blue" id="rank-personal-vol">—</div><div class="kpi-sub">USDT calificado</div></div>
+        <div class="kpi"><div class="kpi-label">Pendiente de cobro</div><div class="kpi-value c-green" id="rank-pending-total">—</div><div class="kpi-sub"><button class="btn btn-green" onclick="claimRanks()" style="padding:4px 12px;font-size:11px;margin-top:4px;">Reclamar todo</button></div></div>
+      </div>
+      <div class="sec"><span class="sec-label">Progresión de rangos</span><span class="sec-line"></span></div>
+      <div id="ranks-progression">
+        <div class="empty"><div class="empty-icon">○</div><div class="empty-title">Cargando...</div></div>
+      </div>
+    </div>
+
+    <!-- NETWORK -->
+    <div class="tab-pane" id="tab-network">
+      <div class="sub-tabs" style="margin-bottom:16px;">
+        <button class="sub-tab active" id="net-tab-unilevel" onclick="switchNetTab('unilevel')">Árbol Unilevel</button>
+        <button class="sub-tab" id="net-tab-binary" onclick="switchNetTab('binary')">Árbol Binario</button>
+      </div>
+
+      <!-- Unilevel -->
+      <div id="net-pane-unilevel">
+        <div class="grid g2" style="margin-bottom:16px;">
+          <div class="kpi"><div class="kpi-label">Referidos directos</div><div class="kpi-value c-blue" id="uni-directs-count">—</div><div class="kpi-sub">Nivel 1</div></div>
+          <div class="kpi"><div class="kpi-label">Upline / Patrocinador</div><div class="kpi-value" id="uni-upline" style="font-size:13px;letter-spacing:0;">—</div><div class="kpi-sub">Dirección</div></div>
+        </div>
+        <div class="sec"><span class="sec-label">Referidos directos</span><span class="sec-line"></span></div>
+        <div id="directs-list"><div class="empty"><div class="empty-icon">○</div><div class="empty-title">Sin referidos</div><div class="empty-desc">Busca una dirección</div></div></div>
+      </div>
+
+      <!-- Binary -->
+      <div id="net-pane-binary" style="display:none;">
+        <div class="grid g2" style="margin-bottom:16px;">
+          <div class="kpi"><div class="kpi-label">Pierna Izquierda BV</div><div class="kpi-value c-blue" id="left-bv">—</div><div class="kpi-sub">Business Volume</div></div>
+          <div class="kpi"><div class="kpi-label">Pierna Derecha BV</div><div class="kpi-value c-blue" id="right-bv">—</div><div class="kpi-sub">Business Volume</div></div>
+        </div>
+        <div style="margin-bottom:12px;font-size:13px;color:var(--gray-600);">Pierna: <span id="user-leg" style="font-weight:700;color:var(--gray-800);">—</span></div>
+        <div class="sec"><span class="sec-label">Árbol binario (3 niveles)</span><span class="sec-line"></span></div>
+        <div id="binary-tree-wrap"><div class="empty"><div class="empty-icon">○</div><div class="empty-title">Busca un usuario para ver el árbol</div></div></div>
+      </div>
+    </div>
+    <!-- YIELD -->
+    <div class="tab-pane" id="tab-yield">
+      <div class="grid g3">
+        <div class="kpi"><div class="kpi-label">Yield Pool global</div><div class="kpi-value c-gold" id="yield-pool-balance">-</div><div class="kpi-sub">Disponible para rewards</div></div>
+        <div class="kpi"><div class="kpi-label">Principal activo total</div><div class="kpi-value" id="yield-total-principal">-</div><div class="kpi-sub">En posiciones activas</div></div>
+        <div class="kpi"><div class="kpi-label">Tasa diaria</div><div class="kpi-value c-blue" id="yield-rate-range">-</div><div class="kpi-sub">Rango L-V</div></div>
+      </div>
+      <div class="sec"><span class="sec-label">Posiciones</span><span class="sec-line"></span></div>
+      <div id="yield-positions-wrap"><div class="empty"><div class="empty-icon">○</div><div class="empty-title">Sin usuario</div><div class="empty-desc">Busca una dirección</div></div></div>
+      <div class="sep"></div>
+      <div class="sec"><span class="sec-label">Abrir posición</span><span class="sec-line"></span></div>
+      <div class="panel" id="buy-yield-panel">
+        <div class="panel-head">
+          <div class="panel-title">Comprar Yield</div>
+          <span style="font-size:11px;color:var(--gray-400);">Fee: <span id="yield-buy-fee">5</span> USDT</span>
+        </div>
+        <div class="panel-body">
+          <div id="yield-not-connected-msg" style="display:none;">
+            <div class="callout callout-blue" style="margin-bottom:14px;"><span>ℹ</span><span>Conecta tu wallet para abrir posiciones.</span></div>
+          </div>
+          <div class="sec" style="margin-bottom:10px;"><span class="sec-label">Montos</span><span class="sec-line"></span></div>
+          <div class="chips" id="yield-packages-grid">
+            <div class="skel" style="width:80px;height:30px;border-radius:20px;"></div>
+            <div class="skel" style="width:90px;height:30px;border-radius:20px;"></div>
+            <div class="skel" style="width:100px;height:30px;border-radius:20px;"></div>
+          </div>
+          <div class="field-grid" style="margin-bottom:14px;">
+            <div style="display:none;"><input id="yield-amount-input" type="hidden"/></div>
+            <div>
+              <label class="field-label">Modo</label>
+              <div class="modes">
+                <div class="mode-card sel-c" id="mode-compound-btn" onclick="selectYieldMode('compound')">
+                  <div class="mode-icon">↺</div>
+                  <div class="mode-name">Compound</div>
+                  <div class="mode-desc">Reinvierte automático</div>
+                </div>
+                <div class="mode-card" id="mode-withdraw-btn" onclick="selectYieldMode('withdraw')">
+                  <div class="mode-icon">↓</div>
+                  <div class="mode-name">Withdraw</div>
+                  <div class="mode-desc">Retira a tu wallet</div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="dist-box">
+            <div class="dist-title">Distribución del capital</div>
+            <div class="dist-grid">
+              <div class="dist-item"><div class="dist-dot"></div>45% Yield Pool</div>
+              <div class="dist-item"><div class="dist-dot"></div>35% Broker</div>
+              <div class="dist-item"><div class="dist-dot"></div>10% Bono upline</div>
+              <div class="dist-item"><div class="dist-dot"></div>5% Ranks/Binary</div>
+              <div class="dist-item"><div class="dist-dot"></div>5% Owner</div>
+              <div class="dist-item"><div class="dist-dot"></div>+5 USDT fee</div>
+            </div>
+          </div>
+          <button class="btn btn-dark" id="btn-buy-yield" onclick="buyYield()" style="padding:11px 24px;font-size:13px;" disabled>Conecta wallet para comprar</button>
+          <div id="yield-buy-error" style="display:none;margin-top:8px;font-size:12px;color:var(--red);"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- MARKETPLACE -->
+    <div class="tab-pane" id="tab-marketplace">
+      <div class="grid g3" style="margin-bottom:20px;">
+        <div class="kpi"><div class="kpi-label">Total productos</div><div class="kpi-value" id="mkt-total-products">-</div><div class="kpi-sub">En el catálogo</div></div>
+        <div class="kpi"><div class="kpi-label">Total vendedores</div><div class="kpi-value" id="mkt-total-sellers">-</div><div class="kpi-sub">Registrados</div></div>
+        <div class="kpi"><div class="kpi-label">Mi saldo disponible</div><div class="kpi-value c-green" id="mkt-seller-balance">-</div><div class="kpi-sub" id="mkt-seller-balance-sub">Conecta wallet</div></div>
+      </div>
+      <div class="sub-tabs">
+        <button class="sub-tab active" id="mkt-tab-catalog" onclick="switchMktTab('catalog')">Catálogo</button>
+        <button class="sub-tab" id="mkt-tab-my-purchases" onclick="switchMktTab('my-purchases')">Mis compras</button>
+        <button class="sub-tab" id="mkt-tab-my-access" onclick="switchMktTab('my-access')">Mi acceso</button>
+        <button class="sub-tab" id="mkt-tab-seller" onclick="switchMktTab('seller')">Vendedor</button>
+      </div>
+
+      <div id="mkt-pane-catalog">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:10px;">
+          <div class="mkt-filters" id="mkt-filter-types">
+            <button class="chip sel" onclick="filterProducts(null)">Todos</button>
+            <button class="chip" onclick="filterProducts(0)">Descarga</button>
+            <button class="chip" onclick="filterProducts(1)">Curso</button>
+            <button class="chip" onclick="filterProducts(2)">Membresía</button>
+            <button class="chip" onclick="filterProducts(4)">Servicio</button>
+            <button class="chip" onclick="filterProducts(6)">Suscripción</button>
+          </div>
+          <button class="btn btn-outline" onclick="loadMarketplace()" style="font-size:12px;padding:6px 14px;">↻ Refrescar</button>
+        </div>
+        <div class="prod-grid" id="mkt-products-grid"><div class="empty" style="grid-column:1/-1"><div class="empty-icon">○</div><div class="empty-title">Sin marketplace</div><div class="empty-desc">Configura las direcciones del marketplace en ⚙</div></div></div>
+        <div class="pagination" id="mkt-pagination"></div>
+      </div>
+
+      <div id="mkt-pane-my-purchases" style="display:none;">
+        <div id="mkt-my-purchases-list"><div class="empty"><div class="empty-icon">○</div><div class="empty-title">Conecta wallet</div><div class="empty-desc">Para ver tus compras</div></div></div>
+      </div>
+
+      <div id="mkt-pane-my-access" style="display:none;">
+        <div id="mkt-my-access-list"><div class="empty"><div class="empty-icon">○</div><div class="empty-title">Conecta wallet</div><div class="empty-desc">Para ver tu acceso a productos</div></div></div>
+      </div>
+
+      <div id="mkt-pane-seller" style="display:none;">
+        <div class="grid g3" style="margin-bottom:16px;">
+          <div class="kpi"><div class="kpi-label">Estado vendedor</div><div class="kpi-value" id="mkt-seller-status" style="font-size:16px;">-</div><div class="kpi-sub" id="mkt-seller-type">-</div></div>
+          <div class="kpi"><div class="kpi-label">Ventas brutas</div><div class="kpi-value c-gold" id="mkt-seller-gross">-</div><div class="kpi-sub">Histórico</div></div>
+          <div class="kpi"><div class="kpi-label">Unidades vendidas</div><div class="kpi-value" id="mkt-seller-units">-</div><div class="kpi-sub">Total</div></div>
+        </div>
+        <div class="panel" style="margin-bottom:12px;">
+          <div class="panel-head"><div class="panel-title">Mis productos</div><button class="btn btn-dark" onclick="loadMySellerProducts()" style="padding:6px 14px;font-size:12px;">Cargar</button></div>
+          <div class="panel-body" id="mkt-my-products-list"><div class="empty"><div class="empty-icon">○</div><div class="empty-title">Carga tus productos</div></div></div>
+        </div>
+        <div class="panel">
+          <div class="panel-head"><div class="panel-title">Retirar saldo</div></div>
+          <div class="panel-body">
+            <div class="grid g2" style="margin-bottom:14px;">
+              <div><div class="kpi-label">Saldo vendedor</div><div style="font-size:20px;font-weight:700;color:var(--green);font-family:var(--mono);" id="mkt-withdraw-seller">-</div></div>
+              <div><div class="kpi-label">Saldo upline</div><div style="font-size:20px;font-weight:700;color:var(--gold);font-family:var(--mono);" id="mkt-withdraw-upline">-</div></div>
+            </div>
+            <div style="display:flex;gap:8px;">
+              <button class="btn btn-green" onclick="mktWithdrawSeller()">Retirar como vendedor</button>
+              <button class="btn btn-outline" onclick="mktWithdrawUpline()">Retirar como upline</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- CONTRACTS -->
+    <div class="tab-pane" id="tab-contracts">
+      <div class="callout callout-blue" style="margin-bottom:16px;"><span>ℹ</span><span>Contratos configurados. Usa ⚙ para actualizar.</span></div>
+      <div class="panel" style="margin-bottom:12px;">
+        <div class="panel-head"><div class="panel-title">Contratos desplegados</div><div style="display:flex;align-items:center;gap:8px;"><div id="contracts-network-tag"></div><button class="btn btn-outline" onclick="updateContractsTab()" style="padding:5px 14px;font-size:12px;">↻</button></div></div>
+        <div class="panel-body" id="contracts-list"><div class="empty"><div class="empty-icon">○</div><div class="empty-title">Sin configurar</div></div></div>
+      </div>
+      <div class="panel">
+        <div class="panel-head"><div class="panel-title">Estado del Core</div><button class="btn btn-outline" onclick="loadCoreStatus()" style="padding:5px 14px;font-size:12px;">↻ Recargar</button></div>
+        <div class="panel-body" id="core-status-body"><div class="empty"><div class="empty-icon">○</div><div class="empty-title">Conectando…</div></div></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div class="toast-wrap" id="toasts"></div>
+
+<script>
+// ══════════════════════════════════════════════
+// ATLASH DApp v3 · Clean White Edition
+// ══════════════════════════════════════════════
+
+// ─── NETWORK CONFIG ───
+const NETWORKS = {
+  mainnet: {
+    label: 'BSC Mainnet', chainId: 56, chainIdHex: '0x38',
+    rpcs: [
+      'https://bsc-dataseed1.binance.org/',
+      'https://bsc-dataseed2.binance.org/',
+      'https://bsc-dataseed3.binance.org/',
+      'https://bsc.publicnode.com'
+    ],
+    get rpc() { return this.rpcs[0]; },
+    explorer: 'https://bscscan.com',
+    nativeCurrency: { name:'BNB', symbol:'BNB', decimals:18 }
+  },
+  testnet: {
+    label: 'BSC Testnet', chainId: 97, chainIdHex: '0x61',
+    rpcs: [
+      'https://bsc-testnet.publicnode.com',
+      'https://data-seed-prebsc-1-s1.binance.org:8545/',
+      'https://data-seed-prebsc-2-s1.binance.org:8545/',
+      'https://bsc-testnet.drpc.org'
+    ],
+    get rpc() { return this.rpcs[0]; },
+    explorer: 'https://testnet.bscscan.com',
+    nativeCurrency: { name:'tBNB', symbol:'tBNB', decimals:18 }
+  }
+};
+
+// Creates a provider with automatic fallback across multiple RPCs
+async function createProvider(network) {
+  const rpcs = network.rpcs;
+  for (const rpc of rpcs) {
+    try {
+      const p = new ethers.JsonRpcProvider(rpc);
+      // Quick test with 5s timeout
+      const networkInfo = await Promise.race([
+        p.getNetwork(),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 5000))
+      ]);
+      if (Number(networkInfo.chainId) === network.chainId) {
+        console.log('Connected to RPC:', rpc);
+        return p;
+      }
+    } catch (e) {
+      console.warn('RPC failed:', rpc, e.message);
+    }
+  }
+  // If all fail, return provider with first RPC anyway (reads might still work)
+  console.warn('All RPCs failed, using first as fallback');
+  return new ethers.JsonRpcProvider(rpcs[0]);
+}
+
+const TESTNET_ADDRESSES = {
+  core:'0x9b24e9f7A26b7534696baF8B9d86B714d5136ba0',
+  lens:'', ranks:'0x9f177EfFd7051c2F3c9A875C00A29B938c5293F8',
+  pools:'0x89772227C8d89972098900C05afD2B172bA885e4',
+  binary:'0x2f52be3B5620E9208e1FF2be1B7A6C9e6Ac4D9B8',
+  cashback:'0x174CEa6d7BD702aeB5cBfBb4dA672b1848Def662',
+  yield:'0x8EeEb357652b0C145652C34A0f7E3CE834BBE826',
+  roleResolver:'0x926f16Af1Bdd93ea920974F377c124Ae7f1103ED',
+  admin:'0x08D82794243047b24D2db05F0413D2745F09857d',
+  registry:'0x282F5123a912e058774088262f83B3D7f10ffD07',
+  mktRegistry:'', mktCatalog:'', mktCheckout:'',
+  mktTreasury:'', mktAccess:'', mktViews:''
+};
+
+
+
+// =====================================================================
+// ATLASH DApp - BSC Contract Interface
+// =====================================================================
+
+
+// ─── PRE-CONFIGURED TESTNET ADDRESSES ───
+
+// Active network - set during setup
+let activeNetwork = null;
+
+// ABI fragments
+const CORE_ABI = [
+  "function usdt() view returns (address)",
+  "function owner() view returns (address)",
+  "function guardian() view returns (address)",
+  "function paused() view returns (bool)",
+  "function monthlyEnabled() view returns (bool)",
+  "function monthlyFee() view returns (uint256)",
+  "function INSCRIPTION_FEE() view returns (uint256)",
+  "function ranks() view returns (address)",
+  "function pools() view returns (address)",
+  "function cashback() view returns (address)",
+  "function benefits() view returns (address)",
+  "function binary() view returns (address)",
+  "function maxPackageId() view returns (uint8)",
+  "function pendingRanksAmount() view returns (uint256)",
+  "function pendingLeadershipAmount() view returns (uint256)",
+  "function pendingTopTenAmount() view returns (uint256)",
+  "function totalUsers() view returns (uint256)",
+  "function users(address) view returns (bool exists, bool frozen, address upline, uint8 highestPackage, uint256 validUntil, uint256 monthlyIncludedUntil)",
+  "function packages(uint8) view returns (uint256 price, uint256 brokerFee, uint16 includedMonths, bool enabled, bool exists)",
+  "function directCount(address) view returns (uint256)",
+  "function directAt(address, uint256) view returns (address)",
+  "function userLeg(address) view returns (uint8)",
+  "function inscriptionWallet() view returns (address)",
+  "function brokerWallet() view returns (address)",
+  "function academyWallet() view returns (address)",
+  "function feeWallet() view returns (address)",
+  "function roleResolver() view returns (address)"
+];
+
+const LENS_ABI = [
+  "function getUser(address user) view returns (tuple(tuple(address core, address usdt, address owner, address guardian, bool paused, bool monthlyEnabled, uint256 monthlyFeeUSDT, uint256 inscriptionFeeUSDT, address brokerWallet, address academyWallet, address logrosWallet, address feeWallet, address inscriptionWallet, address ranksModule, address poolsModule, address cashbackEngine, address benefitsRegistry, address roleResolver, uint8 maxPackageId, uint256 pendingRanksAmountUSDT, uint256 pendingLeadershipAmountUSDT, uint256 pendingTopTenAmountUSDT) core, tuple(address user, bool exists, bool frozen, address upline, uint8 packageId, uint256 validUntil, uint256 monthlyIncludedUntil, bool isActive, uint256 inactiveSeconds) user, tuple(uint8 packageId, uint256 priceUSDT, uint256 brokerFeeUSDT, uint16 includedMonths, bool enabled, bool exists) pkg, tuple(uint256 balanceUSDT, uint256 ttlSeconds, uint256 suspensionExpirySeconds, uint256 maxSpendBP, uint256 nextExpiryAt, uint256 nextExpiryAmountUSDT, uint256 inactiveSeconds, bool willExpireAllOnReactivation, uint256 secondsUntilSuspensionExpiry, uint256 expiringSoonWindowSeconds, uint256 expiringSoonAmountUSDT) cashback, tuple(uint256 pendingUserUSDT, uint256 poolAvailableUSDT) ranks, tuple(uint256 monthIndex, uint256 monthStartAt, uint256 monthEndAt, uint256 leadershipClaimableUSDT, uint256 topTenClaimableUSDT, bool leadershipClosed, bool topTenClosed, uint256 leadershipPoolTotalUSDT, uint256 topTenPoolTotalUSDT, uint8 userTopTenPosition) pools) dash, tuple(uint256 nextCursor, uint256 totalLotsReturned, uint256[] lotIndexes, uint256[] amountsUSDT, uint256[] expiresAt, bool[] expired) lotsPage, uint8[] activePackageIds)"
+];
+
+const RANKS_ABI = [
+  "function pendingTotal(address) view returns (uint256)",
+  "function userRank(address) view returns (uint8)",
+  "function availablePool() view returns (uint256)",
+  "function rankTargets(uint256) view returns (uint256)",
+  "function rankBonuses(uint256) view returns (uint256)",
+  "function claimRank(address) returns (uint8)",
+  "function claimAllRanks(address) returns (uint256)"
+];
+
+const POOLS_ABI = [
+  "function currentMonthIndex() view returns (uint256)",
+  "function leadershipClaimable(uint256, address) view returns (uint256)",
+  "function topTenClaimable(uint256, address) view returns (uint256)",
+  "function leadershipPoolTotal(uint256) view returns (uint256)",
+  "function topTenAccruedByMonth(uint256) view returns (uint256)",
+  "function claimLeadership(uint256, address) returns (uint256)",
+  "function claimTopTen(uint256, address) returns (uint256)"
+];
+
+const CASHBACK_ABI = [
+  "function balanceOf(address) view returns (uint256)",
+  "function maxSpendBP() view returns (uint16)",
+  "function cashbackTTL() view returns (uint256)",
+  "function nextCashbackExpiry(address) view returns (bool hasLot, uint256 expiresAt, uint256 amountInLot, uint256 lotIndex)",
+  "function cashbackLotsSummary(address, uint256) view returns (uint256[] lotIndexes, uint256[] amounts, uint256[] expiresAts, uint256 totalLotsReturned)",
+  "function expiringIn(address, uint256) view returns (uint256)"
+];
+
+const BINARY_ABI = [
+  "function leftBV(address) view returns (uint256)",
+  "function rightBV(address) view returns (uint256)"
+];
+const YIELD_ABI = [
+  "function yieldPoolBalance() view returns (uint256)",
+  "function totalActivePrincipal() view returns (uint256)",
+  "function nextPositionId() view returns (uint256)",
+  "function buyFee() view returns (uint256)",
+  "function minDailyRateBP() view returns (uint16)",
+  "function maxDailyRateBP() view returns (uint16)",
+  "function positions(uint256) view returns (uint256 basePrincipal, uint256 principal, uint256 paidOut, uint256 pendingAccrued, uint256 accruedTotal, uint32 lastDay, uint32 grantedDay, uint32 deadlineDay, uint32 compoundLockUntilDay, bool compound, uint8 voucherStatus)",
+  "function isAllowedPackage(uint256) view returns (bool)",
+  "function buyYield(uint256 amount, bool startCompound) returns (uint256 positionId)",
+  "function sync(uint256 positionId) returns ()",
+  "function setCompound(uint256 positionId, bool compound) returns ()",
+  "event PositionOpened(uint256 indexed positionId, address indexed user, uint256 amount, bool compound)",
+  "event YieldSettled(uint256 indexed positionId, address indexed user, uint256 day, uint256 amount, bool compounded)"
+];
+
+const ROLE_RESOLVER_ABI = [
+  "function roleByPackage(uint256) view returns (uint8)",
+  "function cashbackMultiplierBP(uint256) view returns (uint16)"
+];
+
+
+
+// State
+let contracts = {
+  core: null, lens: null, ranks: null,
+  pools: null, cashback: null, binary: null,
+  yield: null, roleResolver: null,
+  mktRegistry: null, mktCatalog: null, mktCheckout: null,
+  mktTreasury: null, mktAccess: null, mktViews: null
+};
+let addresses = {};
+let provider = null;
+let signer = null;
+let walletAddress = null;
+let currentUser = null;
+
+const PACKAGE_NAMES = {1:'Core 1 - Trader', 2:'Core 2 - Builder', 3:'Core 3 - Leader', 4:'Core 4 - Partner'};
+const LEG_NAMES = {0:'No definida', 1:'Izquierda', 2:'Derecha'};
+
+// ─── UTILS ───
+function fmt18(n) {
+  try { return (Number(ethers.formatUnits(n, 18))).toLocaleString('es-CO', {minimumFractionDigits:2, maximumFractionDigits:2}); }
+  catch { return '0.00'; }
+}
+
+function shortAddr(addr) {
+  if (!addr || addr === ethers.ZeroAddress) return '-';
+  return addr.slice(0,6) + '...' + addr.slice(-4);
+}
+
+function isZero(addr) {
+  return !addr || addr === ethers.ZeroAddress || addr === '0x0000000000000000000000000000000000000000';
+}
+
+function isValidAddr(v) {
+  if (!v || typeof v !== 'string') return false;
+  const clean = v.trim();
+  // Basic Ethereum address: 0x followed by 40 hex chars
+  return /^0x[0-9a-fA-F]{40}$/.test(clean);
+}
+
+function tsToDate(ts) {
+  if (!ts || ts == 0n || ts == 0) return '-';
+  const d = new Date(Number(ts) * 1000);
+  return d.toLocaleDateString('es-CO', {day:'2-digit',month:'short',year:'numeric'});
+}
+
+function secondsLeft(ts) {
+  const now = Math.floor(Date.now()/1000);
+  const diff = Number(ts) - now;
+  if (diff <= 0) return 'Vencido';
+  const d = Math.floor(diff / 86400);
+  const h = Math.floor((diff % 86400) / 3600);
+  if (d > 0) return `${d}d ${h}h`;
+  const m = Math.floor((diff % 3600) / 60);
+  return `${h}h ${m}m`;
+}
+
+function toast(msg, type='info') {
+  const c = document.getElementById('toasts');
+  const el = document.createElement('div');
+  el.className = 'toast';
+  el.innerHTML = `<div class='toast-bar toast-bar-${type}'></div><span>${msg}</span>`;
+  c.appendChild(el);
+  setTimeout(() => el.remove(), 4500);
+}
+
+function switchTab(name) {
+  document.querySelectorAll('.nav-tab').forEach((b,i) => {
+    const names = ['overview','earnings','cashback','ranks','network','yield','marketplace','contracts'];
+    b.classList.toggle('active', names[i] === name);
+  });
+  document.querySelectorAll('.tab-pane').forEach(pane => {
+    pane.classList.toggle('active', pane.id === 'tab-'+name);
+  });
+  if (name === 'contracts' && contracts.core) { updateContractsTab(); loadCoreStatus(); }
+  if (name === 'marketplace' && (contracts.mktCatalog || contracts.mktRegistry)) loadMarketplace().catch(() => {});
+  if (name === 'ranks') loadRanksTab(currentUser || null);
+  if (name === 'network' && currentUser && currentNetTab === 'binary') loadBinaryTree(currentUser);
+}
+
+async function copyText(text) {
+  try { await navigator.clipboard.writeText(text); toast('Copiado al portapapeles', 'success'); }
+  catch { toast('No se pudo copiar', 'error'); }
+}
+
+// ─── NETWORK SELECTION ───
+function selectNetwork(key) {
+  const mainEl = document.getElementById('net-mainnet');
+  const testEl = document.getElementById('net-testnet');
+  mainEl.className = 'net-opt' + (key === 'mainnet' ? ' active-main' : '');
+  testEl.className = 'net-opt' + (key === 'testnet' ? ' active-test' : '');
+  // Show checkmark on selected
+  const cm = document.getElementById('net-check-main');
+  const ct = document.getElementById('net-check-test');
+  if (cm) cm.style.display = key === 'mainnet' ? '' : 'none';
+  if (ct) ct.style.display = key === 'testnet' ? '' : 'none';
+  _selectedNetworkKey = key;
+}
+
+function toggleOptional() {
+  const el = document.getElementById('optional-fields');
+  const arrow = document.getElementById('optional-arrow');
+  const btn = document.getElementById('btn-optional');
+  const open = el.style.display === 'none' || el.style.display === '';
+  el.style.display = open ? 'block' : 'none';
+  arrow.textContent = open ? '▾' : '▸';
+  btn.querySelector('span:last-child') || null;
+}
+
+let _selectedNetworkKey = 'mainnet'; // tracks setup card selection
+
+function updateNavBadge() {
+  if (!activeNetwork) return;
+  const badge = document.getElementById('nav-net-chip');
+  const label = document.getElementById('nav-net-label');
+  const dot = document.getElementById('nav-net-dot');
+  if (label) label.textContent = activeNetwork.label;
+  if (badge) {
+    badge.className = 'net-chip ' + (activeNetwork === NETWORKS.testnet ? 'testnet' : 'mainnet');
+  }
+  if (dot) {
+    dot.className = 'chip-dot ' + (activeNetwork === NETWORKS.testnet ? 'chip-dot-test' : 'chip-dot-main');
+  }
+}
+
+// ─── LAUNCH ───
+async function launchDapp() {
+  const get = id => { const el = document.getElementById(id); return el ? el.value.trim() : ''; };
+  const errEl = document.getElementById('setup-error');
+
+  const coreAddr = get('inp-core');
+  if (!coreAddr || !isValidAddr(coreAddr)) {
+    errEl.textContent = 'La direccion del Core es requerida.';
+    errEl.style.display = 'block';
+    return;
+  }
+  errEl.style.display = 'none';
+
+  // ── 1. Set network
+  const netKey = _selectedNetworkKey || 'mainnet';
+  activeNetwork = NETWORKS[netKey];
+
+  // ── 2. Show app immediately
+  document.getElementById('setup-overlay').classList.add('hidden');
+  document.getElementById('app').classList.add('visible');
+  document.getElementById('btn-launch').disabled = true;
+  document.getElementById('btn-launch').textContent = 'Configurado';
+  updateNavBadge();
+
+  // ── 3. Save ALL addresses (never fails)
+  addresses.core        = coreAddr;
+  const fields = [
+    ['inp-lens',         'lens'],
+    ['inp-ranks',        'ranks'],
+    ['inp-pools',        'pools'],
+    ['inp-binary',       'binary'],
+    ['inp-cashback',     'cashback'],
+    ['inp-yield',        'yield'],
+    ['inp-role',         'roleResolver'],
+    ['inp-admin',        'admin'],
+    ['inp-mkt-registry', 'mktRegistry'],
+    ['inp-mkt-catalog',  'mktCatalog'],
+    ['inp-mkt-checkout', 'mktCheckout'],
+    ['inp-mkt-treasury', 'mktTreasury'],
+    ['inp-mkt-access',   'mktAccess'],
+    ['inp-mkt-views',    'mktViews'],
+  ];
+  fields.forEach(([id, key]) => {
+    const v = get(id);
+    console.log('Field', id, '->', key, ':', v ? v.slice(0,10)+'...' : '(empty)', 'valid:', v ? isValidAddr(v) : false);
+    if (v && isValidAddr(v)) addresses[key] = v;
+  });
+  console.log('addresses after load:', JSON.stringify(addresses));
+  console.log('contracts.core will be created from:', addresses.core);
+
+  // ── 4. Create provider using first available RPC
+  toast('Conectando a ' + activeNetwork.label + '...', 'info');
+  provider = await createProvider(activeNetwork);
+
+  // ── 5. Instantiate ALL contracts immediately
+  const abiMap = {
+    core: CORE_ABI, lens: LENS_ABI, ranks: RANKS_ABI, pools: POOLS_ABI,
+    binary: BINARY_ABI, cashback: CASHBACK_ABI, yield: YIELD_ABI,
+    roleResolver: ROLE_RESOLVER_ABI,
+    mktRegistry: MKT_REGISTRY_ABI, mktCatalog: MKT_CATALOG_ABI,
+    mktCheckout: MKT_CHECKOUT_ABI, mktTreasury: MKT_TREASURY_ABI,
+    mktAccess: MKT_ACCESS_ABI, mktViews: MKT_VIEWS_ABI,
+  };
+  Object.entries(abiMap).forEach(([key, abi]) => {
+    if (addresses[key]) {
+      contracts[key] = new ethers.Contract(addresses[key], abi, provider);
+    }
+  });
+
+  // ── 6. Update contracts tab immediately (addresses are set)
+  updateContractsTab();
+
+  // ── 7. Save session
+  sessionStorage.setItem('atlash_addrs', JSON.stringify(addresses));
+
+  // ── 8. Load data async (non-blocking)
+  loadCoreStatus();
+  loadPackages();
+
+  // Auto-detect unset modules from Core (best-effort)
+  Promise.allSettled([
+    contracts.core.ranks(),
+    contracts.core.pools(),
+    contracts.core.cashback(),
+    contracts.core.binary(),
+    contracts.core.roleResolver ? contracts.core.roleResolver().catch(() => null) : Promise.resolve(null),
+  ]).then(([r, p, cb, bin, rr]) => {
+    let updated = false;
+    const tryAdd = (res, key, abi) => {
+      const v = res.status === 'fulfilled' ? res.value : null;
+      if (v && !isZero(v) && !addresses[key]) {
+        addresses[key] = v;
+        contracts[key] = new ethers.Contract(v, abi, provider);
+        updated = true;
+      }
+    };
+    tryAdd(r,   'ranks',        RANKS_ABI);
+    tryAdd(p,   'pools',        POOLS_ABI);
+    tryAdd(cb,  'cashback',     CASHBACK_ABI);
+    tryAdd(bin, 'binary',       BINARY_ABI);
+    if (rr.status === 'fulfilled' && rr.value && !isZero(rr.value) && !addresses.roleResolver) {
+      addresses.roleResolver = rr.value;
+      contracts.roleResolver = new ethers.Contract(rr.value, ROLE_RESOLVER_ABI, provider);
+      updated = true;
+    }
+    if (updated) {
+      updateContractsTab();
+      sessionStorage.setItem('atlash_addrs', JSON.stringify(addresses));
+      const keys = Object.entries(addresses).filter(([k,v]) => v && k !== 'core').map(([k]) => k);
+      toast('Auto-detectados: ' + keys.join(', '), 'success');
+    }
+  }).catch(() => {});
+
+  // Load yield stats
+  if (contracts.yield) {
+    contracts.yield.yieldPoolBalance().then(v => {
+      const el = document.getElementById('yield-pool-balance');
+      if (el) el.textContent = fmt18(v) + ' USDT';
+    }).catch(() => {});
+    contracts.yield.minDailyRateBP().then(min =>
+      contracts.yield.maxDailyRateBP().then(max => {
+        const el = document.getElementById('yield-rate-range');
+        if (el) el.textContent = (Number(min)/100).toFixed(2) + '% - ' + (Number(max)/100).toFixed(2) + '%';
+      })
+    ).catch(() => {});
+    loadYieldPackages();
+  }
+
+  // Load marketplace
+  if (contracts.mktCatalog || contracts.mktRegistry) {
+    loadMarketplace().catch(() => {});
+  }
+
+  toast('Conectado a ' + activeNetwork.label, 'success');
+
+  // Log final state
+  setTimeout(() => {
+    const keys = Object.keys(addresses).filter(k => addresses[k]);
+    const cKeys = Object.keys(contracts).filter(k => contracts[k] !== null);
+    console.log('FINAL addresses:', keys);
+    console.log('FINAL contracts:', cKeys);
+    toast('Cargados: ' + cKeys.length + ' contratos', 'success');
+  }, 1000);
+}
+
+
+function openConfig() {
+  document.getElementById('setup-overlay').classList.remove('hidden');
+  document.getElementById('btn-launch').disabled = false;
+  document.getElementById('btn-launch').textContent = 'Iniciar dashboard';
+  document.getElementById('btn-launch').innerHTML = 'Actualizar configuracion →';
+  // Pre-select current network
+  if (activeNetwork) selectNetwork(activeNetwork === NETWORKS.testnet ? 'testnet' : 'mainnet');
+  // Pre-fill existing
+  if (addresses.core) document.getElementById('inp-core').value = addresses.core;
+  if (addresses.lens) document.getElementById('inp-lens').value = addresses.lens;
+  if (addresses.ranks) document.getElementById('inp-ranks').value = addresses.ranks;
+  if (addresses.pools) document.getElementById('inp-pools').value = addresses.pools;
+  if (addresses.binary) document.getElementById('inp-binary').value = addresses.binary;
+  if (addresses.cashback) document.getElementById('inp-cashback').value = addresses.cashback;
+  const inpYield = document.getElementById('inp-yield');
+  const inpRole = document.getElementById('inp-role');
+  const inpAdmin = document.getElementById('inp-admin');
+  if (inpYield && addresses.yield) inpYield.value = addresses.yield;
+  if (inpRole && addresses.roleResolver) inpRole.value = addresses.roleResolver;
+  if (inpAdmin && addresses.admin) inpAdmin.value = addresses.admin;
+  // Marketplace
+  const mktInputs = ['mkt-registry','mkt-catalog','mkt-checkout','mkt-treasury','mkt-access','mkt-views'];
+  const mktKeys   = ['mktRegistry','mktCatalog','mktCheckout','mktTreasury','mktAccess','mktViews'];
+  mktInputs.forEach((id, i) => {
+    const el = document.getElementById('inp-'+id);
+    if (el && addresses[mktKeys[i]]) el.value = addresses[mktKeys[i]];
+  });
+}
+
+// ─── AUTO-FILL TESTNET ───
+function autoFillTestnet() {
+  // Open optional fields if closed
+  const opt = document.getElementById('optional-fields');
+  if (opt && opt.style.display !== 'block') toggleOptional();
+  const t = TESTNET_ADDRESSES;
+  const map = {
+    'inp-core': t.core, 'inp-lens': t.lens, 'inp-ranks': t.ranks,
+    'inp-pools': t.pools, 'inp-binary': t.binary, 'inp-cashback': t.cashback,
+    'inp-yield': t.yield, 'inp-role': t.roleResolver, 'inp-admin': t.admin,
+    'inp-mkt-registry': t.mktRegistry, 'inp-mkt-catalog': t.mktCatalog,
+    'inp-mkt-checkout': t.mktCheckout, 'inp-mkt-treasury': t.mktTreasury,
+    'inp-mkt-access': t.mktAccess, 'inp-mkt-views': t.mktViews
+  };
+  Object.entries(map).forEach(([id, val]) => {
+    const el = document.getElementById(id);
+    if (el && val) { el.value = val; el.className = 'addr-inp ok'; }
+  });
+  // Select testnet
+  selectNetwork('testnet');
+  toast('Direcciones BSC Testnet cargadas', 'success');
+}
+
+function showWalletHelp() {
+  // Remove existing modal if any
+  const existing = document.getElementById('wallet-help-modal');
+  if (existing) existing.remove();
+
+  const isFile = window.location.protocol === 'file:';
+  const modal = document.createElement('div');
+  modal.id = 'wallet-help-modal';
+  modal.style.cssText = `
+    position:fixed;inset:0;z-index:9000;background:rgba(0,0,0,0.8);backdrop-filter:blur(8px);
+    display:flex;align-items:center;justify-content:center;padding:24px;
+  `;
+  modal.innerHTML = `
+    <div style="background:var(--gray-50);border:1px solid var(--gray-300);border-radius:var(--radius-xl);padding:40px;max-width:520px;width:100%;position:relative;">
+      <div style="position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--red),transparent);border-radius:var(--radius-xl) var(--radius-xl) 0 0;"></div>
+      <div style="font-size:40px;margin-bottom:16px;text-align:center;">${isFile ? '📁' : '🦊'}</div>
+      <div style="font-family:var(--font);font-weight:800;font-size:20px;text-align:center;margin-bottom:8px;color:var(--gray-900);">
+        ${isFile ? 'Archivo local detectado' : 'MetaMask no disponible'}
+      </div>
+      <div style="font-size:14px;color:var(--text-dim);text-align:center;line-height:1.6;margin-bottom:28px;">
+        ${isFile
+          ? 'MetaMask <strong style="color:var(--gold)">no funciona en archivos locales</strong> (protocolo <code style="background:var(--dark3);padding:2px 6px;border-radius:4px;font-size:12px;">file://</code>) por restricciones de seguridad del navegador. Debes servir la DApp desde un servidor HTTP.'
+          : 'No se detecto MetaMask u otra wallet compatible. Instala MetaMask para interactuar con la blockchain.'}
+      </div>
+
+      ${isFile ? `
+      <div style="background:var(--dark3);border:1px solid var(--border);border-radius:12px;padding:20px;margin-bottom:20px;">
+        <div style="font-family:var(--mono),monospace;font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--gold);margin-bottom:14px;">Opciones para activar MetaMask</div>
+
+        <div style="margin-bottom:16px;">
+          <div style="font-size:13px;font-weight:600;margin-bottom:6px;display:flex;align-items:center;gap:6px;"><span style="background:var(--gold);color:var(--dark);width:20px;height:20px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;flex-shrink:0;">1</span> Python (mas facil)</div>
+          <div style="background:var(--white);border-radius:var(--radius);padding:10px 14px;font-family:var(--mono);font-size:12px;color:var(--green);cursor:pointer;border:1px solid var(--gray-200);" onclick="copyText('python -m http.server 8080')">
+            python -m http.server 8080
+            <span style="float:right;color:var(--text-muted);">📋</span>
+          </div>
+          <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">Luego abre: <a href="http://localhost:8080" target="_blank" style="color:var(--blue);">http://localhost:8080</a></div>
+        </div>
+
+        <div style="margin-bottom:16px;">
+          <div style="font-size:13px;font-weight:600;margin-bottom:6px;display:flex;align-items:center;gap:6px;"><span style="background:var(--gold);color:var(--dark);width:20px;height:20px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;flex-shrink:0;">2</span> Node.js / npx</div>
+          <div style="background:var(--white);border-radius:var(--radius);padding:10px 14px;font-family:var(--mono);font-size:12px;color:var(--green);cursor:pointer;border:1px solid var(--gray-200);" onclick="copyText('npx serve .')">
+            npx serve .
+            <span style="float:right;color:var(--text-muted);">📋</span>
+          </div>
+          <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">Luego abre: <a href="http://localhost:3000" target="_blank" style="color:var(--blue);">http://localhost:3000</a></div>
+        </div>
+
+        <div>
+          <div style="font-size:13px;font-weight:600;margin-bottom:6px;display:flex;align-items:center;gap:6px;"><span style="background:var(--gold);color:var(--dark);width:20px;height:20px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;flex-shrink:0;">3</span> Subir a Netlify (gratis, permanente)</div>
+          <div style="font-size:12px;color:var(--text-dim);line-height:1.6;">
+            Arrastra el archivo HTML a <a href="https://app.netlify.com/drop" target="_blank" style="color:var(--gold);text-decoration:none;">netlify.com/drop ↗</a> y obtienes una URL publica con HTTPS. MetaMask funciona inmediatamente.
+          </div>
+        </div>
+      </div>
+
+      <div style="background:rgba(61,168,255,.05);border:1px solid rgba(61,168,255,.12);border-radius:var(--radius);padding:12px 16px;font-size:12px;color:var(--gray-600);margin-bottom:20px;">
+        💡 <strong>Sin wallet</strong> puedes seguir usando el dashboard en modo lectura - consulta cualquier direccion BSC sin necesidad de conectar MetaMask.
+      </div>
+      ` : `
+      <div style="text-align:center;margin-bottom:20px;">
+        <a href="https://metamask.io/download/" target="_blank" style="display:inline-block;padding:12px 32px;background:linear-gradient(135deg,#F6851B,#E2761B);border-radius:8px;color:white;font-family:var(--font),sans-serif;font-weight:700;font-size:14px;text-decoration:none;">Instalar MetaMask ↗</a>
+      </div>
+      `}
+
+      <button onclick="document.getElementById('wallet-help-modal').remove()" style="width:100%;padding:12px;background:var(--gray-100);border:1px solid var(--gray-200);border-radius:var(--radius);color:var(--gray-600);font-family:var(--font);font-weight:600;font-size:14px;cursor:pointer;">
+        Cerrar
+      </button>
+    </div>
+  `;
+  document.body.appendChild(modal);
+  modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+}
+
+const USDT_ABI = [
+  "function approve(address spender, uint256 amount) returns (bool)",
+  "function allowance(address owner, address spender) view returns (uint256)",
+  "function balanceOf(address) view returns (uint256)"
+];
+
+async function searchUser() {
+  const addr = document.getElementById('search-addr').value.trim();
+  if (!addr || !isValidAddr(addr)) {
+    toast('Ingresa una direccion valida de BSC', 'error');
+    return;
+  }
+  if (!contracts.core) {
+    toast('Primero configura los contratos', 'error');
+    return;
+  }
+
+  currentUser = addr;
+
+  try {
+    if (contracts.lens) {
+      await loadUserFromLens(addr);
+    } else {
+      await loadUserFromCore(addr);
+    }
+  } catch(e) {
+    toast('Error al cargar usuario: ' + (e.message || e), 'error');
+    console.error(e);
+  }
+}
+
+async function loadUserFromLens(addr) {
+  try {
+    const [dash, lotsPage, activePackageIds] = await contracts.lens.getUser(addr);
+    renderUserFromLens(addr, dash, lotsPage, activePackageIds);
+  } catch(e) {
+    console.warn('Lens error, falling back to core:', e);
+    await loadUserFromCore(addr);
+  }
+}
+
+async function loadUserFromCore(addr) {
+  const [userData, directCountRes] = await Promise.allSettled([
+    contracts.core.users(addr),
+    contracts.core.directCount(addr)
+  ]);
+
+  if (userData.status === 'rejected') {
+    toast('No se pudo leer el usuario del contrato Core', 'error');
+    return;
+  }
+
+  const [exists, frozen, upline, highestPackage, validUntil, monthlyIncludedUntil] = userData.value;
+  const directs = directCountRes.status === 'fulfilled' ? Number(directCountRes.value) : 0;
+
+  let ranksData = {pendingUserUSDT: 0n, poolAvailableUSDT: 0n};
+  let poolsData = {leadershipClaimableUSDT:0n, topTenClaimableUSDT:0n, leadershipPoolTotalUSDT:0n, topTenPoolTotalUSDT:0n, monthIndex:0n};
+  let cashbackData = {balanceUSDT:0n, nextExpiryAt:0n, nextExpiryAmountUSDT:0n, expiringSoonAmountUSDT:0n};
+
+  if (contracts.ranks) {
+    try {
+      const [pen, pool] = await Promise.all([
+        contracts.ranks.pendingTotal(addr),
+        contracts.ranks.availablePool()
+      ]);
+      ranksData = {pendingUserUSDT: pen, poolAvailableUSDT: pool};
+    } catch {}
+  }
+
+  if (contracts.pools) {
+    try {
+      const mi = await contracts.pools.currentMonthIndex();
+      const [l, t, lTotal, tTotal] = await Promise.all([
+        contracts.pools.leadershipClaimable(mi, addr),
+        contracts.pools.topTenClaimable(mi, addr),
+        contracts.pools.leadershipPoolTotal(mi),
+        contracts.pools.topTenAccruedByMonth(mi)
+      ]);
+      poolsData = {leadershipClaimableUSDT:l, topTenClaimableUSDT:t, leadershipPoolTotalUSDT:lTotal, topTenPoolTotalUSDT:tTotal, monthIndex:mi};
+    } catch {}
+  }
+
+  if (contracts.cashback) {
+    try {
+      const bal = await contracts.cashback.balanceOf(addr);
+      let nextExp = {hasLot:false, expiresAt:0n, amountInLot:0n};
+      let expSoon = 0n;
+      try { const r = await contracts.cashback.nextCashbackExpiry(addr); nextExp = r; } catch {}
+      try { expSoon = await contracts.cashback.expiringIn(addr, 30*24*3600); } catch {}
+      cashbackData = {balanceUSDT:bal, nextExpiryAt:nextExp.expiresAt||0n, nextExpiryAmountUSDT:nextExp.amountInLot||0n, expiringSoonAmountUSDT:expSoon};
+    } catch {}
+  }
+
+  const pkg = highestPackage > 0 ? await contracts.core.packages(highestPackage).catch(()=>null) : null;
+  const now = Math.floor(Date.now()/1000);
+  const isActive = validUntil > 0n && Number(validUntil) >= now;
+  const inactiveSecs = isActive ? 0n : (validUntil > 0n ? BigInt(now) - validUntil : 0n);
+
+  renderUserCard({addr, exists, frozen, upline, highestPackage, validUntil, monthlyIncludedUntil, isActive, inactiveSecs, directs});
+  renderStatsFromCore({highestPackage, validUntil, isActive, frozen}, cashbackData, directs, upline);
+  renderMembership(validUntil, monthlyIncludedUntil, isActive, frozen);
+  renderEarnings(ranksData, poolsData, cashbackData);
+  renderCashback(cashbackData, null);
+  renderPools(poolsData);
+
+  if (contracts.binary) {
+    try {
+      const [lBV, rBV] = await Promise.all([
+        contracts.binary.leftBV(addr),
+        contracts.binary.rightBV(addr)
+      ]);
+      const leg = await contracts.core.userLeg(addr).catch(()=>0);
+      renderBinary(lBV, rBV, leg);
+    } catch {}
+  }
+
+  await loadDirects(addr, directs);
+  await loadYieldData(addr);
+  // Always load ranks data
+  loadRanksTab(addr).catch(()=>{});
+  // Update unilevel stats
+  try {
+    const uniCount = document.getElementById('uni-directs-count');
+    const uniUpline = document.getElementById('uni-upline');
+    if (uniCount) uniCount.textContent = directs;
+    if (uniUpline && upline && !isZero(upline)) uniUpline.textContent = shortAddr(upline);
+  } catch {}
+  // Load binary tree if that sub-tab is open
+  if (document.getElementById('tab-network')?.classList.contains('active') && currentNetTab === 'binary') loadBinaryTree(addr).catch(()=>{});
+}
+
+async function renderUserFromLens(addr, dash, lotsPage, activePackageIds) {
+  const u = dash.user;
+  const pkg = dash.pkg;
+  const cb = dash.cashback;
+  const ranks = dash.ranks;
+  const pools = dash.pools;
+
+  renderUserCard({
+    addr,
+    exists: u.exists,
+    frozen: u.frozen,
+    upline: u.upline,
+    highestPackage: u.packageId,
+    validUntil: u.validUntil,
+    monthlyIncludedUntil: u.monthlyIncludedUntil,
+    isActive: u.isActive,
+    inactiveSecs: u.inactiveSeconds,
+    directs: 0
+  });
+
+  renderStatsFromCore({
+    highestPackage: u.packageId,
+    validUntil: u.validUntil,
+    isActive: u.isActive,
+    frozen: u.frozen
+  }, {
+    balanceUSDT: cb.balanceUSDT,
+    nextExpiryAt: cb.nextExpiryAt,
+    nextExpiryAmountUSDT: cb.nextExpiryAmountUSDT,
+    expiringSoonAmountUSDT: cb.expiringSoonAmountUSDT
+  }, 0, u.upline);
+
+  renderMembership(u.validUntil, u.monthlyIncludedUntil, u.isActive, u.frozen);
+  renderEarnings(ranks, pools, {balanceUSDT: cb.balanceUSDT});
+  renderCashback({
+    balanceUSDT: cb.balanceUSDT,
+    nextExpiryAt: cb.nextExpiryAt,
+    nextExpiryAmountUSDT: cb.nextExpiryAmountUSDT,
+    expiringSoonAmountUSDT: cb.expiringSoonAmountUSDT
+  }, lotsPage);
+  renderPools(pools);
+
+  document.getElementById('pool-leadership-total').textContent = fmt18(pools.leadershipPoolTotalUSDT) + ' USDT';
+  document.getElementById('pool-topten-total').textContent = fmt18(pools.topTenPoolTotalUSDT) + ' USDT';
+
+  if (activePackageIds && activePackageIds.length > 0) {
+    loadPackages(activePackageIds, u.packageId);
+  }
+  // Load yield
+  await loadYieldData(addr);
+}
+
+// ─── RENDER FUNCTIONS ───
+function renderUserCard(u) {
+  const initials = u.addr.slice(2,4).toUpperCase();
+  const section = document.getElementById('user-card-section');
+  const explorerBase = activeNetwork ? activeNetwork.explorer : 'https://bscscan.com';
+  section.innerHTML = `
+    <div class="user-card">
+      <div class="user-avatar">${initials}</div>
+      <div class="user-info">
+        <div class="user-addr">
+          <span>${u.addr}</span>
+          <button class="copy-btn" onclick="copyText('${u.addr}')">📋</button>
+          <a href="${explorerBase}/address/${u.addr}" target="_blank" style="font-size:11px;color:var(--gray-400);text-decoration:none;">↗</a>
+        </div>
+        <div class="user-tags">
+          ${u.exists ? `<span class="badge ${u.isActive?'badge-green':'badge-red'}">${u.isActive?'Activo':'Inactivo'}</span>` : '<span class="badge badge-red">No registrado</span>'}
+          ${u.frozen ? '<span class="badge badge-blue">Congelado</span>' : ''}
+          ${u.highestPackage > 0 ? `<span class="badge badge-gold">Paquete ${u.highestPackage}</span>` : ''}
+          ${!isZero(u.upline) ? `<span class="badge badge-gray">Upline: ${shortAddr(u.upline)}</span>` : ''}
+        </div>
+      </div>
+      ${u.validUntil > 0n ? `<div class="user-right">
+        <div class="user-right-label">Valido hasta</div>
+        <div class="user-right-value" style="color:${u.isActive?'var(--green)':'var(--red)'};">${tsToDate(u.validUntil)}</div>
+        <div class="user-right-sub">${secondsLeft(u.validUntil)}</div>
+      </div>` : ''}
+    </div>
+  `;
+}
+
+function renderStatsFromCore(userData, cb, directs, upline) {
+  document.getElementById('stat-package').textContent = userData.highestPackage > 0 ? `#${userData.highestPackage}` : '-';
+  document.getElementById('stat-package-name').textContent = PACKAGE_NAMES[userData.highestPackage] || 'Sin paquete';
+  document.getElementById('stat-rank').textContent = '-';
+  document.getElementById('stat-rank-sub').textContent = 'Rank en modulo';
+  document.getElementById('stat-cashback').textContent = fmt18(cb.balanceUSDT) + ' USDT';
+  document.getElementById('stat-cashback-sub').textContent = 'Saldo activo';
+  document.getElementById('stat-directs').textContent = directs > 0 ? directs : '-';
+  document.getElementById('stat-upline').textContent = !isZero(upline) ? 'Upline: ' + shortAddr(upline) : 'Sin upline';
+
+  if (contracts.ranks && currentUser) {
+    contracts.ranks.userRank(currentUser).then(r => {
+      document.getElementById('stat-rank').textContent = r > 0 ? 'Rango ' + r : 'Sin rango';
+    }).catch(()=>{});
+  }
+}
+
+function renderMembership(validUntil, monthlyUntil, isActive, frozen) {
+  const el = document.getElementById('membership-body');
+  const tag = document.getElementById('membership-status-tag');
+  tag.innerHTML = `<span class="badge ${isActive?'badge-green':'badge-red'}">${isActive?'Activo':'Inactivo'}</span>`;
+
+  let alertHtml = '';
+  if (frozen) alertHtml = `<div class="alert alert alert-danger">❄ Cuenta congelada por administrador del ecosistema.</div>`;
+  else if (!isActive && validUntil > 0n) alertHtml = `<div class="alert alert alert-warn">⚠ Membresia vencida hace ${secondsLeft(Number(validUntil))} (${tsToDate(validUntil)}).</div>`;
+
+  el.innerHTML = alertHtml + `
+    <div class="mem-row"><span class="mem-label">Valido hasta</span><span class="mem-val" style="color:${isActive?'var(--green)':'var(--red)'};">${tsToDate(validUntil)}</span></div>
+    <div class="mem-row"><span class="mem-label">Mensualidad incluida hasta</span><span class="mem-val" style="color:var(--gray-600);">${tsToDate(monthlyUntil)}</span></div>
+    <div class="mem-row"><span class="mem-label">Estado</span><span class="mem-val">${frozen?'❄ CONGELADA':isActive?'✅ ACTIVA':'🔴 INACTIVA'}</span></div>
+    <div class="mem-row"><span class="mem-label">Tiempo restante</span><span class="mem-val" style="color:var(--gold);">${secondsLeft(validUntil)}</span></div>
+  `;
+}
+
+function renderPools(pools) {
+  const el = document.getElementById('pools-body');
+  const badge = document.getElementById('pools-month-badge');
+  const mi = pools.monthIndex || 0n;
+  badge.innerHTML = `<span class="badge badge-blue">Mes ${Number(mi)}</span>`;
+
+  document.getElementById('pool-leadership-total').textContent = fmt18(pools.leadershipPoolTotalUSDT||0n) + ' USDT';
+  document.getElementById('pool-topten-total').textContent = fmt18(pools.topTenPoolTotalUSDT||0n) + ' USDT';
+
+  const pos = pools.userTopTenPosition;
+  const inTopTen = pos > 0;
+
+  el.innerHTML = `
+    <div class="pool-row">
+      <div>
+        <div class="pool-name">Pool Liderazgo ${pools.leadershipClosed ? '<span class="badge badge-green">Cerrado</span>' : ''}</div>
+        <div class="pool-info">Total: ${fmt18(pools.leadershipPoolTotalUSDT||0n)} USDT</div>
+      </div>
+      <div>
+        <div class="pool-amount">${fmt18(pools.leadershipClaimableUSDT||0n)} USDT</div>
+        <div class="pool-sub">Reclamable</div>
+      </div>
+    </div>
+    <div class="pool-row">
+      <div>
+        <div class="pool-name">Pool Top 10 ${inTopTen ? `<span class="badge badge-gold">#${pos}</span>` : ''}</div>
+        <div class="pool-info">Total: ${fmt18(pools.topTenPoolTotalUSDT||0n)} USDT</div>
+      </div>
+      <div>
+        <div class="pool-amount">${fmt18(pools.topTenClaimableUSDT||0n)} USDT</div>
+        <div class="pool-sub">Reclamable</div>
+      </div>
+    </div>
+  `;
+}
+
+function renderEarnings(ranks, pools, cb) {
+  const el = document.getElementById('earnings-list');
+  const rows = [
+    {
+      name: '🏆 Bonos de Rango',
+      desc: 'Pendiente del modulo de rangos',
+      amount: ranks.pendingUserUSDT || 0n,
+      poolInfo: 'Pool disponible: ' + fmt18(ranks.poolAvailableUSDT || 0n) + ' USDT',
+      canClaim: walletAddress && currentUser === walletAddress,
+      onClaim: () => claimRanks()
+    },
+    {
+      name: '🌟 Pool Liderazgo',
+      desc: 'Mes ' + Number(pools.monthIndex || 0n),
+      amount: pools.leadershipClaimableUSDT || 0n,
+      poolInfo: 'Total pool: ' + fmt18(pools.leadershipPoolTotalUSDT || 0n) + ' USDT',
+      canClaim: walletAddress && currentUser === walletAddress,
+      onClaim: () => claimLeadership(pools.monthIndex)
+    },
+    {
+      name: '🔟 Pool Top 10',
+      desc: 'Mes ' + Number(pools.monthIndex || 0n),
+      amount: pools.topTenClaimableUSDT || 0n,
+      poolInfo: 'Total pool: ' + fmt18(pools.topTenPoolTotalUSDT || 0n) + ' USDT',
+      canClaim: walletAddress && currentUser === walletAddress,
+      onClaim: () => claimTopTen(pools.monthIndex)
+    }
+  ];
+
+  const total = rows.reduce((s, r) => s + (r.amount||0n), 0n);
+
+  el.innerHTML = `
+    <div class="claim-hero">
+      <div>
+        <div class="claim-hero-label">Total reclamable</div>
+        <div class="claim-hero-amount">${fmt18(total)} USDT</div>
+      </div>
+      ${walletAddress && currentUser === walletAddress ? `<button class="btn btn-dark" onclick="claimAll()" style="padding:12px 28px;">Reclamar todo</button>` : ''}
+    </div>
+    ${rows.map(r => `
+      <div class="claim-row">
+        <div class="claim-info">
+          <div class="name">${r.name}</div>
+          <div class="amount">${fmt18(r.amount)} USDT</div>
+          <div class="user-right-sub">${r.poolInfo}</div>
+        </div>
+        ${r.canClaim ? `<button class="btn-claim" ${r.amount === 0n ? 'disabled' : ''} onclick="(${r.onClaim.toString()})()">
+          ${r.amount === 0n ? 'Sin saldo' : 'Reclamar'}
+        </button>` : '<span style="font-size:11px;color:var(--text-muted);font-family:\'DM Mono\',monospace;">Solo lectura</span>'}
+      </div>
+    `).join('')}
+  `;
+}
+
+function renderCashback(cb, lotsPage) {
+  document.getElementById('cb-balance').textContent = fmt18(cb.balanceUSDT || 0n) + ' USDT';
+  document.getElementById('cb-balance-sub').textContent = 'Disponible para uso';
+  document.getElementById('cb-expiry').textContent = tsToDate(cb.nextExpiryAt);
+  document.getElementById('cb-expiry-sub').textContent = cb.nextExpiryAmountUSDT > 0n ? fmt18(cb.nextExpiryAmountUSDT) + ' USDT en lot' : 'Sin lots activos';
+  document.getElementById('cb-expiring-soon').textContent = fmt18(cb.expiringSoonAmountUSDT || 0n) + ' USDT';
+
+  const el = document.getElementById('cashback-lots-body');
+  const countEl = document.getElementById('cb-lots-count');
+
+  if (!lotsPage || !lotsPage.lotIndexes || lotsPage.lotIndexes.length === 0) {
+    el.innerHTML = '<div class="empty"><div class="empty-icon">✅</div><div class="empty-title">Sin lots pendientes</div><div class="empty-desc">No hay lots de cashback activos en este momento</div></div>';
+    countEl.textContent = '';
+    return;
+  }
+
+  const lots = lotsPage.lotIndexes;
+  countEl.textContent = lots.length + ' lots';
+
+  el.innerHTML = `
+    <table class="lots-table">
+      <thead><tr>
+        <th>Lot #</th>
+        <th>Monto</th>
+        <th>Vence</th>
+        <th>Estado</th>
+      </tr></thead>
+      <tbody>
+        ${lots.map((idx, i) => `
+          <tr>
+            <td style="color:var(--text-muted);">#${Number(idx)}</td>
+            <td style="color:var(--green);">${fmt18(lotsPage.amountsUSDT[i] || 0n)} USDT</td>
+            <td>${tsToDate(lotsPage.expiresAt[i])}</td>
+            <td>
+              ${lotsPage.expired && lotsPage.expired[i]
+                ? '<span class="tag inactive" style="font-size:10px;">Vencido</span>'
+                : '<span class="tag active" style="font-size:10px;">Activo</span>'}
+            </td>
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>
+  `;
+}
+
+function renderBinary(leftBV, rightBV, leg) {
+  document.getElementById('left-bv').textContent = fmt18(leftBV);
+  document.getElementById('right-bv').textContent = fmt18(rightBV);
+  document.getElementById('user-leg').textContent = LEG_NAMES[Number(leg)] || 'No definida';
+}
+
+async function loadDirects(addr, count) {
+  const el = document.getElementById('directs-list');
+  if (count === 0) {
+    el.innerHTML = '<div class="empty"><div class="empty-icon">👤</div><div class="empty-title">Sin directos</div><div class="empty-desc">Este usuario no tiene referidos directos aun</div></div>';
+    return;
+  }
+
+  el.innerHTML = '<div style="color:var(--text-muted);font-size:13px;padding:16px;">Cargando directos...</div>';
+  const limit = Math.min(count, 20);
+  const promises = [];
+  for (let i = 0; i < limit; i++) {
+    promises.push(contracts.core.directAt(addr, i).catch(()=>null));
+  }
+
+  const results = await Promise.all(promises);
+  const valid = results.filter(Boolean);
+
+  el.innerHTML = `
+    <div style="margin-bottom:10px;font-family:var(--mono);font-size:10px;color:var(--gray-400);letter-spacing:1px;">${count} DIRECTO(S)${count>20?' - PRIMEROS 20':''}</div>
+    <div style="display:flex;flex-direction:column;gap:2px;">
+    ${valid.map((a, i) => `
+      <div class="ctr-row" style="padding:10px 0;">
+        <span style="font-family:var(--mono);font-size:11px;color:var(--gray-400);min-width:28px;">${i+1}.</span>
+        <span style="font-family:var(--mono);font-size:12px;color:var(--gray-900);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${a}</span>
+        <button class="copy-btn" onclick="copyText('${a}')">📋</button>
+        <button onclick="document.getElementById('search-addr').value='${a}';searchUser();" class="btn btn-outline" style="padding:3px 10px;font-size:11px;margin-left:8px;">Ver</button>
+      </div>
+    `).join('')}
+    </div>
+  `;
+}
+
+async function loadCoreStatus() {
+  const el = document.getElementById('core-status-body');
+  if (!el) return;
+  if (!contracts.core) {
+    el.innerHTML = '<div class="empty"><div class="empty-icon">○</div><div class="empty-title">Core no configurado</div><div class="empty-desc">Ingresa la direccion del Core en la configuracion</div></div>';
+    return;
+  }
+  el.innerHTML = '<div style="color:var(--gray-400);font-size:13px;padding:16px;font-family:var(--mono);">Leyendo contrato...</div>';
+  try {
+    const [paused, totalUsers, pendingRanks, pendingLeadership, pendingTopTen, inscFee, monthFee] = await Promise.allSettled([
+      contracts.core.paused(),
+      contracts.core.totalUsers(),
+      contracts.core.pendingRanksAmount(),
+      contracts.core.pendingLeadershipAmount(),
+      contracts.core.pendingTopTenAmount(),
+      contracts.core.INSCRIPTION_FEE(),
+      contracts.core.monthlyFee()
+    ]);
+
+    const g = (r) => r.status === 'fulfilled' ? r.value : null;
+
+    el.innerHTML = `
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+        <div>
+          <div class="mem-row"><span class="mem-label">Estado del sistema</span><span class="ctr-chip ${g(paused) ? 'chip-no' : 'chip-ok'}">${g(paused) ? '⏸ PAUSADO' : '▶ ACTIVO'}</span></div>
+          <div class="mem-row"><span class="mem-label">Total usuarios</span><span class="mem-val" style="color:var(--blue);">${g(totalUsers) !== null ? Number(g(totalUsers)).toLocaleString() : '-'}</span></div>
+          <div class="mem-row"><span class="mem-label">Fee inscripcion</span><span class="mem-val" style="color:var(--gold);">${g(inscFee) !== null ? fmt18(g(inscFee)) : '-'} USDT</span></div>
+          <div class="mem-row" style="border:none;"><span class="mem-label">Mensualidad</span><span class="mem-val" style="color:var(--gold);">${g(monthFee) !== null ? fmt18(g(monthFee)) : '-'} USDT</span></div>
+        </div>
+        <div>
+          <div class="mem-row"><span class="mem-label">Pending Ranks</span><span class="mem-val">${g(pendingRanks) !== null ? fmt18(g(pendingRanks)) + ' USDT' : '-'}</span></div>
+          <div class="mem-row"><span class="mem-label">Pending Liderazgo</span><span class="mem-val">${g(pendingLeadership) !== null ? fmt18(g(pendingLeadership)) + ' USDT' : '-'}</span></div>
+          <div class="mem-row" style="border:none;"><span class="mem-label">Pending Top 10</span><span class="mem-val">${g(pendingTopTen) !== null ? fmt18(g(pendingTopTen)) + ' USDT' : '-'}</span></div>
+        </div>
+      </div>
+    `;
+  } catch(e) {
+    el.innerHTML = `<div class="empty"><div class="empty-icon">⚠️</div><div class="empty-title">Error al leer Core</div><div class="empty-desc">${e.message}</div></div>`;
+  }
+}
+
+async function loadPackages(activeIds, userPkg) {
+  const el = document.getElementById('packages-grid');
+  if (!contracts.core) return;
+
+  try {
+    const maxId = activeIds ? Math.max(...activeIds.map(Number)) : Number(await contracts.core.maxPackageId());
+    const pkgDefs = [];
+
+    for (let i = 1; i <= maxId; i++) {
+      if (activeIds && !activeIds.map(Number).includes(i)) continue;
+      try {
+        const [price, brokerFee, includedMonths, enabled, exists] = await contracts.core.packages(i);
+        if (exists) pkgDefs.push({id:i, price, brokerFee, includedMonths, enabled});
+      } catch {}
+    }
+
+    if (pkgDefs.length === 0) {
+      el.innerHTML = '<div class="empty" style="grid-column:1/-1;"><div class="empty-icon">📦</div><div class="empty-title">Sin paquetes configurados</div></div>';
+      return;
+    }
+
+    const benefits = {
+      1: {role:'Trader', cashback:'2%', bonusLevels:0, pointLevels:0, hasPools:false},
+      2: {role:'Network Builder', cashback:'3%', bonusLevels:2, pointLevels:3, hasPools:false},
+      3: {role:'Network Leader', cashback:'5%', bonusLevels:3, pointLevels:7, hasPools:true},
+      4: {role:'Ecosystem Partner', cashback:'7%', bonusLevels:3, pointLevels:10, hasPools:true}
+    };
+
+    el.innerHTML = pkgDefs.map(p => {
+      const b = benefits[p.id] || {};
+      const isUserPkg = Number(userPkg) === p.id;
+      return `
+        <div class="pkg-card ${isUserPkg?'active':''}">
+          <div class="pkg-num">${p.id}</div>
+          <div class="pkg-name">${PACKAGE_NAMES[p.id] || 'Paquete '+p.id}</div>
+          ${b.role ? `<div style="font-size:11px;color:var(--text-muted);font-family:var(--mono),monospace;margin-bottom:10px;text-transform:uppercase;letter-spacing:1px;">${b.role}</div>` : ''}
+          <div class="pkg-price">${fmt18(p.price)} USDT</div>
+          <ul class="pkg-feats">
+            ${p.includedMonths > 0 ? `<li>${p.includedMonths} ${p.includedMonths==1?'mes':'meses'} incluido(s)</li>` : ''}
+            ${b.cashback ? `<li>Cashback: ${b.cashback}</li>` : ''}
+            ${b.bonusLevels > 0 ? `<li>${b.bonusLevels} niveles de bono</li>` : ''}
+            ${b.pointLevels > 0 ? `<li>${b.pointLevels} niveles de puntos</li>` : ''}
+            ${b.hasPools ? '<li>Acceso a pools globales</li>' : ''}
+            ${!p.enabled ? '<li style="color:var(--red)">Deshabilitado</li>' : ''}
+          </ul>
+          ${isUserPkg ? '<div style="margin-top:12px;text-align:center;font-size:10px;font-family:\'DM Mono\',monospace;color:var(--gold);letter-spacing:1px;">★ TU PAQUETE</div>' : ''}
+        </div>
+      `;
+    }).join('');
+  } catch(e) {
+    el.innerHTML = `<div class="empty" style="grid-column:1/-1;"><div class="empty-icon">⚠️</div><div class="empty-title">Error al cargar paquetes</div><div class="empty-desc">${e.message}</div></div>`;
+  }
+}
+
+function updateContractsTab() {
+  const el = document.getElementById('contracts-list');
+  // Network badge in contracts tab
+  const netTag = document.getElementById('contracts-network-tag');
+  if (netTag && activeNetwork) {
+    const isTest = activeNetwork === NETWORKS.testnet;
+    netTag.innerHTML = `<span class="badge ${isTest?'badge-purple':'badge-gold'}">${activeNetwork.label}</span>`;
+  }
+  const items = [
+    {name: 'Core (MultiPackageWithRanksV3)', key: 'core'},
+    {name: 'DashboardLens', key: 'lens'},
+    {name: 'RanksModule', key: 'ranks'},
+    {name: 'PoolsModule', key: 'pools'},
+    {name: 'BinaryModule', key: 'binary'},
+    {name: 'CashbackEngine', key: 'cashback'},
+    {name: 'YieldProgramModule', key: 'yield'},
+    {name: 'RoleResolver', key: 'roleResolver'},
+    {name: 'EcosystemAdminModule',    key: 'admin'},
+    {name: '- Marketplace -',          key: null},
+    {name: 'MarketplaceRegistry',      key: 'mktRegistry'},
+    {name: 'MarketplaceCatalog',       key: 'mktCatalog'},
+    {name: 'MarketplaceCheckout',      key: 'mktCheckout'},
+    {name: 'MarketplaceTreasury',      key: 'mktTreasury'},
+    {name: 'MarketplaceAccess',        key: 'mktAccess'},
+    {name: 'MarketplaceViews',         key: 'mktViews'},
+  ];
+
+  el.innerHTML = items.map(item => {
+    if (!item.key) return `<div class="ctr-section-sep">${item.name}</div>`;
+    const addr = addresses[item.key] || '';
+    return `<div class="ctr-row">
+      <span class="ctr-name">${item.name}</span>
+      <span class="ctr-addr">${addr || '-'}${addr ? `<button class="copy-btn" onclick="copyText('${addr}')">📋</button>` : ''}</span>
+      <span class="ctr-chip ${addr ? 'chip-ok' : 'chip-no'}">${addr ? '✓ OK' : '-'}</span>
+    </div>`;
+  }).join('');
+
+  // Links to BSCScan
+  if (addresses.core && activeNetwork) {
+    const link = document.createElement('div');
+    link.style.cssText = 'margin-top:16px;font-size:12px;color:var(--text-muted);';
+    const explorerName = activeNetwork === NETWORKS.testnet ? 'Testnet BSCScan' : 'BSCScan';
+    link.innerHTML = `<a href="${activeNetwork.explorer}/address/${addresses.core}" target="_blank" style="color:var(--gold);text-decoration:none;">Ver Core en ${explorerName} ↗</a>`;
+    el.appendChild(link);
+  }
+}
+
+// ─── CLAIM FUNCTIONS ───
+async function ensureSigner() {
+  if (!signer) {
+    toast('Conecta tu wallet para reclamar', 'error');
+    return false;
+  }
+  return true;
+}
+
+async function claimRanks() {
+  if (!await ensureSigner()) return;
+  if (!contracts.ranks) { toast('RanksModule no configurado', 'error'); return; }
+  try {
+    const c = contracts.ranks.connect(signer);
+    const tx = await c.claimAllRanks(walletAddress);
+    toast('Transaccion enviada...', 'info');
+    await tx.wait();
+    toast('✅ Rangos reclamados exitosamente', 'success');
+    await searchUser();
+  } catch(e) {
+    toast('Error: ' + (e.reason || e.message || e), 'error');
+  }
+}
+
+async function claimLeadership(monthIndex) {
+  if (!await ensureSigner()) return;
+  if (!contracts.pools) { toast('PoolsModule no configurado', 'error'); return; }
+  try {
+    const c = contracts.pools.connect(signer);
+    const tx = await c.claimLeadership(monthIndex, walletAddress);
+    toast('Transaccion enviada...', 'info');
+    await tx.wait();
+    toast('✅ Pool Liderazgo reclamado', 'success');
+    await searchUser();
+  } catch(e) {
+    toast('Error: ' + (e.reason || e.message || e), 'error');
+  }
+}
+
+async function claimTopTen(monthIndex) {
+  if (!await ensureSigner()) return;
+  if (!contracts.pools) { toast('PoolsModule no configurado', 'error'); return; }
+  try {
+    const c = contracts.pools.connect(signer);
+    const tx = await c.claimTopTen(monthIndex, walletAddress);
+    toast('Transaccion enviada...', 'info');
+    await tx.wait();
+    toast('✅ Pool Top 10 reclamado', 'success');
+    await searchUser();
+  } catch(e) {
+    toast('Error: ' + (e.reason || e.message || e), 'error');
+  }
+}
+
+async function claimAll() {
+  if (!await ensureSigner()) return;
+  toast('Iniciando proceso de reclamo total...', 'info');
+
+  let didAny = false;
+  const errors = [];
+
+  try {
+    if (contracts.ranks) {
+      const pending = await contracts.ranks.pendingTotal(walletAddress).catch(() => 0n);
+      if (pending > 0n) {
+        const c = contracts.ranks.connect(signer);
+        const tx = await c.claimAllRanks(walletAddress);
+        toast('Reclamando ranks...', 'info');
+        await tx.wait();
+        didAny = true;
+      }
+    }
+  } catch (e) {
+    errors.push('Ranks: ' + (e.reason || e.message || e));
+  }
+
+  try {
+    if (contracts.pools) {
+      const monthIndex = await contracts.pools.currentMonthIndex();
+      const [leadershipAmt, topTenAmt] = await Promise.all([
+        contracts.pools.leadershipClaimable(monthIndex, walletAddress).catch(() => 0n),
+        contracts.pools.topTenClaimable(monthIndex, walletAddress).catch(() => 0n)
+      ]);
+
+      if (leadershipAmt > 0n) {
+        const cp = contracts.pools.connect(signer);
+        const tx = await cp.claimLeadership(monthIndex, walletAddress);
+        toast('Reclamando pool de liderazgo...', 'info');
+        await tx.wait();
+        didAny = true;
+      }
+
+      if (topTenAmt > 0n) {
+        const cp = contracts.pools.connect(signer);
+        const tx = await cp.claimTopTen(monthIndex, walletAddress);
+        toast('Reclamando pool Top 10...', 'info');
+        await tx.wait();
+        didAny = true;
+      }
+    }
+  } catch (e) {
+    errors.push('Pools: ' + (e.reason || e.message || e));
+  }
+
+  if (!didAny) {
+    toast('No hay saldos reclamables disponibles', 'info');
+  } else {
+    toast('✅ Reclamo total completado', 'success');
+  }
+
+  if (errors.length) {
+    console.warn('claimAll warnings:', errors);
+  }
+
+  await searchUser();
+}
+
+// ─── YIELD PROGRAM ───
+async function loadYieldData(addr) {
+  if (!contracts.yield) return;
+  const el = document.getElementById('yield-positions-wrap');
+  if (!el) return;
+
+  try {
+    // Load global stats
+    const [poolBal, totalPrincipal, nextId, minRate, maxRate, buyFeeVal] = await Promise.allSettled([
+      contracts.yield.yieldPoolBalance(),
+      contracts.yield.totalActivePrincipal(),
+      contracts.yield.nextPositionId(),
+      contracts.yield.minDailyRateBP(),
+      contracts.yield.maxDailyRateBP(),
+      contracts.yield.buyFee()
+    ]);
+
+    const g = r => r.status === 'fulfilled' ? r.value : null;
+
+    if (g(poolBal) !== null) document.getElementById('yield-pool-balance').textContent = fmt18(g(poolBal)) + ' USDT';
+    if (g(totalPrincipal) !== null) document.getElementById('yield-total-principal').textContent = fmt18(g(totalPrincipal)) + ' USDT';
+    if (g(minRate) !== null && g(maxRate) !== null) {
+      const min = (Number(g(minRate)) / 100).toFixed(2);
+      const max = (Number(g(maxRate)) / 100).toFixed(2);
+      document.getElementById('yield-rate-range').textContent = `${min}% - ${max}%`;
+    }
+    if (g(buyFeeVal) !== null) {
+      const feeEl = document.getElementById('yield-buy-fee');
+      if (feeEl) feeEl.textContent = fmt18(g(buyFeeVal));
+    }
+
+    // Load user positions by scanning events
+    const totalPositions = g(nextId) ? Number(g(nextId)) - 1 : 0;
+    if (totalPositions === 0) {
+      el.innerHTML = '<div class="empty"><div class="empty-icon">📭</div><div class="empty-title">Sin posiciones</div><div class="empty-desc">Este usuario no tiene posiciones de yield aun</div></div>';
+    } else {
+      await loadUserPositions(addr, totalPositions, el);
+    }
+
+    // Load allowed packages for buy form
+    await loadYieldPackages();
+
+    // Update buy button state
+    updateBuyYieldBtn();
+
+  } catch(e) {
+    el.innerHTML = `<div class="empty"><div class="empty-icon">⚠️</div><div class="empty-title">Error al cargar Yield</div><div class="empty-desc">${e.message}</div></div>`;
+  }
+}
+
+async function loadUserPositions(userAddr, totalPositions, el) {
+  el.innerHTML = '<div style="color:var(--gray-400);font-size:13px;padding:16px;font-family:var(--mono);">Buscando posiciones...</div>';
+  
+  const positionIds = [];
+
+  // Strategy 1: Try events (fastest)
+  let eventsWorked = false;
+  try {
+    const filter = contracts.yield.filters.PositionOpened(null, userAddr);
+    const events = await Promise.race([
+      contracts.yield.queryFilter(filter, 0, 'latest'),
+      new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 5000))
+    ]);
+    for (const ev of events) positionIds.push(Number(ev.args.positionId));
+    eventsWorked = true;
+  } catch(e) {
+    console.log('[Yield] events unavailable, scanning directly:', e.message);
+  }
+
+  // Strategy 2: Scan positions directly (works on any RPC)
+  if (!eventsWorked) {
+    const limit = Math.min(totalPositions, 50); // scan up to 50 positions
+    el.innerHTML = `<div style="color:var(--gray-400);font-size:13px;padding:16px;font-family:var(--mono);">Escaneando ${limit} posiciones...</div>`;
+    
+    // Scan recent blocks in chunks for the PositionOpened event
+    try {
+      const latestBlock = await provider.getBlockNumber();
+      const chunkSize = 2000; // stay within RPC limits
+      const startBlock = Math.max(0, latestBlock - 50000); // look back ~50k blocks
+      
+      for (let from = startBlock; from <= latestBlock; from += chunkSize) {
+        const to = Math.min(from + chunkSize - 1, latestBlock);
+        try {
+          const filter = contracts.yield.filters.PositionOpened(null, userAddr);
+          const events = await contracts.yield.queryFilter(filter, from, to);
+          for (const ev of events) positionIds.push(Number(ev.args.positionId));
+        } catch { break; } // if chunked query also fails, stop
+      }
+    } catch(e2) {
+      console.log('[Yield] chunked scan failed:', e2.message);
+    }
+  }
+
+  // Strategy 3: If still empty and we have totalPositions, try reading each position
+  // and check if it was opened by the user via a dedicated call
+  if (positionIds.length === 0 && totalPositions > 0) {
+    // Try to find by scanning — YieldModule doesn't have user→positions mapping
+    // Show manual input as last resort
+    el.innerHTML = `
+      <div class="callout callout-blue" style="margin-bottom:12px;">
+        <span>ℹ</span>
+        <span>No se encontraron posiciones automáticamente. El RPC no soporta búsqueda por eventos. Ingresa el ID de tu posición:</span>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;">
+        <input id="manual-pos-input" class="addr-inp" placeholder="IDs: 1,2,3..." style="max-width:200px;font-family:var(--font);"/>
+        <button onclick="loadManualPositions('${userAddr}')" class="btn btn-dark" style="padding:9px 18px;">Cargar</button>
+      </div>
+      <div style="font-size:11px;color:var(--gray-400);font-family:var(--mono);">Posiciones totales en el contrato: ${totalPositions}</div>`;
+    return;
+  }
+
+  if (positionIds.length === 0) {
+    el.innerHTML = '<div class="empty"><div class="empty-icon">📭</div><div class="empty-title">Sin posiciones</div><div class="empty-desc">Este usuario no tiene posiciones de yield</div></div>';
+    return;
+  }
+
+  renderPositions(userAddr, positionIds, el);
+}
+
+async function loadManualPositions(userAddr) {
+  const input = document.getElementById('manual-pos-input');
+  if (!input) return;
+  const ids = input.value.split(',').map(s => parseInt(s.trim())).filter(n => !isNaN(n) && n > 0);
+  if (ids.length === 0) { toast('Ingresa IDs validos', 'error'); return; }
+  const el = document.getElementById('yield-positions-wrap');
+  renderPositions(userAddr, ids, el);
+}
+
+async function renderPositions(userAddr, positionIds, el) {
+  el.innerHTML = `<div style="color:var(--text-muted);font-size:13px;padding:16px;">Cargando ${positionIds.length} posicion(es)...</div>`;
+
+  const posData = [];
+  for (const id of positionIds) {
+    try {
+      const p = await contracts.yield.positions(id);
+      posData.push({ id, ...p });
+    } catch(e) { /* skip */ }
+  }
+
+  if (posData.length === 0) {
+    el.innerHTML = '<div class="empty"><div class="empty-icon">📭</div><div class="empty-title">Sin datos de posiciones</div></div>';
+    return;
+  }
+
+  const VOUCHER_STATUS = ['Normal', 'Pending', 'Activo', 'Cancelado'];
+  const canSync = walletAddress && walletAddress.toLowerCase() === userAddr.toLowerCase();
+
+  let html = `<div style="display:flex;flex-direction:column;gap:12px;">`;
+  for (const p of posData) {
+    const pct = p.accruedTotal > 0n ? Math.min(100, Math.round(Number(p.accruedTotal) * 100 / Number(p.basePrincipal))) : 0;
+    const remaining = p.basePrincipal > 0n ? (200n * p.basePrincipal / 100n) - p.accruedTotal : 0n;
+    const isCompound = p.compound;
+    const vStatus = Number(p.voucherStatus);
+    const isCompleted = p.accruedTotal >= (p.basePrincipal * 2n);
+
+    html += `
+    <div class="pos-card">
+      <div class="pos-head">
+        <div class="pos-title">
+          ${isCompound ? '📊' : '💸'} Posicion #${p.id}
+          <span class="badge ${isCompound ? 'badge-gold' : 'badge-green'}">${isCompound ? 'Compound' : 'Withdraw'}</span>
+          ${vStatus > 0 ? `<span class="badge badge-purple">Voucher: ${VOUCHER_STATUS[vStatus]||vStatus}</span>` : ''}
+          ${isCompleted ? '<span class="badge badge-green">✓ Completada</span>' : ''}
+        </div>
+        ${canSync && !isCompleted ? `<button class="btn btn-outline" onclick="syncPosition(${p.id})" style="padding:5px 14px;font-size:11px;">Sync ↻</button>` : ''}
+      </div>
+      <div class="pos-body">
+        <div class="pos-grid">
+          <div><div class="pos-stat-label">Principal base</div><div class="pos-stat-val" style="color:var(--gold);">${fmt18(p.basePrincipal)} USDT</div></div>
+          <div><div class="pos-stat-label">Principal actual</div><div class="pos-stat-val">${fmt18(p.principal)} USDT</div></div>
+          <div><div class="pos-stat-label">Pagado a wallet</div><div class="pos-stat-val" style="color:var(--green);">${fmt18(p.paidOut)} USDT</div></div>
+          <div><div class="pos-stat-label">Total acumulado</div><div class="pos-stat-val" style="color:var(--blue);">${fmt18(p.accruedTotal)} USDT</div></div>
+        </div>
+        <div>
+          <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--gray-400);margin-bottom:4px;"><span>Progreso hacia 200%</span><span style="color:var(--gold);">${pct}% - resta ${fmt18(remaining)} USDT</span></div>
+          <div class="prog"><div class="prog-fill" style="width:${pct}%;"></div></div>
+        </div>
+        ${p.pendingAccrued > 0n ? `<div style="margin-top:10px;font-family:var(--mono);font-size:11px;color:var(--amber);">⏳ Pendiente bloqueado: ${fmt18(p.pendingAccrued)} USDT</div>` : ''}
+        ${canSync && !isCompleted ? `<div style="margin-top:12px;">
+          <button onclick="togglePositionMode(${p.id}, ${!isCompound})" class="btn btn-outline" style="font-size:11px;padding:6px 14px;">
+            Cambiar a ${isCompound ? 'Withdraw' : 'Compound'}
+          </button>
+        </div>` : ''}
+      </div>
+    </div>`;
+  }
+  html += '</div>';
+  el.innerHTML = html;
+}
+
+async function syncPosition(posId) {
+  if (!await ensureSigner()) return;
+  if (!contracts.yield) { toast('YieldProgramModule no configurado', 'error'); return; }
+  try {
+    const c = contracts.yield.connect(signer);
+    toast(`Sincronizando posicion #${posId}...`, 'info');
+    const tx = await c.sync(posId);
+    await tx.wait();
+    toast(`✅ Posicion #${posId} sincronizada`, 'success');
+    if (currentUser) await loadYieldData(currentUser);
+  } catch(e) {
+    toast('Error: ' + (e.reason || e.message || e), 'error');
+  }
+}
+
+async function togglePositionMode(posId, newCompound) {
+  if (!await ensureSigner()) return;
+  if (!contracts.yield) return;
+  try {
+    const c = contracts.yield.connect(signer);
+    toast(`Cambiando modo de posicion #${posId}...`, 'info');
+    const tx = await c.setCompound(posId, newCompound);
+    await tx.wait();
+    toast(`✅ Modo cambiado a ${newCompound ? 'Compound' : 'Withdraw'}`, 'success');
+    if (currentUser) await loadYieldData(currentUser);
+  } catch(e) {
+    toast('Error: ' + (e.reason || e.message || e), 'error');
+  }
+}
+
+async function loadYieldPackages() {
+  const grid = document.getElementById('yield-packages-grid');
+  if (!grid || !contracts.yield) return;
+
+  const KNOWN_AMOUNTS = [50, 100, 250, 500, 1000, 2000, 5000, 10000, 20000, 50000];
+  const allowed = [];
+  for (const amt of KNOWN_AMOUNTS) {
+    try {
+      const ok = await contracts.yield.isAllowedPackage(ethers.parseUnits(amt.toString(), 18));
+      if (ok) allowed.push(amt);
+    } catch {}
+  }
+
+  if (allowed.length === 0) {
+    grid.innerHTML = '<span style="font-size:12px;color:var(--text-muted);">Sin montos disponibles</span>';
+    return;
+  }
+
+  grid.innerHTML = allowed.map(amt => `
+    <button onclick="selectYieldAmount(${amt})" class="chip" id="yield-pkg-${amt}">${amt} USDT</button>
+  `).join('');
+}
+
+function selectYieldAmount(amt) {
+  document.getElementById('yield-amount-input').value = amt;
+  document.querySelectorAll('[id^="yield-pkg-"]').forEach(el => {
+    el.className = 'chip' + (el.id === `yield-pkg-${amt}` ? ' sel' : '');
+  });
+  validateYieldAmount();
+}
+
+function validateYieldAmount() {
+  const val = parseFloat(document.getElementById('yield-amount-input')?.value || '0');
+  const hint = document.getElementById('yield-amount-hint');
+  const btn = document.getElementById('btn-buy-yield');
+  if (!btn) return;
+  if (!walletAddress) { btn.disabled = true; btn.textContent = 'Conecta wallet para comprar'; return; }
+  if (val <= 0) { if(hint) hint.textContent = 'Ingresa un monto'; btn.disabled = true; return; }
+  if(hint) hint.textContent = `Total a aprobar: ${(val + 5).toFixed(2)} USDT (${val} + 5 fee)`;
+  btn.disabled = false;
+  btn.textContent = `Comprar ${val} USDT de Yield`;
+}
+
+function selectYieldMode(mode) {
+  const compBtn = document.getElementById('mode-compound-btn');
+  const withBtn = document.getElementById('mode-withdraw-btn');
+  if (!compBtn || !withBtn) return;
+  compBtn.className = 'mode-card' + (mode === 'compound' ? ' sel-c' : '');
+  withBtn.className = 'mode-card' + (mode === 'withdraw' ? ' sel-w' : '');
+}
+
+function updateBuyYieldBtn() {
+  const btn = document.getElementById('btn-buy-yield');
+  if (!btn) return;
+  if (!walletAddress) {
+    btn.disabled = true;
+    btn.textContent = 'Conecta wallet para comprar';
+    const msg = document.getElementById('yield-not-connected-msg');
+    if (msg) msg.style.display = 'block';
+  } else {
+    btn.disabled = false;
+    btn.textContent = 'Comprar Yield';
+    const msg = document.getElementById('yield-not-connected-msg');
+    if (msg) msg.style.display = 'none';
+    validateYieldAmount();
+  }
+}
+
+async function buyYield() {
+  if (!await ensureSigner()) return;
+  if (!contracts.yield) { toast('YieldProgramModule no configurado', 'error'); return; }
+
+  const buyBtn = document.getElementById('btn-buy-yield');
+  const amountInput = parseFloat(buyBtn?.dataset?.amount || document.getElementById('yield-amount-input')?.value || '0');
+  if (amountInput <= 0) { toast('Selecciona un paquete de yield', 'error'); return; }
+
+  const isCompound = document.getElementById('mode-compound-btn')?.classList.contains('sel-c');
+  const errEl = document.getElementById('yield-buy-error');
+  const btn = buyBtn;
+
+  try {
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span> Procesando...';
+    if (errEl) errEl.style.display = 'none';
+
+    const amountWei = ethers.parseUnits(amountInput.toString(), 18);
+    const feeWei = await contracts.yield.buyFee();
+    const totalWei = amountWei + feeWei;
+
+    // Get USDT address from core
+    const usdtAddr = await contracts.core.usdt();
+    const usdtContract = new ethers.Contract(usdtAddr, USDT_ABI, signer);
+    const yieldAddr = addresses.yield;
+
+    // Check allowance
+    const allowance = await usdtContract.allowance(walletAddress, yieldAddr);
+    if (allowance < totalWei) {
+      toast('Aprobando USDT...', 'info');
+      const approveTx = await usdtContract.approve(yieldAddr, totalWei);
+      await approveTx.wait();
+      toast('✅ USDT aprobado', 'success');
+    }
+
+    toast('Comprando yield...', 'info');
+    const yieldWithSigner = contracts.yield.connect(signer);
+    const tx = await yieldWithSigner.buyYield(amountWei, isCompound);
+    await tx.wait();
+
+    toast(`✅ Posicion de yield abierta - ${amountInput} USDT en modo ${isCompound ? 'Compound' : 'Withdraw'}`, 'success');
+    if (currentUser) await loadYieldData(currentUser);
+
+  } catch(e) {
+    const msg = e.reason || e.message || String(e);
+    if (errEl) { errEl.textContent = 'Error: ' + msg; errEl.style.display = 'block'; }
+    toast('Error: ' + msg.slice(0, 80), 'error');
+  } finally {
+    btn.disabled = false;
+    validateYieldAmount();
+  }
+}
+
+
+
+// ─── FILE:// WARNING BANNER ───
+function checkProtocol() {
+  if (window.location.protocol !== 'file:') return;
+  const b = document.createElement('div');
+  b.id = 'file-warn';
+  b.innerHTML = `
+    <div style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--amber);">
+      <span>⚠</span>
+      <span><strong>Archivo local -</strong> MetaMask no disponible. Sirve la DApp desde un servidor HTTP.</span>
+    </div>
+    <div style="display:flex;gap:8px;flex-shrink:0;">
+      <button onclick="showWalletHelp()" style="padding:5px 14px;background:var(--amber-bg);border:1px solid var(--amber-border);border-radius:var(--radius);color:var(--amber);font-family:var(--font);font-weight:600;font-size:12px;cursor:pointer;">Como solucionarlo</button>
+      <button onclick="document.getElementById('file-warn').remove()" style="background:none;border:none;color:var(--gray-400);font-size:18px;cursor:pointer;line-height:1;">×</button>
+    </div>`;
+  document.body.appendChild(b);
+}
+
+// ─── WALLET CONNECTION - Supports MetaMask AND injected wallets (Trust, etc.) ───
+async function toggleWallet() {
+  // Disconnect
+  if (walletAddress) {
+    walletAddress = null;
+    signer = null;
+    document.getElementById('wallet-label').textContent = 'Conectar wallet';
+    document.getElementById('wallet-btn').classList.remove('connected');
+    document.getElementById('wallet-btn').disabled = false;
+    toast('Wallet desconectada', 'info');
+    return;
+  }
+
+  if (window.location.protocol === 'file:') { showWalletHelp(); return; }
+  if (!window.ethereum) { showWalletHelp(); return; }
+  if (!activeNetwork) { toast('Lanza el dashboard primero', 'error'); return; }
+
+  const lbl = document.getElementById('wallet-label');
+  const btn = document.getElementById('wallet-btn');
+
+  lbl.textContent = 'Conectando...';
+  btn.disabled = true;
+
+  try {
+    // Step 1: request accounts (opens wallet popup)
+    const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+    if (!accounts || !accounts[0]) throw new Error('Sin cuentas');
+
+    // Step 2: check chain
+    const chainHex = await window.ethereum.request({ method: 'eth_chainId' });
+    const chainId  = parseInt(chainHex, 16);
+    const target   = activeNetwork.chainId;
+
+    if (chainId !== target) {
+      // Try to switch - but DON'T await forever, use timeout
+      toast(`Red incorrecta (${chainId}). Cambia a ${activeNetwork.label} (${target}) en tu wallet.`, 'error');
+      
+      // Try silently
+      window.ethereum.request({
+        method: 'wallet_switchEthereumChain',
+        params: [{ chainId: activeNetwork.chainIdHex }]
+      }).catch(() => {
+        window.ethereum.request({
+          method: 'wallet_addEthereumChain',
+          params: [{
+            chainId: activeNetwork.chainIdHex,
+            chainName: activeNetwork.label,
+            nativeCurrency: activeNetwork.nativeCurrency,
+            rpcUrls: [activeNetwork.rpc],
+            blockExplorerUrls: [activeNetwork.explorer]
+          }]
+        }).catch(() => {});
+      });
+
+      lbl.textContent = 'Conectar wallet';
+      btn.disabled = false;
+      return;
+    }
+
+    // Step 3: build signer
+    const ethProv = new ethers.BrowserProvider(window.ethereum);
+    signer = await ethProv.getSigner();
+    walletAddress = await signer.getAddress();
+
+    lbl.textContent = shortAddr(walletAddress);
+    btn.disabled = false;
+    btn.classList.add('connected');
+    toast(`Conectado · ${activeNetwork.label}`, 'success');
+    updateBuyYieldBtn();
+    loadSellerBalance().catch(() => {});
+    document.getElementById('search-addr').value = walletAddress;
+    searchUser();
+
+  } catch (e) {
+    const msg = e?.message || '';
+    if (msg.includes('rejected') || msg.includes('denied') || e?.code === 4001) {
+      toast('Conexion rechazada por el usuario', 'error');
+    } else {
+      toast('Error al conectar: ' + msg.slice(0, 60), 'error');
+    }
+    lbl.textContent = 'Conectar wallet';
+    btn.disabled = false;
+  }
+}
+
+// ═══════════════════════════════════════════
+// MARKETPLACE ABIs
+// ═══════════════════════════════════════════
+const MKT_REGISTRY_ABI = [
+  "function sellers(address) view returns (address wallet, address payoutWallet, string metadataURI, uint8 sellerType, uint8 status, uint64 joinedAt, uint64 updatedAt, uint256 totalGrossSales, uint256 totalNetSettled, uint256 totalUnitsSold, bool exists)",
+  "function isEligibleSeller(address seller) view returns (bool)",
+  "function sellerStatus(address seller) view returns (uint8)",
+  "function totalSellers() view returns (uint256)",
+  "function registerSeller(address payoutWallet, uint8 sellerType, string metadataURI) external",
+  "function updateMyPayoutWallet(address payoutWallet) external",
+  "event SellerRegistered(address indexed seller, address indexed payoutWallet, uint8 sellerType)"
+];
+
+const MKT_CATALOG_ABI = [
+  "function products(uint256) view returns (uint256 id, address seller, uint8 productType, uint8 pricingModel, uint8 status, string metadataURI, bytes32 metadataHash, uint256 basePrice, uint32 splitProfileId, uint32 refundProfileId, uint32 renewalProfileId, uint32 accessProfileId, uint64 saleStart, uint64 saleEnd, uint64 releaseAt, uint32 maxUnits, uint32 soldUnits, bool preSaleEnabled, bool renewalEligible, bool atlashDirect, bool subscriptionProduct, uint64 createdAt, uint64 updatedAt)",
+  "function totalProducts() view returns (uint256)",
+  "function getProduct(uint256 productId) view returns (tuple(uint256 id, address seller, uint8 productType, uint8 pricingModel, uint8 status, string metadataURI, bytes32 metadataHash, uint256 basePrice, uint32 splitProfileId, uint32 refundProfileId, uint32 renewalProfileId, uint32 accessProfileId, uint64 saleStart, uint64 saleEnd, uint64 releaseAt, uint32 maxUnits, uint32 soldUnits, bool preSaleEnabled, bool renewalEligible, bool atlashDirect, bool subscriptionProduct, uint64 createdAt, uint64 updatedAt))",
+  "function getSellerProducts(address seller) view returns (uint256[])",
+  "function getAllProductIds(uint256 offset, uint256 limit) view returns (uint256[] ids)"
+];
+
+const MKT_CHECKOUT_ABI = [
+  "function buy(uint256 productId, uint256 quantity) external returns (uint256 purchaseId)",
+  "function refund(uint256 purchaseId) external"
+];
+
+const MKT_TREASURY_ABI = [
+  "function sellerWithdrawable(address) view returns (uint256)",
+  "function uplineWithdrawable(address) view returns (uint256)",
+  "function getPurchase(uint256 purchaseId) view returns (tuple(uint256 purchaseId, uint256 productId, address buyer, address seller, address upline, uint32 splitProfileId, uint32 refundProfileId, uint32 renewalProfileId, uint256 quantity, uint256 grossAmount, uint256 netSellerAmount, uint256 renewalCredits, uint8 status, uint8 refundStatus, uint64 createdAt, uint64 refundableUntil, uint64 settledAt, uint64 refundedAt))",
+  "function withdrawSellerBalance() external",
+  "function withdrawUplineBalance() external",
+  "event PurchaseRecorded(uint256 indexed purchaseId, address indexed buyer, uint256 indexed productId, uint256 amount, uint256 refundableUntil)",
+  "event PurchaseSettled(uint256 indexed purchaseId, address indexed seller, address indexed upline, uint256 sellerAmount, uint256 uplineAmount)"
+];
+
+const MKT_ACCESS_ABI = [
+  "function hasActiveAccess(address user, uint256 productId) view returns (bool)",
+  "function getUserProductGrantIds(address user, uint256 productId) view returns (uint256[])",
+  "function grantsById(uint256) view returns (uint256 grantId, uint256 productId, uint256 sourcePurchaseId, address user, uint8 accessMode, uint8 status, uint64 grantedAt, uint64 startsAt, uint64 expiresAt, bool provisional)"
+];
+
+const MKT_VIEWS_ABI = [
+  "function getProductsPage(uint256 offset, uint256 limit) view returns (tuple(uint256 id, address seller, uint8 productType, uint8 pricingModel, uint8 status, string metadataURI, bytes32 metadataHash, uint256 basePrice, uint32 splitProfileId, uint32 refundProfileId, uint32 renewalProfileId, uint32 accessProfileId, uint64 saleStart, uint64 saleEnd, uint64 releaseAt, uint32 maxUnits, uint32 soldUnits, bool preSaleEnabled, bool renewalEligible, bool atlashDirect, bool subscriptionProduct, uint64 createdAt, uint64 updatedAt)[] page, uint256 total)",
+  "function quoteSplit(uint256 productId, uint256 quantity) view returns (tuple(uint256 grossAmount, uint256 sellerAmount, uint256 uplineAmount, uint256 yieldAmount, uint256 ranksAmount, uint256 leadershipAmount, uint256 topTenAmount, uint256 academyAmount, uint256 feeAmount, uint256 reserveAmount))",
+  "function getPurchase(uint256 purchaseId) view returns (tuple(uint256 purchaseId, uint256 productId, address buyer, address seller, address upline, uint32 splitProfileId, uint32 refundProfileId, uint32 renewalProfileId, uint256 quantity, uint256 grossAmount, uint256 netSellerAmount, uint256 renewalCredits, uint8 status, uint8 refundStatus, uint64 createdAt, uint64 refundableUntil, uint64 settledAt, uint64 refundedAt), tuple(uint256 grossAmount, uint256 sellerAmount, uint256 uplineAmount, uint256 yieldAmount, uint256 ranksAmount, uint256 leadershipAmount, uint256 topTenAmount, uint256 academyAmount, uint256 feeAmount, uint256 reserveAmount))"
+];
+
+// ═══════════════════════════════════════════
+// MARKETPLACE CONSTANTS
+// ═══════════════════════════════════════════
+const PRODUCT_TYPES  = ['Descarga Digital','Curso','Membresia','Mentoria','Servicio','Licencia','Suscripcion','Bundle','Atlash Directo','Evento Digital'];
+const PRODUCT_STATUS = ['-','Borrador','Activo','Pausado','Agotado','Removido','Bloqueado'];
+const SELLER_STATUS  = ['-','Pendiente','Activo','Suspendido','Expirado','Congelado','Bloqueado'];
+const SELLER_TYPES   = ['Atlash Directo','Vendedor Externo','Partner','Creador Verificado'];
+const ACCESS_MODES   = ['Perpetuo','Por tiempo','Suscripcion','Por release','Bundle'];
+const PURCHASE_STATUS= ['-','Pendiente','Parcial','Liquidado','Reembolsado','Disputado','Cancelado'];
+
+// Pagination state
+let mktPage = 0;
+const MKT_PAGE_SIZE = 9;
+let mktProductFilter = null;
+let mktSubTab = 'catalog';
+
+// ═══════════════════════════════════════════
+// MARKETPLACE FUNCTIONS
+// ═══════════════════════════════════════════
+function switchMktTab(tab) {
+  mktSubTab = tab;
+  ['catalog','my-purchases','my-access','seller'].forEach(t => {
+    const btn  = document.getElementById('mkt-tab-'+t);
+    const pane = document.getElementById('mkt-pane-'+t);
+    if (btn)  btn.classList.toggle('active', t === tab);
+    if (pane) pane.style.display = (t === tab) ? 'block' : 'none';
+  });
+  if (tab === 'seller' && walletAddress) loadSellerProfile();
+  if (tab === 'my-purchases' && walletAddress) loadMyPurchases();
+  if (tab === 'my-access' && walletAddress) loadMyAccess();
+}
+
+async function loadMarketplace() {
+  if (!contracts.mktCatalog && !contracts.mktViews) return;
+  try {
+    // Global stats
+    if (contracts.mktCatalog) {
+      const total = await contracts.mktCatalog.totalProducts().catch(()=>null);
+      const el = document.getElementById('mkt-total-products');
+      if (el && total !== null) el.textContent = Number(total).toLocaleString();
+    }
+    if (contracts.mktRegistry) {
+      const total = await contracts.mktRegistry.totalSellers().catch(()=>null);
+      const el = document.getElementById('mkt-total-sellers');
+      if (el && total !== null) el.textContent = Number(total).toLocaleString();
+    }
+    // Seller balance
+    if (walletAddress && contracts.mktTreasury) loadSellerBalance();
+    // Products
+    await loadProductsPage(0);
+  } catch(e) {
+    console.error('Marketplace load error:', e);
+  }
+}
+
+async function loadSellerBalance() {
+  if (!contracts.mktTreasury || !walletAddress) return;
+  try {
+    const [sellerBal, uplineBal] = await Promise.all([
+      contracts.mktTreasury.sellerWithdrawable(walletAddress).catch(()=>0n),
+      contracts.mktTreasury.uplineWithdrawable(walletAddress).catch(()=>0n)
+    ]);
+    const el = document.getElementById('mkt-seller-balance');
+    const sub = document.getElementById('mkt-seller-balance-sub');
+    const total = sellerBal + uplineBal;
+    if (el) { el.textContent = fmt18(total) + ' USDT'; }
+    if (sub) { sub.textContent = `Vendedor: ${fmt18(sellerBal)} · Upline: ${fmt18(uplineBal)}`; }
+    const sw = document.getElementById('mkt-withdraw-seller');
+    const uw = document.getElementById('mkt-withdraw-upline');
+    if (sw) sw.textContent = fmt18(sellerBal) + ' USDT';
+    if (uw) uw.textContent = fmt18(uplineBal) + ' USDT';
+  } catch(e) {}
+}
+
+async function loadProductsPage(page) {
+  const grid = document.getElementById('mkt-products-grid');
+  if (!grid) return;
+
+  if (!contracts.mktCatalog && !contracts.mktViews) {
+    grid.innerHTML = '<div class="empty" style="grid-column:1/-1;"><div class="empty-icon">⚙</div><div class="empty-title">Marketplace no configurado</div><div class="empty-desc">Ingresa las direcciones del marketplace en la configuracion</div></div>';
+    return;
+  }
+
+  grid.innerHTML = '<div style="grid-column:1/-1;display:flex;gap:10px;">' + Array(3).fill('<div class="skel" style="height:200px;border-radius:12px;flex:1;"></div>').join('') + '</div>';
+
+  try {
+    let products = [];
+    let total = 0;
+
+    if (contracts.mktViews) {
+      const result = await contracts.mktViews.getProductsPage(page * MKT_PAGE_SIZE, MKT_PAGE_SIZE);
+      products = Array.from(result.page);
+      total = Number(result.total);
+    } else {
+      // Fallback: read from catalog directly
+      const totalBig = await contracts.mktCatalog.totalProducts().catch(()=>0n);
+      total = Number(totalBig);
+      const ids = await contracts.mktCatalog.getAllProductIds(page * MKT_PAGE_SIZE, MKT_PAGE_SIZE).catch(()=>[]);
+      for (const id of ids) {
+        try {
+          const p = await contracts.mktCatalog.getProduct(id);
+          products.push(p);
+        } catch {}
+      }
+    }
+
+    mktPage = page;
+
+    // Apply filter
+    if (mktProductFilter !== null) {
+      products = products.filter(p => Number(p.productType) === mktProductFilter);
+    }
+
+    // Filter only ACTIVE products (status === 2)
+    const active = products.filter(p => Number(p.status) === 2);
+
+    if (active.length === 0) {
+      grid.innerHTML = '<div class="empty" style="grid-column:1/-1;"><div class="empty-icon">🛍</div><div class="empty-title">Sin productos activos</div><div class="empty-desc">No hay productos disponibles en este momento</div></div>';
+    } else {
+      grid.innerHTML = active.map(p => renderProductCard(p)).join('');
+    }
+
+    // Pagination
+    renderPagination(total, page);
+
+  } catch(e) {
+    grid.innerHTML = `<div class="empty" style="grid-column:1/-1;"><div class="empty-icon">⚠</div><div class="empty-title">Error al cargar</div><div class="empty-desc">${e.message.slice(0,120)}</div></div>`;
+  }
+}
+
+function renderProductCard(p) {
+  const id = Number(p.id);
+  const price = fmt18(p.basePrice);
+  const type  = PRODUCT_TYPES[Number(p.productType)] || '-';
+  const sold  = Number(p.soldUnits);
+  const max   = Number(p.maxUnits);
+  const hasMax = max > 0;
+  const pct   = hasMax ? Math.round(sold * 100 / max) : 0;
+  const isAtlash = p.atlashDirect;
+  const isSub = p.subscriptionProduct;
+  const explorerBase = activeNetwork ? activeNetwork.explorer : 'https://bscscan.com';
+
+  return `<div style="background:var(--bg3);border:1px solid var(--line);border-radius:var(--r2);padding:20px;display:flex;flex-direction:column;gap:10px;transition:border-color .2s,transform .2s;position:relative;overflow:hidden;" onmouseover="this.style.borderColor='var(--line2)';this.style.transform='translateY(-2px)'" onmouseout="this.style.borderColor='var(--line)';this.style.transform='translateY(0)'">
+  <div style="position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,${isAtlash?'var(--gold)':'var(--blue)'},transparent);opacity:.6;"></div>
+  <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;">
+    <div>
+      <div style="font-family:var(--ff-mono);font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:var(--t4);margin-bottom:4px;">#${id} · ${type}</div>
+      <div style="font-size:14px;font-weight:700;line-height:1.3;color:var(--t1);">${p.metadataURI ? truncate(p.metadataURI, 40) : 'Producto #'+id}</div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:4px;align-items:flex-end;flex-shrink:0;">
+      ${isAtlash ? '<span class="badge badge-gold" style="font-size:9px;">★ ATLASH</span>' : ''}
+      ${isSub    ? '<span class="badge badge-blue" style="font-size:9px;">SUB</span>' : ''}
+    </div>
+  </div>
+  <div style="font-family:var(--ff-mono);font-size:22px;font-weight:900;color:var(--gold);letter-spacing:-1px;">${price} USDT</div>
+  ${hasMax ? `<div>
+    <div style="display:flex;justify-content:space-between;font-family:var(--ff-mono);font-size:9px;color:var(--t4);margin-bottom:4px;"><span>Vendidos</span><span>${sold}/${max}</span></div>
+    <div class="prog-track"><div class="prog-fill" style="width:${pct}%;background:${pct>80?'var(--amber)':'linear-gradient(90deg,var(--gold),var(--gold-hi))'}"></div></div>
+  </div>` : `<div style="font-family:var(--ff-mono);font-size:10px;color:var(--t4);">${sold} vendido(s) · Sin limite</div>`}
+  <div style="display:flex;gap:6px;margin-top:auto;padding-top:4px;">
+    <button onclick="openProductDetail(${id})" class="btn btn-outline" style="flex:1;padding:8px;font-size:12px;">Ver detalle</button>
+    ${walletAddress ? `<button onclick="buyProduct(${id})" class="btn btn-gold" style="flex:1;padding:8px;font-size:12px;">Comprar</button>` : ''}
+  </div>
+</div>`;
+}
+
+function truncate(str, n) {
+  return str.length > n ? str.slice(0, n) + '...' : str;
+}
+
+function renderPagination(total, current) {
+  const el = document.getElementById('mkt-pagination');
+  if (!el) return;
+  const pages = Math.ceil(total / MKT_PAGE_SIZE);
+  if (pages <= 1) { el.innerHTML = ''; return; }
+  el.innerHTML = Array.from({length: pages}, (_,i) =>
+    `<button onclick="loadProductsPage(${i})" class="btn ${i===current?'btn-gold':'btn-outline'}" style="padding:6px 14px;font-size:12px;">${i+1}</button>`
+  ).join('');
+}
+
+function filterProducts(type) {
+  mktProductFilter = type;
+  document.querySelectorAll('#mkt-filter-types .chip').forEach((b, i) => {
+    const types = [null, 0, 1, 2, 4, 6];
+    b.classList.toggle('sel', types[i] === type);
+  });
+  loadProductsPage(0);
+}
+
+async function openProductDetail(productId) {
+  if (!contracts.mktCatalog) { toast('Catalog no configurado', 'error'); return; }
+  try {
+    const p = await contracts.mktCatalog.getProduct(productId);
+    const explorerBase = activeNetwork ? activeNetwork.explorer : 'https://bscscan.com';
+
+    let splitInfo = '';
+    if (contracts.mktViews) {
+      try {
+        const q = await contracts.mktViews.quoteSplit(productId, 1);
+        splitInfo = `
+          <div class="dist-box" style="margin-top:14px;">
+            <div class="dist-box-title">Distribucion de ingresos (por unidad)</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;">
+              <div class="dist-item">Vendedor: ${fmt18(q.sellerAmount)} USDT</div>
+              <div class="dist-item">Upline: ${fmt18(q.uplineAmount)} USDT</div>
+              <div class="dist-item">Yield: ${fmt18(q.yieldAmount)} USDT</div>
+              <div class="dist-item">Ranks: ${fmt18(q.ranksAmount)} USDT</div>
+              <div class="dist-item">Liderazgo: ${fmt18(q.leadershipAmount)} USDT</div>
+              <div class="dist-item">Fee: ${fmt18(q.feeAmount)} USDT</div>
+            </div>
+          </div>`;
+      } catch {}
+    }
+
+    const modal = document.createElement('div');
+    modal.style.cssText = 'position:fixed;inset:0;z-index:9000;background:rgba(0,0,0,.8);backdrop-filter:blur(10px);display:flex;align-items:center;justify-content:center;padding:24px;';
+    modal.innerHTML = `<div style="background:var(--bg2);border:1px solid var(--line2);border-radius:var(--r3);padding:36px;max-width:560px;width:100%;max-height:90vh;overflow-y:auto;position:relative;">
+      <div style="position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--gold),transparent);border-radius:var(--r3) var(--r3) 0 0;"></div>
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px;">
+        <div>
+          <div style="font-family:var(--ff-mono);font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--t4);margin-bottom:6px;">#${Number(p.id)} · ${PRODUCT_TYPES[Number(p.productType)]||'-'}</div>
+          <div style="font-size:20px;font-weight:800;">${p.metadataURI || 'Producto #'+Number(p.id)}</div>
+        </div>
+        <button onclick="this.closest('[style]').remove()" style="background:none;border:none;color:var(--t4);font-size:22px;cursor:pointer;line-height:1;padding:4px;">×</button>
+      </div>
+      <div class="stats-grid g2" style="margin-bottom:14px;">
+        <div class="kpi" style="padding:14px;"><div class="kpi-label"><span class="kpi-label-dot"></span>Precio</div><div class="kpi-value c-gold" style="font-size:22px;">${fmt18(p.basePrice)} USDT</div></div>
+        <div class="kpi" style="padding:14px;"><div class="kpi-label"><span class="kpi-label-dot"></span>Estado</div><div class="kpi-value" style="font-size:18px;">${PRODUCT_STATUS[Number(p.status)]||'-'}</div></div>
+      </div>
+      <div class="mem-row"><span class="mem-row-label">Vendedor</span><span style="font-family:var(--ff-mono);font-size:11px;color:var(--t2);">${shortAddr(p.seller)} <a href="${explorerBase}/address/${p.seller}" target="_blank" style="color:var(--gold);text-decoration:none;">↗</a></span></div>
+      <div class="mem-row"><span class="mem-row-label">Unidades vendidas</span><span class="mem-row-value">${Number(p.soldUnits)} ${Number(p.maxUnits)>0?'/ '+Number(p.maxUnits):''}</span></div>
+      <div class="mem-row"><span class="mem-row-label">Inicio de venta</span><span class="mem-row-value">${Number(p.saleStart)?tsToDate(p.saleStart):'Sin restriccion'}</span></div>
+      <div class="mem-row"><span class="mem-row-label">Fin de venta</span><span class="mem-row-value">${Number(p.saleEnd)?tsToDate(p.saleEnd):'Sin restriccion'}</span></div>
+      <div class="mem-row"><span class="mem-row-label">Tipo</span><span class="mem-row-value">${PRODUCT_TYPES[Number(p.productType)]||'-'}</span></div>
+      ${p.metadataURI ? `<div class="mem-row" style="border-bottom:none;"><span class="mem-row-label">Metadata URI</span><span style="font-family:var(--ff-mono);font-size:10px;color:var(--t3);word-break:break-all;">${p.metadataURI}</span></div>` : ''}
+      ${splitInfo}
+      ${walletAddress && contracts.mktCheckout ? `<button onclick="buyProduct(${Number(p.id)});this.closest('[style]').remove()" class="btn btn-gold" style="width:100%;padding:14px;font-size:14px;margin-top:20px;letter-spacing:1px;">Comprar por ${fmt18(p.basePrice)} USDT</button>` : ''}
+    </div>`;
+    document.body.appendChild(modal);
+    modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+  } catch(e) {
+    toast('Error al cargar producto: ' + e.message, 'error');
+  }
+}
+
+async function buyProduct(productId) {
+  if (!await ensureSigner()) return;
+  if (!contracts.mktCheckout) { toast('Checkout no configurado', 'error'); return; }
+  try {
+    // Get product price
+    const p = await contracts.mktCatalog.getProduct(productId);
+    const price = p.basePrice;
+
+    // Approve USDT
+    const usdtAddr = await contracts.core.usdt();
+    const usdtC = new ethers.Contract(usdtAddr, USDT_ABI, signer);
+    const checkoutAddr = addresses.mktCheckout;
+    const allowance = await usdtC.allowance(walletAddress, checkoutAddr);
+    if (allowance < price) {
+      toast('Aprobando USDT para Marketplace...', 'info');
+      const tx = await usdtC.approve(checkoutAddr, price);
+      await tx.wait();
+    }
+    toast('Procesando compra...', 'info');
+    const checkout = contracts.mktCheckout.connect(signer);
+    const tx = await checkout.buy(productId, 1);
+    const receipt = await tx.wait();
+    toast('✅ Compra exitosa - Producto #' + productId, 'success');
+    await loadMarketplace();
+  } catch(e) {
+    toast('Error: ' + (e.reason || e.message || e).slice(0,80), 'error');
+  }
+}
+
+async function loadMyPurchases() {
+  const el = document.getElementById('mkt-my-purchases-list');
+  if (!el || !walletAddress || !contracts.mktTreasury) {
+    if (el) el.innerHTML = '<div class="empty"><div class="empty-icon">🧾</div><div class="empty-title">Treasury no configurado</div><div class="empty-desc">Ingresa la direccion del MarketplaceTreasury</div></div>';
+    return;
+  }
+  el.innerHTML = '<div style="color:var(--t4);font-family:var(--ff-mono);font-size:12px;padding:16px;">Cargando compras via eventos...</div>';
+  try {
+    const filter = contracts.mktTreasury.filters.PurchaseRecorded(null, walletAddress);
+    const events = await contracts.mktTreasury.queryFilter(filter, 0, 'latest');
+    if (events.length === 0) {
+      el.innerHTML = '<div class="empty"><div class="empty-icon">🧾</div><div class="empty-title">Sin compras</div><div class="empty-desc">No tienes compras registradas en este marketplace</div></div>';
+      return;
+    }
+    const rows = await Promise.all(events.slice(-20).reverse().map(async ev => {
+      const pId = Number(ev.args.purchaseId);
+      let rec = null;
+      try { rec = await contracts.mktTreasury.getPurchase(pId); } catch {}
+      return { pId, ev, rec };
+    }));
+    el.innerHTML = `<table class="data-table">
+      <thead><tr><th>Purchase ID</th><th>Producto</th><th>Monto</th><th>Estado</th><th>Fecha</th></tr></thead>
+      <tbody>${rows.map(({pId, ev, rec}) => `<tr>
+        <td style="color:var(--t4);">#${pId}</td>
+        <td>#${rec?Number(rec.productId):Number(ev.args.productId)}</td>
+        <td style="color:var(--gold);">${fmt18(rec?rec.grossAmount:ev.args.amount)} USDT</td>
+        <td><span class="badge ${rec&&Number(rec.status)===3?'badge-green':rec&&Number(rec.status)===4?'badge-red':'badge-amber'}">${PURCHASE_STATUS[rec?Number(rec.status):1]||'-'}</span></td>
+        <td style="color:var(--t3);">${tsToDate(rec?rec.createdAt:Number(ev.blockNumber))}</td>
+      </tr>`).join('')}</tbody>
+    </table>`;
+  } catch(e) {
+    el.innerHTML = `<div class="empty"><div class="empty-icon">⚠</div><div class="empty-title">Error</div><div class="empty-desc">${e.message.slice(0,100)}</div></div>`;
+  }
+}
+
+async function loadMyAccess() {
+  const el = document.getElementById('mkt-my-access-list');
+  if (!el || !walletAddress || !contracts.mktAccess) {
+    if (el) el.innerHTML = '<div class="empty"><div class="empty-icon">🔑</div><div class="empty-title">Access module no configurado</div></div>';
+    return;
+  }
+  if (!contracts.mktCatalog) {
+    el.innerHTML = '<div class="empty"><div class="empty-icon">🔑</div><div class="empty-title">Catalog no configurado</div><div class="empty-desc">Se necesita el catalogo para consultar accesos por producto</div></div>';
+    return;
+  }
+
+  el.innerHTML = '<div style="color:var(--t4);font-family:var(--ff-mono);font-size:12px;padding:16px;">Cargando accesos on-chain...</div>';
+  try {
+    const totalBig = await contracts.mktCatalog.totalProducts().catch(() => 0n);
+    const total = Number(totalBig || 0n);
+    if (!total) {
+      el.innerHTML = '<div class="empty"><div class="empty-icon">🔑</div><div class="empty-title">Sin productos</div><div class="empty-desc">No hay productos registrados para validar accesos</div></div>';
+      return;
+    }
+
+    const rows = [];
+    for (let productId = 1; productId <= total && rows.length < 20; productId++) {
+      let grantIds = [];
+      try {
+        grantIds = await contracts.mktAccess.getUserProductGrantIds(walletAddress, productId);
+      } catch {
+        grantIds = [];
+      }
+      if (!grantIds || grantIds.length === 0) continue;
+
+      let active = false;
+      try { active = await contracts.mktAccess.hasActiveAccess(walletAddress, productId); } catch {}
+
+      for (const gId of grantIds) {
+        let grant = null;
+        try { grant = await contracts.mktAccess.grantsById(gId); } catch {}
+        rows.push({
+          productId,
+          grantId: Number(gId),
+          active,
+          grant
+        });
+        if (rows.length >= 20) break;
+      }
+    }
+
+    if (rows.length === 0) {
+      el.innerHTML = '<div class="empty"><div class="empty-icon">🔑</div><div class="empty-title">Sin accesos</div><div class="empty-desc">No tienes accesos a productos registrados</div></div>';
+      return;
+    }
+
+    el.innerHTML = `<table class="data-table">
+      <thead><tr><th>Producto</th><th>Grant ID</th><th>Modo</th><th>Expira</th><th>Estado</th></tr></thead>
+      <tbody>${rows.map(({productId, grantId, active, grant}) => `<tr>
+        <td><button onclick="openProductDetail(${productId})" class="btn btn-outline" style="padding:3px 10px;font-size:10px;">#${productId}</button></td>
+        <td style="color:var(--t4);">#${grantId}</td>
+        <td style="color:var(--t2);">${grant?ACCESS_MODES[Number(grant.accessMode)]:'-'}</td>
+        <td style="color:var(--t3);">${grant&&Number(grant.expiresAt)?tsToDate(grant.expiresAt):'Perpetuo'}</td>
+        <td><span class="badge ${active?'badge-green':'badge-red'}">${active?'● Activo':'● Expirado'}</span></td>
+      </tr>`).join('')}</tbody>
+    </table>`;
+  } catch(e) {
+    el.innerHTML = `<div class="empty"><div class="empty-icon">⚠</div><div class="empty-title">Error</div><div class="empty-desc">${e.message.slice(0,100)}</div></div>`;
+  }
+}
+
+async function loadSellerProfile() {
+  if (!walletAddress || !contracts.mktRegistry) return;
+  try {
+    const sp = await contracts.mktRegistry.sellers(walletAddress);
+    if (!sp.exists) {
+      document.getElementById('mkt-seller-status').textContent = 'No registrado';
+      document.getElementById('mkt-seller-type').textContent = 'No eres vendedor aun';
+      return;
+    }
+    document.getElementById('mkt-seller-status').textContent = SELLER_STATUS[Number(sp.status)] || '-';
+    document.getElementById('mkt-seller-type').textContent = SELLER_TYPES[Number(sp.sellerType)] || '-';
+    document.getElementById('mkt-seller-gross').textContent = fmt18(sp.totalGrossSales) + ' USDT';
+    document.getElementById('mkt-seller-units').textContent = Number(sp.totalUnitsSold).toLocaleString();
+    await loadSellerBalance();
+  } catch(e) {}
+}
+
+async function loadMySellerProducts() {
+  const el = document.getElementById('mkt-my-products-list');
+  if (!el || !walletAddress || !contracts.mktCatalog) {
+    if(el) el.innerHTML = '<div class="empty"><div class="empty-icon">⚙</div><div class="empty-title">Catalog no configurado</div></div>';
+    return;
+  }
+  el.innerHTML = '<div style="color:var(--t4);font-family:var(--ff-mono);font-size:12px;padding:8px;">Cargando...</div>';
+  try {
+    const ids = await contracts.mktCatalog.getSellerProducts(walletAddress);
+    if (ids.length === 0) {
+      el.innerHTML = '<div class="empty"><div class="empty-icon">📦</div><div class="empty-title">Sin productos</div><div class="empty-desc">No tienes productos registrados como vendedor</div></div>';
+      return;
+    }
+    const prods = await Promise.all(ids.map(id => contracts.mktCatalog.getProduct(id).catch(()=>null)));
+    el.innerHTML = `<table class="data-table">
+      <thead><tr><th>ID</th><th>Tipo</th><th>Precio</th><th>Vendidos</th><th>Estado</th></tr></thead>
+      <tbody>${prods.filter(Boolean).map(p => `<tr>
+        <td><button onclick="openProductDetail(${Number(p.id)})" class="btn btn-outline" style="padding:3px 10px;font-size:10px;">#${Number(p.id)}</button></td>
+        <td style="color:var(--t2);">${PRODUCT_TYPES[Number(p.productType)]||'-'}</td>
+        <td style="color:var(--gold);font-family:var(--ff-mono);">${fmt18(p.basePrice)} USDT</td>
+        <td style="color:var(--blue);">${Number(p.soldUnits)}</td>
+        <td><span class="badge ${Number(p.status)===2?'badge-green':Number(p.status)===3?'badge-amber':'badge-red'}">${PRODUCT_STATUS[Number(p.status)]||'-'}</span></td>
+      </tr>`).join('')}</tbody>
+    </table>`;
+  } catch(e) {
+    el.innerHTML = `<div class="empty"><div class="empty-icon">⚠</div><div class="empty-title">Error</div><div class="empty-desc">${e.message.slice(0,100)}</div></div>`;
+  }
+}
+
+async function mktWithdrawSeller() {
+  if (!await ensureSigner()) return;
+  if (!contracts.mktTreasury) { toast('Treasury no configurado', 'error'); return; }
+  try {
+    const c = contracts.mktTreasury.connect(signer);
+    toast('Retirando saldo de vendedor...', 'info');
+    const tx = await c.withdrawSellerBalance();
+    await tx.wait();
+    toast('✅ Saldo de vendedor retirado', 'success');
+    loadSellerBalance();
+  } catch(e) { toast('Error: ' + (e.reason||e.message||e).slice(0,80), 'error'); }
+}
+
+async function mktWithdrawUpline() {
+  if (!await ensureSigner()) return;
+  if (!contracts.mktTreasury) { toast('Treasury no configurado', 'error'); return; }
+  try {
+    const c = contracts.mktTreasury.connect(signer);
+    toast('Retirando saldo de upline...', 'info');
+    const tx = await c.withdrawUplineBalance();
+    await tx.wait();
+    toast('✅ Saldo de upline retirado', 'success');
+    loadSellerBalance();
+  } catch(e) { toast('Error: ' + (e.reason||e.message||e).slice(0,80), 'error'); }
+}
+
+
+// ══════════════════════════════════════════════════════
+// RANKS MODULE
+// ══════════════════════════════════════════════════════
+const RANKS_EXTENDED_ABI = [
+  "function userRank(address) view returns (uint8)",
+  "function totalPoints(address) view returns (uint256)",
+  "function personalVolume(address) view returns (uint256)",
+  "function pendingTotal(address) view returns (uint256)",
+  "function pendingRankReward(address, uint8) view returns (uint256)",
+  "function rankTargets(uint256) view returns (uint256)",
+  "function rankBonuses(uint256) view returns (uint256)",
+  "function minPersonalVolume(uint256) view returns (uint256)",
+  "function minDirects(uint256) view returns (uint8)",
+  "function minDirectRank(uint256) view returns (uint8)",
+  "function minDirectRankCount(uint256) view returns (uint8)",
+  "function minCorePackageForRank(uint256) view returns (uint8)",
+  "function availablePool() view returns (uint256)",
+  "function rollingVolume(address, uint32) view returns (uint256)",
+  "function currentWeekId() view returns (uint32)"
+];
+
+const RANK_NAMES = ['—','Rango 1','Rango 2','Rango 3','Rango 4','Rango 5',
+                    'Rango 6','Rango 7','Rango 8','Rango 9','Rango 10'];
+
+async function loadRanksTab(addr) {
+  console.log('[Ranks] loadRanksTab called, addr:', addr, 'contracts.ranks:', !!contracts.ranks, 'addresses.ranks:', addresses.ranks);
+  const progressionEl = document.getElementById('ranks-progression');
+  if (!progressionEl) { console.log('[Ranks] no progressionEl found'); return; }
+
+  if (!contracts.ranks) {
+    console.log('[Ranks] contracts.ranks is null, addresses.ranks:', addresses.ranks);
+    progressionEl.innerHTML = '<div class="empty"><div class="empty-icon">⚙</div><div class="empty-title">RanksModule no configurado</div><div class="empty-desc">Ingresa la dirección del RanksModule en la configuración</div></div>';
+    return;
+  }
+
+  progressionEl.innerHTML = '<div style="color:var(--gray-400);font-size:13px;padding:16px;font-family:var(--mono);">Cargando configuración de rangos...</div>';
+
+  const ranksExt = new ethers.Contract(addresses.ranks, RANKS_EXTENDED_ABI, provider);
+  console.log('[Ranks] ranksExt created, calling rankTargets(0)...');
+
+  // ── Step 1: Load rank config for all 10 ranks in ONE batch ──
+  let rankTargets=[], rankBonuses=[], minPVs=[], minDs=[], minDRs=[], minDRCs=[], minPkgs=[];
+  try {
+    // Test single call first
+    const testVal = await ranksExt.rankTargets(0).catch(e => { console.error('[Ranks] rankTargets(0) failed:', e.message); return null; });
+    console.log('[Ranks] rankTargets(0):', testVal?.toString());
+    
+    const configCalls = [];
+    for (let i = 0; i < 10; i++) {
+      configCalls.push(
+        ranksExt.rankTargets(i).catch(()=>0n),
+        ranksExt.rankBonuses(i).catch(()=>0n),
+        ranksExt.minPersonalVolume(i).catch(()=>0n),
+        ranksExt.minDirects(i).catch(()=>0),
+        ranksExt.minDirectRank(i).catch(()=>0),
+        ranksExt.minDirectRankCount(i).catch(()=>0),
+        ranksExt.minCorePackageForRank(i).catch(()=>0)
+      );
+    }
+    const results = await Promise.all(configCalls);
+    console.log('[Ranks] config loaded, first target:', results[0]?.toString());
+    for (let i = 0; i < 10; i++) {
+      const base = i * 7;
+      rankTargets.push(results[base]);
+      rankBonuses.push(results[base+1]);
+      minPVs.push(results[base+2]);
+      minDs.push(Number(results[base+3]));
+      minDRs.push(Number(results[base+4]));
+      minDRCs.push(Number(results[base+5]));
+      minPkgs.push(Number(results[base+6]));
+    }
+  } catch(e) {
+    progressionEl.innerHTML = `<div class="empty"><div class="empty-icon">⚠</div><div class="empty-title">Error leyendo configuración</div><div class="empty-desc">${e.message.slice(0,100)}</div></div>`;
+    return;
+  }
+
+  // ── Step 2: Load user-specific data if addr provided ──
+  let userRankNum = 0, totalPts = 0n, persVol = 0n, pendTotal = 0n;
+  let pendingPerRank = new Array(11).fill(0n);
+  let directCount = 0, qualifiedByRank = {};
+  for (let r = 1; r <= 10; r++) qualifiedByRank[r] = 0;
+
+  if (addr) {
+    try {
+      const [curRank, tPts, pVol, pTot] = await Promise.all([
+        ranksExt.userRank(addr).catch(()=>0n),
+        ranksExt.totalPoints(addr).catch(()=>0n),
+        ranksExt.personalVolume(addr).catch(()=>0n),
+        ranksExt.pendingTotal(addr).catch(()=>0n),
+      ]);
+      userRankNum = Number(curRank);
+      totalPts = tPts; persVol = pVol; pendTotal = pTot;
+    } catch {}
+
+    // Load pending per rank
+    try {
+      const pendingCalls = [];
+      for (let i = 1; i <= 10; i++) pendingCalls.push(ranksExt.pendingRankReward(addr, i).catch(()=>0n));
+      const pResults = await Promise.all(pendingCalls);
+      for (let i = 0; i < 10; i++) pendingPerRank[i+1] = pResults[i];
+    } catch {}
+
+    // Get directs count + their ranks
+    try {
+      directCount = Number(await contracts.core.directCount(addr).catch(()=>0));
+      if (directCount > 0) {
+        const limit = Math.min(directCount, 30);
+        const directAddrs = await Promise.all(
+          Array.from({length: limit}, (_, i) => contracts.core.directAt(addr, i).catch(()=>null))
+        );
+        const directRanks = await Promise.all(
+          directAddrs.filter(Boolean).map(d => ranksExt.userRank(d).catch(()=>0n))
+        );
+        directRanks.forEach(dr => {
+          const r = Number(dr);
+          for (let lvl = 1; lvl <= r; lvl++) qualifiedByRank[lvl] = (qualifiedByRank[lvl]||0)+1;
+        });
+      }
+    } catch {}
+  }
+
+  // ── Step 3: Update KPIs ──
+  const kpis = {
+    'rank-current':      addr ? (userRankNum > 0 ? RANK_NAMES[userRankNum] : 'Sin rango') : '—',
+    'rank-next-label':   addr ? (userRankNum < 10 ? 'Siguiente: ' + RANK_NAMES[userRankNum+1] : 'Rango máximo alcanzado') : 'Busca un usuario',
+    'rank-personal-pts': addr ? Number(totalPts).toLocaleString() : '—',
+    'rank-personal-vol': addr ? fmt18(persVol) + ' USDT' : '—',
+    'rank-pending-total':addr ? fmt18(pendTotal) + ' USDT' : '—',
+  };
+  Object.entries(kpis).forEach(([id, val]) => {
+    const el = document.getElementById(id); if (el) el.textContent = val;
+  });
+
+  // ── Step 4: Render progression table ──
+  let html = '<div style="display:flex;flex-direction:column;gap:10px;">';
+
+  for (let i = 0; i < 10; i++) {
+    const rankNum   = i + 1;
+    const target    = rankTargets[i] || 0n;
+    const bonus     = rankBonuses[i] || 0n;
+    const minPV     = minPVs[i]     || 0n;
+    const minD      = minDs[i]      || 0;
+    const minDR     = minDRs[i]     || 0;
+    const minDRC    = minDRCs[i]    || 0;
+    const pending   = pendingPerRank[rankNum];
+
+    const achieved  = userRankNum >= rankNum;
+    const isCurrent = userRankNum === rankNum;
+    const isNext    = userRankNum + 1 === rankNum;
+
+    // Points and targets are plain integers (units = USDT/1e18), no wei scaling needed
+    const ptsNum    = Number(totalPts);
+    const targetNum = Number(target);
+    const ptsPct    = targetNum > 0
+      ? Math.min(100, Math.round(ptsNum * 100 / targetNum))
+      : (achieved ? 100 : 0);
+    const ptsDisplay    = addr ? ptsNum.toLocaleString() : '—';
+    const targetDisplay = targetNum.toLocaleString();
+
+    const pvOk   = addr ? (Number(persVol) >= Number(minPV)) : null;
+    const dOk    = addr ? (directCount >= minD) : null;
+    const dRkOk  = addr ? (minDRC === 0 || (qualifiedByRank[minDR]||0) >= minDRC) : null;
+    const allOk  = pvOk && dOk && dRkOk;
+
+    const reqColor = (ok) => ok === null ? 'var(--gray-400)' : ok ? 'var(--green)' : 'var(--red)';
+    const reqIcon  = (ok) => ok === null ? '—' : ok ? '✓' : '✗';
+
+    const borderColor = achieved ? 'var(--green-border)' : isNext ? 'var(--gray-400)' : 'var(--gray-200)';
+    const bgColor     = achieved ? 'var(--green-bg)'     : 'var(--white)';
+    const numBg       = achieved ? 'var(--green)'        : isNext ? 'var(--gray-800)' : 'var(--gray-200)';
+    const numColor    = achieved || isNext ? 'white' : 'var(--gray-500)';
+    const barColor    = achieved ? 'var(--green)' : isNext ? 'var(--gray-800)' : 'var(--gray-400)';
+
+    html += `
+    <div style="border:1.5px solid ${borderColor};border-radius:var(--radius-lg);padding:16px 18px;background:${bgColor};">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+        <div style="display:flex;align-items:center;gap:12px;">
+          <div style="width:36px;height:36px;border-radius:8px;background:${numBg};display:flex;align-items:center;justify-content:center;font-weight:800;font-size:15px;color:${numColor};flex-shrink:0;">${rankNum}</div>
+          <div>
+            <div style="font-weight:700;font-size:15px;color:var(--gray-900);">${RANK_NAMES[rankNum]}</div>
+            <div style="font-size:11px;color:var(--gray-400);font-family:var(--mono);">Bono al alcanzar: ${fmt18(bonus)} USDT</div>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;justify-content:flex-end;">
+          ${pending > 0n ? `<span class="badge badge-green">${fmt18(pending)} USDT pendiente</span>` : ''}
+          ${achieved     ? '<span class="badge badge-green">✓ Alcanzado</span>' : ''}
+          ${isCurrent    ? '<span class="badge badge-blue">Rango actual</span>' : ''}
+          ${isNext && allOk ? '<span class="badge badge-blue">Listo ↑</span>' : ''}
+          ${!achieved && !addr ? '<span class="badge badge-gray">Sin usuario</span>' : ''}
+        </div>
+      </div>
+
+      <div style="margin-bottom:12px;">
+        <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--gray-400);margin-bottom:5px;font-family:var(--mono);">
+          <span>Puntos: ${ptsDisplay} / ${targetDisplay} (×10¹⁵)</span>
+          <span>${addr ? ptsPct + '%' : '—'}</span>
+        </div>
+        <div class="prog"><div class="prog-fill" style="width:${ptsPct}%;background:${barColor};"></div></div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;font-size:11px;">
+        <div style="background:var(--gray-50);border:1px solid var(--gray-200);border-radius:6px;padding:8px 10px;">
+          <div style="color:var(--gray-400);margin-bottom:3px;font-size:10px;text-transform:uppercase;letter-spacing:.5px;">Vol. personal</div>
+          <div style="font-weight:700;color:${reqColor(pvOk)};font-family:var(--mono);">${reqIcon(pvOk)} ${fmt18(minPV)} USDT</div>
+          ${addr ? `<div style="font-size:10px;color:var(--gray-400);margin-top:2px;">Tienes: ${fmt18(persVol)}</div>` : ''}
+        </div>
+        <div style="background:var(--gray-50);border:1px solid var(--gray-200);border-radius:6px;padding:8px 10px;">
+          <div style="color:var(--gray-400);margin-bottom:3px;font-size:10px;text-transform:uppercase;letter-spacing:.5px;">Directos activos</div>
+          <div style="font-weight:700;color:${reqColor(dOk)};font-family:var(--mono);">${reqIcon(dOk)} ${addr ? directCount+'/'+minD : minD+' mín.'}</div>
+        </div>
+        <div style="background:var(--gray-50);border:1px solid var(--gray-200);border-radius:6px;padding:8px 10px;">
+          <div style="color:var(--gray-400);margin-bottom:3px;font-size:10px;text-transform:uppercase;letter-spacing:.5px;">Dir. rango ≥${minDR}</div>
+          <div style="font-weight:700;color:${reqColor(dRkOk)};font-family:var(--mono);">${reqIcon(dRkOk)} ${addr ? (qualifiedByRank[minDR]||0)+'/'+minDRC : minDRC+' mín.'}</div>
+        </div>
+      </div>
+
+      ${pending > 0n && addr && walletAddress && walletAddress.toLowerCase() === addr.toLowerCase() ? `
+      <div style="margin-top:12px;">
+        <button class="btn btn-green" onclick="claimSingleRank(${rankNum})" style="font-size:12px;padding:7px 18px;">
+          Reclamar Rango ${rankNum} — ${fmt18(pending)} USDT
+        </button>
+      </div>` : ''}
+    </div>`;
+  }
+
+  html += '</div>';
+  progressionEl.innerHTML = html;
+}
+
+
+async function claimSingleRank(rankNum) {
+  if (!await ensureSigner()) return;
+  if (!contracts.ranks) { toast('RanksModule no configurado', 'error'); return; }
+  try {
+    // claimRank goes through Core
+    const coreWithSigner = contracts.core.connect(signer);
+    toast('Reclamando rango ' + rankNum + '...', 'info');
+    const tx = await coreWithSigner.claimRank(walletAddress);
+    await tx.wait();
+    toast('✅ Rango reclamado', 'success');
+    if (currentUser) await loadRanksTab(currentUser);
+  } catch(e) {
+    toast('Error: ' + (e.reason || e.message || ''), 'error');
+  }
+}
+
+// ══════════════════════════════════════════════════════
+// NETWORK TREES
+// ══════════════════════════════════════════════════════
+let currentNetTab = 'unilevel';
+
+function switchNetTab(tab) {
+  currentNetTab = tab;
+  ['unilevel','binary'].forEach(t => {
+    const btn  = document.getElementById('net-tab-' + t);
+    const pane = document.getElementById('net-pane-' + t);
+    if (btn)  btn.classList.toggle('active', t === tab);
+    if (pane) pane.style.display = t === tab ? 'block' : 'none';
+  });
+  if (tab === 'binary' && currentUser) loadBinaryTree(currentUser);
+}
+
+async function loadBinaryTree(addr) {
+  const wrap = document.getElementById('binary-tree-wrap');
+  if (!wrap || !contracts.binary) {
+    if (wrap) wrap.innerHTML = '<div class="callout callout-blue"><span>ℹ</span><span>BinaryModule no configurado</span></div>';
+    return;
+  }
+
+  wrap.innerHTML = '<div style="color:var(--gray-400);font-size:13px;padding:16px;font-family:var(--mono);">Cargando árbol binario...</div>';
+
+  try {
+    // Get binary placement data for this node and 2 levels down
+    const BINARY_TREE_ABI = [
+      "function parentOf(address) view returns (address)",
+      "function leftChildOf(address) view returns (address)",
+      "function rightChildOf(address) view returns (address)",
+      "function leftBV(address) view returns (uint256)",
+      "function rightBV(address) view returns (uint256)",
+    ];
+    const bin = new ethers.Contract(addresses.binary, BINARY_TREE_ABI, provider);
+
+    // Load node info helper
+    async function getNodeInfo(nodeAddr) {
+      if (!nodeAddr || nodeAddr === ethers.ZeroAddress) return null;
+      try {
+        const [userData, lChild, rChild, lBV, rBV] = await Promise.all([
+          contracts.core.users(nodeAddr).catch(() => null),
+          bin.leftChildOf(nodeAddr).catch(() => ethers.ZeroAddress),
+          bin.rightChildOf(nodeAddr).catch(() => ethers.ZeroAddress),
+          bin.leftBV(nodeAddr).catch(() => 0n),
+          bin.rightBV(nodeAddr).catch(() => 0n),
+        ]);
+
+        // Check yield: query YieldModule for PositionOpened events from this address
+        let hasYield = false;
+        let yieldPts = 0n;
+        // Get points from RanksModule (shows yield contribution)
+        if (contracts.ranks) {
+          try {
+            const ranksExt2 = new ethers.Contract(addresses.ranks, RANKS_EXTENDED_ABI, provider);
+            yieldPts = await ranksExt2.totalPoints(nodeAddr).catch(() => 0n);
+          } catch {}
+        }
+        // Check actual yield positions from YieldModule events
+        if (contracts.yield) {
+          try {
+            const yFilter = contracts.yield.filters.PositionOpened(null, nodeAddr);
+            const yEvents = await contracts.yield.queryFilter(yFilter, 0, 'latest').catch(() => []);
+            hasYield = yEvents.length > 0;
+          } catch {
+            // Fallback: if events unavailable, use points as proxy
+            hasYield = yieldPts > 0n;
+          }
+        }
+
+        return {
+          addr: nodeAddr,
+          pkg: userData ? Number(userData[3]) : 0,
+          isActive: userData ? (Number(userData[4]) > Math.floor(Date.now()/1000)) : false,
+          lChild: lChild === ethers.ZeroAddress ? null : lChild,
+          rChild: rChild === ethers.ZeroAddress ? null : rChild,
+          lBV, rBV, hasYield, yieldPts
+        };
+      } catch { return null; }
+    }
+
+    // Build 3-level tree (root + 2 levels)
+    const root = await getNodeInfo(addr);
+    if (!root) { wrap.innerHTML = '<div class="empty"><div class="empty-icon">○</div><div class="empty-title">Sin datos de árbol</div></div>'; return; }
+
+    // Level 1 children
+    const [lNode, rNode] = await Promise.all([
+      root.lChild ? getNodeInfo(root.lChild) : Promise.resolve(null),
+      root.rChild ? getNodeInfo(root.rChild) : Promise.resolve(null),
+    ]);
+
+    // Level 2 children
+    const [llNode, lrNode, rlNode, rrNode] = await Promise.all([
+      lNode?.lChild ? getNodeInfo(lNode.lChild) : Promise.resolve(null),
+      lNode?.rChild ? getNodeInfo(lNode.rChild) : Promise.resolve(null),
+      rNode?.lChild ? getNodeInfo(rNode.lChild) : Promise.resolve(null),
+      rNode?.rChild ? getNodeInfo(rNode.rChild) : Promise.resolve(null),
+    ]);
+
+    function nodeCard(node, label) {
+      if (!node) return `
+        <div style="border:1.5px dashed var(--gray-200);border-radius:var(--radius-lg);padding:12px;text-align:center;min-width:140px;">
+          <div style="font-size:11px;color:var(--gray-300);font-family:var(--mono);">Vacío</div>
+          <div style="font-size:10px;color:var(--gray-300);margin-top:2px;">${label}</div>
+        </div>`;
+
+      const color = node.isActive ? 'var(--green)' : 'var(--red)';
+      const pkgName = ['—','Core 1','Core 2','Core 3','Core 4'][node.pkg] || 'Pkg '+node.pkg;
+      const yieldColor = node.hasYield ? 'var(--gold)' : 'var(--gray-300)';
+
+      return `
+        <div style="border:1.5px solid ${color};border-radius:var(--radius-lg);padding:12px;text-align:center;min-width:140px;background:var(--white);position:relative;">
+          <div style="position:absolute;top:6px;right:8px;width:8px;height:8px;border-radius:50%;background:${color};"></div>
+          <div style="font-family:var(--mono);font-size:10px;color:var(--gray-500);margin-bottom:4px;">${shortAddr(node.addr)}</div>
+          <div style="font-size:11px;font-weight:700;color:var(--gray-800);margin-bottom:2px;">${pkgName}</div>
+          <div style="font-size:10px;color:${yieldColor};font-weight:600;margin-bottom:4px;">${node.hasYield ? '★ Yield activo' : '○ Sin yield'}</div>
+          <div style="font-size:10px;color:var(--gray-400);font-family:var(--mono);">Pts: ${Number(node.yieldPts).toLocaleString()}</div>
+          <div style="font-size:9px;color:var(--gray-300);margin-top:3px;">BV Izq: ${fmt18(node.lBV)}</div>
+          <div style="font-size:9px;color:var(--gray-300);">BV Der: ${fmt18(node.rBV)}</div>
+          <div style="font-size:9px;color:var(--gray-400);margin-top:3px;">${label}</div>
+        </div>`;
+    }
+
+    // Render tree
+    wrap.innerHTML = `
+      <div style="overflow-x:auto;padding-bottom:16px;">
+        <div style="min-width:600px;">
+          <!-- ROOT -->
+          <div style="display:flex;justify-content:center;margin-bottom:16px;">
+            ${nodeCard(root, 'Raíz')}
+          </div>
+          <!-- Level 1 connector -->
+          <div style="display:flex;justify-content:center;gap:200px;margin-bottom:4px;">
+            <div style="width:1px;height:16px;background:var(--gray-300);"></div>
+            <div style="width:1px;height:16px;background:var(--gray-300);"></div>
+          </div>
+          <!-- Level 1 -->
+          <div style="display:flex;justify-content:center;gap:40px;margin-bottom:16px;">
+            <div style="text-align:center;">
+              <div style="font-size:10px;color:var(--blue);font-weight:700;margin-bottom:4px;font-family:var(--mono);">← IZQUIERDA (${fmt18(root.lBV)} BV)</div>
+              ${nodeCard(lNode, 'Hijo Izq')}
+            </div>
+            <div style="text-align:center;">
+              <div style="font-size:10px;color:var(--purple);font-weight:700;margin-bottom:4px;font-family:var(--mono);">DERECHA → (${fmt18(root.rBV)} BV)</div>
+              ${nodeCard(rNode, 'Hijo Der')}
+            </div>
+          </div>
+          <!-- Level 2 -->
+          <div style="display:flex;justify-content:center;gap:12px;">
+            <div style="text-align:center;">${nodeCard(llNode, 'Izq-Izq')}</div>
+            <div style="text-align:center;">${nodeCard(lrNode, 'Izq-Der')}</div>
+            <div style="width:24px;"></div>
+            <div style="text-align:center;">${nodeCard(rlNode, 'Der-Izq')}</div>
+            <div style="text-align:center;">${nodeCard(rrNode, 'Der-Der')}</div>
+          </div>
+          <!-- Legend -->
+          <div style="margin-top:20px;display:flex;gap:16px;font-size:11px;color:var(--gray-500);flex-wrap:wrap;padding:12px;background:var(--gray-50);border-radius:var(--radius);border:1px solid var(--gray-200);">
+            <span style="display:flex;align-items:center;gap:5px;"><span style="width:8px;height:8px;border-radius:50%;background:var(--green);display:inline-block;"></span>Activo</span>
+            <span style="display:flex;align-items:center;gap:5px;"><span style="width:8px;height:8px;border-radius:50%;background:var(--red);display:inline-block;"></span>Inactivo</span>
+            <span style="display:flex;align-items:center;gap:5px;color:var(--gold);">★ Con posición Yield</span>
+            <span style="display:flex;align-items:center;gap:5px;">○ Sin posición Yield</span>
+            <span>Pts = Puntos acumulados en módulo de rangos</span>
+          </div>
+        </div>
+      </div>`;
+
+  } catch(e) {
+    wrap.innerHTML = `<div class="empty"><div class="empty-icon">⚠</div><div class="empty-title">Error cargando árbol</div><div class="empty-desc">${e.message.slice(0,100)}</div></div>`;
+  }
+}
+
+// loadUserFromCore hooks integrated below
+
+// switchTab hooks integrated below
+
+// Fix yield package selection — no text input, just chips
+
+
+// buyYield override integrated below
+
+</script>
+</html>
