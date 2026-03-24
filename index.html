@@ -1332,6 +1332,11 @@ function fmt18(n) {
   catch { return '0.00'; }
 }
 
+function fmtPoints18(n) {
+  try { return Math.floor(Number(ethers.formatUnits(n || 0n, 18))).toLocaleString('es-CO'); }
+  catch { return '0'; }
+}
+
 function shortAddr(addr) {
   if (!addr || addr === ethers.ZeroAddress) return '-';
   return addr.slice(0,6) + '...' + addr.slice(-4);
@@ -2195,8 +2200,8 @@ function makeTreeNodeCard(node, label, compact = false) {
   const color = node.isActive ? 'var(--green)' : 'var(--red)';
   const pkgName = PACKAGE_NAMES[node.pkg] || ('Paquete ' + node.pkg);
   const yieldColor = node.yieldActive ? 'var(--gold)' : (node.hasYield ? 'var(--blue)' : 'var(--gray-300)');
-  const personalValue = Number(BigInt(node.personalPts || 0n) / (10n ** 18n));
-  const totalValue = Number(node.totalPts || 0n);
+  const personalValue = Math.floor(Number(ethers.formatUnits(node.personalPts || 0n, 18)));
+  const totalValue = Math.floor(Number(ethers.formatUnits(node.totalPts || 0n, 18)));
 
   return `
     <div style="border:1.5px solid ${color};border-radius:var(--radius-lg);padding:${compact ? '10px' : '12px'};text-align:center;min-width:${compact ? '130px' : '152px'};background:var(--white);position:relative;">
@@ -3872,7 +3877,7 @@ async function loadRanksTab(addr) {
   const kpis = {
     'rank-current':      addr ? (userRankNum > 0 ? RANK_NAMES[userRankNum] : 'Sin rango') : '—',
     'rank-next-label':   addr ? (userRankNum < 10 ? 'Siguiente: ' + RANK_NAMES[userRankNum+1] : 'Rango máximo alcanzado') : 'Busca un usuario',
-    'rank-personal-pts': addr ? Number(totalPts).toLocaleString() : '—',
+    'rank-personal-pts': addr ? fmtPoints18(totalPts) : '—',
     'rank-personal-vol': addr ? fmt18(persVol) + ' USDT' : '—',
     'rank-pending-total':addr ? fmt18(pendTotal) + ' USDT' : '—',
   };
@@ -3898,8 +3903,8 @@ async function loadRanksTab(addr) {
     const isNext    = userRankNum + 1 === rankNum;
 
     // La barra principal debe reflejar el avance REAL del rango, no solo los puntos.
-    const ptsNum    = Number(totalPts);
-    const targetNum = Number(target);
+    const ptsNum    = Math.floor(Number(ethers.formatUnits(totalPts || 0n, 18)));
+    const targetNum = Math.floor(Number(ethers.formatUnits(target || 0n, 18)));
     const ptsPct    = targetNum > 0
       ? Math.min(100, Math.round(ptsNum * 100 / targetNum))
       : (achieved ? 100 : 0);
