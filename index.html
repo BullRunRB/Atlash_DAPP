@@ -1853,7 +1853,6 @@ async function loadUserFromCore(addr) {
   let ranksData = {pendingUserUSDT: 0n, poolAvailableUSDT: 0n};
   let poolsData = {leadershipClaimableUSDT:0n, topTenClaimableUSDT:0n, leadershipPoolTotalUSDT:0n, topTenPoolTotalUSDT:0n, monthIndex:0n};
   let cashbackData = {balanceUSDT:0n, nextExpiryAt:0n, nextExpiryAmountUSDT:0n, expiringSoonAmountUSDT:0n};
-  let referralData = {amount:0n, exact:false};
 
   if (contracts.ranks) {
     try {
@@ -1889,7 +1888,6 @@ async function loadUserFromCore(addr) {
     } catch {}
   }
 
-  try { referralData = await detectReferralBonus(addr); } catch {}
 
   const pkg = highestPackage > 0 ? await contracts.core.packages(highestPackage).catch(()=>null) : null;
   const now = Math.floor(Date.now()/1000);
@@ -1899,7 +1897,7 @@ async function loadUserFromCore(addr) {
   renderUserCard({addr, exists, frozen, upline, highestPackage, validUntil, monthlyIncludedUntil, isActive, inactiveSecs, directs});
   renderStatsFromCore({highestPackage, validUntil, isActive, frozen}, cashbackData, directs, upline);
   renderMembership(validUntil, monthlyIncludedUntil, isActive, frozen);
-  renderEarnings(ranksData, poolsData, cashbackData, referralData);
+  renderEarnings(ranksData, poolsData, cashbackData);
   renderCashback(cashbackData, null);
   renderPools(poolsData);
 
@@ -2081,9 +2079,8 @@ function renderPools(pools) {
   `;
 }
 
-function renderEarnings(ranks, pools, cb, referralData = { amount: 0n, exact: false }) {
+function renderEarnings(ranks, pools, cb) {
   const el = document.getElementById('earnings-list');
-  const referralAmount = BigInt(referralData?.amount || 0n);
   const rows = [
     {
       name: '🏆 Bonos de Rango',
@@ -3434,6 +3431,39 @@ function truncate(str, n) {
   return str.length > n ? str.slice(0, n) + '...' : str;
 }
 
+
+async function queryFilterBatched(contract, filter, fromBlock, toBlock, step = 40000) {
+  const logs = [];
+  const start = Math.max(0, Number(fromBlock || 0));
+  const end = Number(toBlock);
+  for (let from = start; from <= end; from += step) {
+    const to = Math.min(from + step - 1, end);
+    const chunk = await contract.queryFilter(filter, from, to);
+    logs.push(...chunk);
+  }
+  return logs;
+}
+
+const DEPLOY_BLOCKS = {
+  testnet: {
+    marketplace: 0,
+    yield: 0,
+  },
+  mainnet: {
+    marketplace: 0,
+    yield: 0,
+  }
+};
+
+async function getBlockTimestampSafe(blockNumber) {
+  try {
+    const b = await provider.getBlock(blockNumber);
+    return b?.timestamp ? BigInt(b.timestamp) : 0n;
+  } catch {
+    return 0n;
+  }
+}
+
 function renderPagination(total, current) {
   const el = document.getElementById('mkt-pagination');
   if (!el) return;
@@ -3513,28 +3543,29 @@ async function buyProduct(productId) {
   if (!await ensureSigner()) return;
   if (!contracts.mktCheckout) { toast('Checkout no configurado', 'error'); return; }
   try {
-    // Get product price
     const p = await contracts.mktCatalog.getProduct(productId);
     const price = p.basePrice;
 
-    // Approve USDT
     const usdtAddr = await contracts.core.usdt();
     const usdtC = new ethers.Contract(usdtAddr, USDT_ABI, signer);
-    const checkoutAddr = addresses.mktCheckout;
-    const allowance = await usdtC.allowance(walletAddress, checkoutAddr);
+    const spenderAddr = addresses.mktTreasury || addresses.mktCheckout;
+    const allowance = await usdtC.allowance(walletAddress, spenderAddr);
     if (allowance < price) {
       toast('Aprobando USDT para Marketplace...', 'info');
-      const tx = await usdtC.approve(checkoutAddr, price);
+      const tx = await usdtC.approve(spenderAddr, price);
       await tx.wait();
     }
+
     toast('Procesando compra...', 'info');
     const checkout = contracts.mktCheckout.connect(signer);
     const tx = await checkout.buy(productId, 1);
-    const receipt = await tx.wait();
+    await tx.wait();
     toast('✅ Compra exitosa - Producto #' + productId, 'success');
     await loadMarketplace();
+    if (mktSubTab === 'my-purchases') await loadMyPurchases();
+    if (mktSubTab === 'my-access') await loadMyAccess();
   } catch(e) {
-    toast('Error: ' + (e.reason || e.message || e).slice(0,80), 'error');
+    toast('Error: ' + (e.reason || e.shortMessage || e.message || String(e)).slice(0,100), 'error');
   }
 }
 
@@ -3544,32 +3575,36 @@ async function loadMyPurchases() {
     if (el) el.innerHTML = '<div class="empty"><div class="empty-icon">🧾</div><div class="empty-title">Treasury no configurado</div><div class="empty-desc">Ingresa la direccion del MarketplaceTreasury</div></div>';
     return;
   }
-  el.innerHTML = '<div style="color:var(--t4);font-family:var(--ff-mono);font-size:12px;padding:16px;">Cargando compras via eventos...</div>';
+  el.innerHTML = '<div style="color:var(--gray-400);font-family:var(--mono);font-size:12px;padding:16px;">Cargando compras...</div>';
   try {
+    const latest = await provider.getBlockNumber();
+    const deployHint = DEPLOY_BLOCKS[activeNetwork === NETWORKS.testnet ? 'testnet' : 'mainnet']?.marketplace || 0;
+    const fromBlock = Math.max(deployHint, latest - 300000);
     const filter = contracts.mktTreasury.filters.PurchaseRecorded(null, walletAddress);
-    const events = await contracts.mktTreasury.queryFilter(filter, 0, 'latest');
+    const events = await queryFilterBatched(contracts.mktTreasury, filter, fromBlock, latest, 40000);
     if (events.length === 0) {
       el.innerHTML = '<div class="empty"><div class="empty-icon">🧾</div><div class="empty-title">Sin compras</div><div class="empty-desc">No tienes compras registradas en este marketplace</div></div>';
       return;
     }
-    const rows = await Promise.all(events.slice(-20).reverse().map(async ev => {
+    const rows = await Promise.all(events.slice(-50).reverse().map(async ev => {
       const pId = Number(ev.args.purchaseId);
       let rec = null;
       try { rec = await contracts.mktTreasury.getPurchase(pId); } catch {}
-      return { pId, ev, rec };
+      const when = rec && rec.createdAt ? BigInt(rec.createdAt) : await getBlockTimestampSafe(ev.blockNumber);
+      return { pId, ev, rec, when };
     }));
-    el.innerHTML = `<table class="data-table">
+    el.innerHTML = `<table class="tbl">
       <thead><tr><th>Purchase ID</th><th>Producto</th><th>Monto</th><th>Estado</th><th>Fecha</th></tr></thead>
-      <tbody>${rows.map(({pId, ev, rec}) => `<tr>
-        <td style="color:var(--t4);">#${pId}</td>
-        <td>#${rec?Number(rec.productId):Number(ev.args.productId)}</td>
-        <td style="color:var(--gold);">${fmt18(rec?rec.grossAmount:ev.args.amount)} USDT</td>
-        <td><span class="badge ${rec&&Number(rec.status)===3?'badge-green':rec&&Number(rec.status)===4?'badge-red':'badge-amber'}">${PURCHASE_STATUS[rec?Number(rec.status):1]||'-'}</span></td>
-        <td style="color:var(--t3);">${tsToDate(rec?rec.createdAt:Number(ev.blockNumber))}</td>
+      <tbody>${rows.map(({pId, ev, rec, when}) => `<tr>
+        <td style="color:var(--gray-500);">#${pId}</td>
+        <td>#${rec ? Number(rec.productId) : Number(ev.args.productId)}</td>
+        <td style="color:var(--gold);">${fmt18(rec ? rec.grossAmount : ev.args.amount)} USDT</td>
+        <td><span class="badge ${rec && Number(rec.status)===3 ? 'badge-green' : rec && Number(rec.status)===4 ? 'badge-red' : 'badge-amber'}">${PURCHASE_STATUS[rec ? Number(rec.status) : 1] || '-'}</span></td>
+        <td style="color:var(--gray-500);">${when ? tsToDate(when) : '-'}</td>
       </tr>`).join('')}</tbody>
     </table>`;
   } catch(e) {
-    el.innerHTML = `<div class="empty"><div class="empty-icon">⚠</div><div class="empty-title">Error</div><div class="empty-desc">${e.message.slice(0,100)}</div></div>`;
+    el.innerHTML = `<div class="empty"><div class="empty-icon">⚠</div><div class="empty-title">Error</div><div class="empty-desc">${escapeHtml(String(e.message || e)).slice(0,140)}</div></div>`;
   }
 }
 
