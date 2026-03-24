@@ -1332,9 +1332,14 @@ function fmt18(n) {
   catch { return '0.00'; }
 }
 
-function fmtPoints18(n) {
-  try { return Math.floor(Number(ethers.formatUnits(n || 0n, 18))).toLocaleString('es-CO'); }
-  catch { return '0'; }
+function fmtIntPoints(n) {
+  try {
+    if (n === null || n === undefined) return '0';
+    return BigInt(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  } catch {
+    try { return Number(n || 0).toLocaleString('es-CO', {maximumFractionDigits:0}); }
+    catch { return '0'; }
+  }
 }
 
 function shortAddr(addr) {
@@ -2200,8 +2205,8 @@ function makeTreeNodeCard(node, label, compact = false) {
   const color = node.isActive ? 'var(--green)' : 'var(--red)';
   const pkgName = PACKAGE_NAMES[node.pkg] || ('Paquete ' + node.pkg);
   const yieldColor = node.yieldActive ? 'var(--gold)' : (node.hasYield ? 'var(--blue)' : 'var(--gray-300)');
-  const personalValue = Math.floor(Number(ethers.formatUnits(node.personalPts || 0n, 18)));
-  const totalValue = Math.floor(Number(ethers.formatUnits(node.totalPts || 0n, 18)));
+  const personalValue = Number(BigInt(node.personalPts || 0n) / (10n ** 18n));
+  const totalValue = BigInt(node.totalPts || 0n);
 
   return `
     <div style="border:1.5px solid ${color};border-radius:var(--radius-lg);padding:${compact ? '10px' : '12px'};text-align:center;min-width:${compact ? '130px' : '152px'};background:var(--white);position:relative;">
@@ -2210,7 +2215,7 @@ function makeTreeNodeCard(node, label, compact = false) {
       <div style="font-size:${compact ? '10px' : '11px'};font-weight:700;color:var(--gray-800);margin-bottom:2px;">${pkgName}</div>
       <div style="font-size:10px;color:${yieldColor};font-weight:600;margin-bottom:4px;">${node.yieldActive ? '★ ' : (node.hasYield ? '◔ ' : '○ ')}${node.yieldLabel}</div>
       <div style="font-size:10px;color:var(--gray-500);font-family:var(--mono);">Pts pers.: ${personalValue.toLocaleString()}</div>
-      <div style="font-size:9px;color:var(--gray-400);font-family:var(--mono);">Pts red: ${totalValue.toLocaleString()}</div>
+      <div style="font-size:9px;color:var(--gray-400);font-family:var(--mono);">Pts red: ${fmtIntPoints(totalValue)}</div>
       <div style="font-size:9px;color:var(--gray-400);margin-top:3px;">${label}</div>
       <div style="margin-top:6px;"><button onclick="document.getElementById('search-addr').value='${node.addr}';searchUser();" class="btn btn-outline" style="padding:3px 10px;font-size:10px;">Ver</button></div>
     </div>`;
@@ -3877,7 +3882,7 @@ async function loadRanksTab(addr) {
   const kpis = {
     'rank-current':      addr ? (userRankNum > 0 ? RANK_NAMES[userRankNum] : 'Sin rango') : '—',
     'rank-next-label':   addr ? (userRankNum < 10 ? 'Siguiente: ' + RANK_NAMES[userRankNum+1] : 'Rango máximo alcanzado') : 'Busca un usuario',
-    'rank-personal-pts': addr ? fmtPoints18(totalPts) : '—',
+    'rank-personal-pts': addr ? fmtIntPoints(totalPts) : '—',
     'rank-personal-vol': addr ? fmt18(persVol) + ' USDT' : '—',
     'rank-pending-total':addr ? fmt18(pendTotal) + ' USDT' : '—',
   };
@@ -3903,13 +3908,13 @@ async function loadRanksTab(addr) {
     const isNext    = userRankNum + 1 === rankNum;
 
     // La barra principal debe reflejar el avance REAL del rango, no solo los puntos.
-    const ptsNum    = Math.floor(Number(ethers.formatUnits(totalPts || 0n, 18)));
-    const targetNum = Math.floor(Number(ethers.formatUnits(target || 0n, 18)));
+    const ptsNum    = Number(totalPts || 0n);
+    const targetNum = Number(target || 0n);
     const ptsPct    = targetNum > 0
       ? Math.min(100, Math.round(ptsNum * 100 / targetNum))
       : (achieved ? 100 : 0);
-    const ptsDisplay    = addr ? ptsNum.toLocaleString() : '—';
-    const targetDisplay = targetNum.toLocaleString();
+    const ptsDisplay    = addr ? fmtIntPoints(totalPts) : '—';
+    const targetDisplay = fmtIntPoints(target);
 
     const pvOk   = addr ? (Number(persVol) >= Number(minPV)) : null;
     const dOk    = addr ? (directCount >= minD) : null;
@@ -4138,7 +4143,7 @@ async function loadBinaryTree(addr) {
         <div style="font-size:11px;font-weight:700;color:var(--gray-800);margin-bottom:2px;">${pkgName}</div>
         <div style="font-size:10px;color:${yieldColor};font-weight:600;margin-bottom:4px;">${node.yieldActive ? '★ ' : (node.hasYield ? '◔ ' : '○ ')}${node.yieldLabel}</div>
         <div style="font-size:10px;color:var(--gray-500);font-family:var(--mono);">Pts pers.: ${personalValue.toLocaleString()}</div>
-        <div style="font-size:9px;color:var(--gray-400);font-family:var(--mono);">Pts red: ${totalValue.toLocaleString()}</div>
+        <div style="font-size:9px;color:var(--gray-400);font-family:var(--mono);">Pts red: ${fmtIntPoints(totalValue)}</div>
         <div style="font-size:9px;color:var(--gray-300);margin-top:3px;">BV I: ${fmt18(node.lBV)} | BV D: ${fmt18(node.rBV)}</div>
         <div style="margin-top:6px;"><button onclick="document.getElementById('search-addr').value='${node.addr}';searchUser();" class="btn btn-outline" style="padding:3px 10px;font-size:10px;">Ver</button></div>
       </div>`;
