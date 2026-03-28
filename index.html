@@ -4032,6 +4032,7 @@ function switchNetTab(tab) {
   if (tab === 'binary' && currentUser) loadBinaryTree(currentUser);
 }
 
+
 async function loadBinaryTree(addr) {
   const wrap = document.getElementById('binary-tree-wrap');
   if (!wrap || !contracts.binary) {
@@ -4060,8 +4061,7 @@ async function loadBinaryTree(addr) {
       try {
         const nextId = await yieldRead.nextPositionId().catch(() => 1n);
         const total = Math.max(0, Number(nextId) - 1);
-        if (!total) return;
-        const scanCount = total <= 400 ? total : 400;
+        const scanCount = Math.min(total, 400);
         const startId = Math.max(1, total - scanCount + 1);
         for (let id = startId; id <= total; id++) {
           try {
@@ -4199,37 +4199,43 @@ async function loadBinaryTree(addr) {
       else if (leg === 2) pendingRight.push(info);
     }
 
-    function pendingChainMarkup(items, side) {
-      if (!items.length) return '';
-      return items.map((node, idx) => {
-        const route = side === 'Izquierda'
-          ? Array.from({ length: idx + 1 }, () => 'I').join('-')
-          : Array.from({ length: idx + 1 }, () => 'D').join('-');
-        return `<div style="display:flex;flex-direction:column;align-items:center;gap:4px;">
-          ${idx > 0 ? `<div style="width:2px;height:18px;background:var(--gray-300);"></div>` : `<div style="width:2px;height:18px;background:var(--gray-300);"></div>`}
-          ${compactNodeCard(node, `${side} · ${route}`, false)}
-        </div>`;
-      }).join('');
-    }
-
-    function syntheticPendingRows(items, side) {
-      return items.map((node, idx) => [{ addr: node.addr, path: side === 'Izquierda' ? Array.from({ length: idx + 1 }, () => 'I').join('-') : Array.from({ length: idx + 1 }, () => 'D').join('-'), sideLabel: side, info: node, viaBinary: false }]);
-    }
-
-    if (descendantRows.length === 1) {
-      if (pendingLeft.length) descendantRows.push(...syntheticPendingRows(pendingLeft, 'Izquierda'));
-      if (pendingRight.length) descendantRows.push(...syntheticPendingRows(pendingRight, 'Derecha'));
-    }
-
     const fallbackNote = (pendingLeft.length || pendingRight.length)
-      ? `<div class="callout callout-blue" style="margin-top:0;"><span>ℹ</span><span>BinaryModule no devolvió hijos para algunos referidos directos. Se dibujan en la formación como referencia por la pierna asignada en Core, para que la posición sea visible.</span></div>`
+      ? `<div class="callout callout-blue" style="margin-top:0;"><span>ℹ</span><span>BinaryModule no devolvió hijos para algunos referidos directos. Se muestran en columnas por pierna usando la asignación del Core para reflejar la posición visual.</span></div>`
       : '';
+
+    function renderChainColumn(items, side) {
+      if (!items.length) {
+        return `<div style="display:flex;flex-direction:column;align-items:${side === 'Izquierda' ? 'flex-end' : 'flex-start'};gap:18px;min-height:40px;"><div style="font-size:11px;color:var(--gray-300);">Sin nodos</div></div>`;
+      }
+      return `<div style="display:flex;flex-direction:column;align-items:${side === 'Izquierda' ? 'flex-end' : 'flex-start'};gap:18px;">
+        ${items.map((node, idx) => {
+          const route = Array.from({ length: idx + 1 }, () => side === 'Izquierda' ? 'I' : 'D').join('-');
+          return `<div style="display:flex;flex-direction:column;align-items:${side === 'Izquierda' ? 'flex-end' : 'flex-start'};gap:6px;">
+            <div style="width:1px;height:14px;background:var(--gray-300);"></div>
+            ${compactNodeCard(node, `${side} · ${route}`, false)}
+          </div>`;
+        }).join('')}
+      </div>`;
+    }
+
+    function renderBinaryRows(rows) {
+      return rows.map((row, idx) => `
+        <div style="display:flex;justify-content:center;gap:10px;flex-wrap:nowrap;overflow-x:auto;padding:4px 0;">
+          ${row.map(item => `<div style="display:flex;flex-direction:column;align-items:center;gap:6px;min-width:165px;">
+            ${idx > 0 ? '<div style="width:1px;height:14px;background:var(--gray-300);"></div>' : ''}
+            ${compactNodeCard(item.info, idx === 0 ? 'Raíz consultada' : `${item.sideLabel} · ${item.path}`, idx === 0)}
+          </div>`).join('')}
+        </div>
+      `).join('');
+    }
+
+    const fallbackOnly = descendantRows.length === 1 && (pendingLeft.length || pendingRight.length);
 
     wrap.innerHTML = `
       <div style="display:flex;flex-direction:column;gap:16px;overflow-x:auto;padding-bottom:8px;">
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;">
           <div class="kpi"><div class="kpi-label">Patrocinador directo</div><div class="kpi-value" style="font-size:13px;letter-spacing:0;">${sponsorChain.length ? shortAddr(sponsorChain[sponsorChain.length - 1].addr) : 'Sin patrocinador'}</div><div class="kpi-sub">Upline binario</div></div>
-          <div class="kpi"><div class="kpi-label">Niveles cargados</div><div class="kpi-value c-blue">${descendantRows.length}</div><div class="kpi-sub">Vista hasta 10 niveles</div></div>
+          <div class="kpi"><div class="kpi-label">Niveles cargados</div><div class="kpi-value c-blue">${fallbackOnly ? Math.max(pendingLeft.length, pendingRight.length) + 1 : descendantRows.length}</div><div class="kpi-sub">Vista hasta 10 niveles</div></div>
           <div class="kpi"><div class="kpi-label">Pierna principal</div><div class="kpi-value c-green">${LEG_NAMES[Number(await contracts.core.userLeg(addr).catch(()=>0))] || 'No definida'}</div><div class="kpi-sub">Configuración actual</div></div>
         </div>
 
@@ -4240,16 +4246,22 @@ async function loadBinaryTree(addr) {
 
         <div class="sec" style="margin:0;"><span class="sec-label">Formación del árbol binario</span><span class="sec-line"></span></div>
         ${fallbackNote}
-        <div style="display:flex;flex-direction:column;gap:12px;min-width:720px;">
-          ${descendantRows.map((row, idx) => `
-            <div style="display:flex;justify-content:${row.length === 1 ? 'center' : 'center'};gap:${idx === 0 ? '0' : '10px'};flex-wrap:nowrap;overflow-x:auto;padding:4px 0;">
-              ${row.map(item => `<div style="display:flex;flex-direction:column;align-items:center;gap:6px;min-width:165px;">
-                ${idx > 0 ? '<div style="width:1px;height:14px;background:var(--gray-300);"></div>' : ''}
-                ${compactNodeCard(item.info, idx === 0 ? 'Raíz consultada' : `${item.sideLabel} · ${item.path}`, idx === 0)}
-              </div>`).join('')}
+        ${fallbackOnly ? `
+          <div style="display:flex;flex-direction:column;align-items:center;gap:16px;min-width:920px;padding-top:4px;">
+            <div style="display:flex;flex-direction:column;align-items:center;gap:6px;">
+              ${compactNodeCard(root, 'Raíz consultada', true)}
             </div>
-          `).join('')}
-        </div>
+            <div style="display:grid;grid-template-columns:minmax(260px,1fr) minmax(220px,180px) minmax(260px,1fr);gap:18px;align-items:start;width:100%;">
+              <div style="display:flex;justify-content:flex-end;">${renderChainColumn(pendingLeft, 'Izquierda')}</div>
+              <div></div>
+              <div style="display:flex;justify-content:flex-start;">${renderChainColumn(pendingRight, 'Derecha')}</div>
+            </div>
+          </div>
+        ` : `
+          <div style="display:flex;flex-direction:column;gap:12px;min-width:720px;">
+            ${renderBinaryRows(descendantRows)}
+          </div>
+        `}
 
         <div style="margin-top:2px;display:flex;gap:16px;font-size:11px;color:var(--gray-500);flex-wrap:wrap;padding:12px;background:var(--gray-50);border-radius:var(--radius);border:1px solid var(--gray-200);">
           <span style="display:flex;align-items:center;gap:5px;"><span style="width:8px;height:8px;border-radius:50%;background:var(--green);display:inline-block;"></span>Activo</span>
@@ -4263,6 +4275,7 @@ async function loadBinaryTree(addr) {
     wrap.innerHTML = `<div class="empty"><div class="empty-icon">⚠</div><div class="empty-title">Error cargando árbol</div><div class="empty-desc">${escapeHtml(String(e?.message || e)).slice(0,140)}</div></div>`;
   }
 }
+
 
 // loadUserFromCore hooks integrated below
 
