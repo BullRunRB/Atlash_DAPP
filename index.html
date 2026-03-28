@@ -3334,16 +3334,58 @@ function setDashboardAccess(enabled) {
 }
 
 // ─── WALLET CONNECTION - Supports MetaMask AND injected wallets (Trust, etc.) ───
+async function ensureWalletOnActiveNetwork() {
+  if (!window.ethereum) throw new Error('Wallet no detectada');
+  if (!activeNetwork) throw new Error('Red no inicializada');
+
+  let chainHex = await window.ethereum.request({ method: 'eth_chainId' });
+  let chainId = parseInt(chainHex, 16);
+  if (chainId === activeNetwork.chainId) return;
+
+  try {
+    await window.ethereum.request({
+      method: 'wallet_switchEthereumChain',
+      params: [{ chainId: activeNetwork.chainIdHex }]
+    });
+  } catch (switchErr) {
+    if (switchErr?.code === 4902 || String(switchErr?.message || '').toLowerCase().includes('unrecognized chain')) {
+      await window.ethereum.request({
+        method: 'wallet_addEthereumChain',
+        params: [{
+          chainId: activeNetwork.chainIdHex,
+          chainName: activeNetwork.label,
+          nativeCurrency: activeNetwork.nativeCurrency,
+          rpcUrls: [activeNetwork.rpc],
+          blockExplorerUrls: [activeNetwork.explorer]
+        }]
+      });
+    } else {
+      throw switchErr;
+    }
+  }
+
+  chainHex = await window.ethereum.request({ method: 'eth_chainId' });
+  chainId = parseInt(chainHex, 16);
+  if (chainId !== activeNetwork.chainId) {
+    throw new Error('No fue posible cambiar la red a ' + activeNetwork.label);
+  }
+}
+
 async function toggleWallet() {
-  // Disconnect
+  const lbl = document.getElementById('wallet-label');
+  const btn = document.getElementById('wallet-btn');
+  const loginBtn = document.getElementById('login-connect-btn');
+
   if (walletAddress) {
     walletAddress = null;
     signer = null;
     authState = { owner:null, guardian:null, isOwner:false, isGuardian:false, isAdmin:false };
-    document.getElementById('wallet-label').textContent = 'Conectar wallet';
-    const loginBtn = document.getElementById('login-connect-btn'); if (loginBtn) loginBtn.textContent = 'Conectar wallet';
-    document.getElementById('wallet-btn').classList.remove('connected');
-    document.getElementById('wallet-btn').disabled = false;
+    if (lbl) lbl.textContent = 'Conectar wallet';
+    if (loginBtn) loginBtn.textContent = 'Conectar wallet';
+    if (btn) {
+      btn.classList.remove('connected');
+      btn.disabled = false;
+    }
     updateAdminVisibility();
     showLoginGate('Wallet desconectada. Conecta nuevamente para habilitar el dashboard.');
     toast('Wallet desconectada', 'info');
@@ -3352,77 +3394,52 @@ async function toggleWallet() {
 
   if (window.location.protocol === 'file:') { showWalletHelp(); return; }
   if (!window.ethereum) { showWalletHelp(); return; }
-  if (!activeNetwork) { toast('Lanza el dashboard primero', 'error'); return; }
+  if (!activeNetwork || !contracts.core) {
+    toast('El dashboard aún se está inicializando. Intenta de nuevo en unos segundos.', 'error');
+    return;
+  }
 
-  const lbl = document.getElementById('wallet-label');
-  const btn = document.getElementById('wallet-btn');
-
-  lbl.textContent = 'Conectando...';
-  btn.disabled = true;
+  if (lbl) lbl.textContent = 'Conectando...';
+  if (loginBtn) loginBtn.textContent = 'Conectando...';
+  if (btn) btn.disabled = true;
 
   try {
-    // Step 1: request accounts (opens wallet popup)
     const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
     if (!accounts || !accounts[0]) throw new Error('Sin cuentas');
 
-    // Step 2: check chain
-    const chainHex = await window.ethereum.request({ method: 'eth_chainId' });
-    const chainId  = parseInt(chainHex, 16);
-    const target   = activeNetwork.chainId;
+    await ensureWalletOnActiveNetwork();
 
-    if (chainId !== target) {
-      // Try to switch - but DON'T await forever, use timeout
-      toast(`Red incorrecta (${chainId}). Cambia a ${activeNetwork.label} (${target}) en tu wallet.`, 'error');
-      
-      // Try silently
-      window.ethereum.request({
-        method: 'wallet_switchEthereumChain',
-        params: [{ chainId: activeNetwork.chainIdHex }]
-      }).catch(() => {
-        window.ethereum.request({
-          method: 'wallet_addEthereumChain',
-          params: [{
-            chainId: activeNetwork.chainIdHex,
-            chainName: activeNetwork.label,
-            nativeCurrency: activeNetwork.nativeCurrency,
-            rpcUrls: [activeNetwork.rpc],
-            blockExplorerUrls: [activeNetwork.explorer]
-          }]
-        }).catch(() => {});
-      });
-
-      lbl.textContent = 'Conectar wallet';
-      btn.disabled = false;
-      return;
-    }
-
-    // Step 3: build signer
     const ethProv = new ethers.BrowserProvider(window.ethereum);
     signer = await ethProv.getSigner();
     walletAddress = await signer.getAddress();
 
-    lbl.textContent = shortAddr(walletAddress);
-    const loginBtn = document.getElementById('login-connect-btn'); if (loginBtn) loginBtn.textContent = 'Wallet conectada';
-    btn.disabled = false;
-    btn.classList.add('connected');
+    if (lbl) lbl.textContent = shortAddr(walletAddress);
+    if (loginBtn) loginBtn.textContent = 'Wallet conectada';
+    if (btn) {
+      btn.disabled = false;
+      btn.classList.add('connected');
+    }
+
     await refreshAuthState();
     setDashboardAccess(true);
     toast(`Conectado · ${activeNetwork.label}`, 'success');
     updateBuyYieldBtn();
     loadSellerBalance().catch(() => {});
-    document.getElementById('search-addr').value = walletAddress;
+    const search = document.getElementById('search-addr');
+    if (search) search.value = walletAddress;
     searchUser();
     if (authState.isAdmin) loadAdminDashboard().catch(()=>{});
-
   } catch (e) {
+    console.error('toggleWallet error', e);
     const msg = e?.message || '';
     if (msg.includes('rejected') || msg.includes('denied') || e?.code === 4001) {
       toast('Conexion rechazada por el usuario', 'error');
     } else {
-      toast('Error al conectar: ' + msg.slice(0, 60), 'error');
+      toast('Error al conectar: ' + msg.slice(0, 120), 'error');
     }
-    lbl.textContent = 'Conectar wallet';
-    btn.disabled = false;
+    if (lbl) lbl.textContent = 'Conectar wallet';
+    if (loginBtn) loginBtn.textContent = 'Conectar wallet';
+    if (btn) btn.disabled = false;
   }
 }
 
@@ -4718,6 +4735,35 @@ async function bootstrapLoginMode() {
     const line = document.getElementById('login-status-line');
     if (line) line.textContent = 'No se pudo inicializar el dashboard. Revisa la configuración de contratos.';
   }
+}
+
+
+if (window.ethereum) {
+  window.ethereum.on?.('accountsChanged', async (accounts) => {
+    if (!accounts || !accounts.length) {
+      walletAddress = null;
+      signer = null;
+      authState = { owner:null, guardian:null, isOwner:false, isGuardian:false, isAdmin:false };
+      const lbl = document.getElementById('wallet-label'); if (lbl) lbl.textContent = 'Conectar wallet';
+      const loginBtn = document.getElementById('login-connect-btn'); if (loginBtn) loginBtn.textContent = 'Conectar wallet';
+      const btn = document.getElementById('wallet-btn'); if (btn) { btn.disabled = false; btn.classList.remove('connected'); }
+      updateAdminVisibility();
+      showLoginGate('Wallet desconectada. Conecta nuevamente para habilitar el dashboard.');
+      return;
+    }
+    try {
+      if (!activeNetwork || !contracts.core) return;
+      const ethProv = new ethers.BrowserProvider(window.ethereum);
+      signer = await ethProv.getSigner();
+      walletAddress = await signer.getAddress();
+      const lbl = document.getElementById('wallet-label'); if (lbl) lbl.textContent = shortAddr(walletAddress);
+      const loginBtn = document.getElementById('login-connect-btn'); if (loginBtn) loginBtn.textContent = 'Wallet conectada';
+      const btn = document.getElementById('wallet-btn'); if (btn) { btn.disabled = false; btn.classList.add('connected'); }
+      await refreshAuthState();
+      setDashboardAccess(true);
+    } catch {}
+  });
+  window.ethereum.on?.('chainChanged', () => window.location.reload());
 }
 
 document.addEventListener('DOMContentLoaded', () => {
