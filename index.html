@@ -3534,10 +3534,8 @@ async function adminBatchWithdrawBucket() {
   if (!authState.isOwner || !contracts.admin || !signer) return toast('Solo owner', 'error');
   try {
     const bucket = Number((document.getElementById('admin-bucket-id').value || '').trim());
-    const tos = (document.getElementById('admin-bucket-addresses').value || '').split(/
-+/).map(s=>s.trim()).filter(Boolean);
-    const amts = (document.getElementById('admin-bucket-amounts').value || '').split(/
-+/).map(s=>s.trim()).filter(Boolean);
+    const tos = (document.getElementById('admin-bucket-addresses').value || '').split(/\n+/).map(s=>s.trim()).filter(Boolean);
+    const amts = (document.getElementById('admin-bucket-amounts').value || '').split(/\n+/).map(s=>s.trim()).filter(Boolean);
     if (!tos.length || tos.length !== amts.length) throw new Error('Direcciones y montos deben tener la misma cantidad');
     tos.forEach(a => { if (!isValidAddr(a)) throw new Error('Dirección inválida en batch'); });
     const parsed = amts.map(v => ethers.parseUnits(v, 18));
