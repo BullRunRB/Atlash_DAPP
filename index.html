@@ -4227,16 +4227,48 @@ async function loadBinaryTree(addr) {
         </div>
 
         <div class="sec" style="margin:0;"><span class="sec-label">Formación del árbol binario</span><span class="sec-line"></span></div>
-        <div style="display:flex;flex-direction:column;gap:12px;min-width:720px;">
-          ${descendantRows.map((row, idx) => `
-            <div style="display:flex;justify-content:center;gap:${idx === 0 ? '0' : '10px'};flex-wrap:nowrap;overflow-x:auto;padding:4px 0;">
-              ${row.map(item => `<div style="display:flex;flex-direction:column;align-items:center;gap:6px;min-width:165px;">
-                ${idx > 0 ? '<div style="width:1px;height:14px;background:var(--gray-300);"></div>' : ''}
-                ${compactNodeCard(item.info, idx === 0 ? 'Raíz consultada' : `${item.sideLabel} · ${item.path}`, idx === 0)}
-              </div>`).join('')}
+        ${(() => {
+          const allItems = descendantRows.flat();
+          const maxDepth = Math.max(0, descendantRows.length - 1);
+          const cardW = 190;
+          const cardH = 170;
+          const levelGap = 58;
+          const sidePadding = 80;
+          const canvasHeight = (maxDepth + 1) * (cardH + levelGap) + 40;
+          const nodeMap = new Map();
+          const placed = allItems.map(item => {
+            const depth = item.path === 'Raíz' ? 0 : item.path.split('-').length;
+            let slot = 0;
+            if (item.path !== 'Raíz') {
+              const parts = item.path.split('-');
+              for (const part of parts) slot = slot * 2 + (part === 'D' ? 1 : 0);
+            }
+            const denom = Math.pow(2, depth || 1);
+            const xPct = depth === 0 ? 50 : ((slot + 0.5) / denom) * 100;
+            const top = depth * (cardH + levelGap);
+            const xCss = depth === 0 ? '50%' : `calc(${xPct}% - 0px)`;
+            const parentPath = item.path === 'Raíz' ? null : item.path.split('-').slice(0, -1).join('-') || 'Raíz';
+            const data = { ...item, depth, slot, xPct, top, xCss, parentPath };
+            nodeMap.set(item.path, data);
+            return data;
+          });
+          const lines = placed.filter(n => n.parentPath && nodeMap.has(n.parentPath)).map(n => {
+            const p = nodeMap.get(n.parentPath);
+            const y1 = p.top + cardH;
+            const y2 = n.top;
+            return `<line x1="${p.xPct}%" y1="${y1}" x2="${n.xPct}%" y2="${y2}" stroke="rgba(17,24,39,.5)" stroke-width="3" stroke-linecap="round" />`;
+          }).join('');
+          return `
+            <div style="overflow-x:auto;padding:8px 0 12px;">
+              <div style="position:relative;min-width:${Math.max(760, Math.pow(2, Math.min(maxDepth, 5)) * cardW + sidePadding * 2)}px;height:${canvasHeight}px;background:linear-gradient(180deg, rgba(255,255,255,0) 0%, rgba(249,250,251,.55) 100%);border-radius:16px;">
+                <svg viewBox="0 0 100 ${canvasHeight}" preserveAspectRatio="none" style="position:absolute;inset:0;width:100%;height:100%;overflow:visible;pointer-events:none;">
+                  ${lines}
+                </svg>
+                ${placed.map(item => `<div style="position:absolute;left:${item.xCss};top:${item.top}px;transform:translateX(-50%);width:${cardW}px;display:flex;justify-content:center;">${compactNodeCard(item.info, item.depth === 0 ? 'Raíz consultada' : `${item.sideLabel} · ${item.path}`, item.depth === 0)}</div>`).join('')}
+              </div>
             </div>
-          `).join('')}
-        </div>
+          `;
+        })()}
 
         ${(hiddenLeft.length || hiddenRight.length) ? `
           <div class="sec" style="margin:0;"><span class="sec-label">Referidos registrados no visibles en Binary</span><span class="sec-line"></span></div>
