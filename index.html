@@ -4032,11 +4032,10 @@ function switchNetTab(tab) {
   if (tab === 'binary' && currentUser) loadBinaryTree(currentUser);
 }
 
-
 async function loadBinaryTree(addr) {
   const wrap = document.getElementById('binary-tree-wrap');
-  if (!wrap || !contracts.core) {
-    if (wrap) wrap.innerHTML = '<div class="callout callout-blue"><span>ℹ</span><span>Core no configurado</span></div>';
+  if (!wrap || !contracts.binary) {
+    if (wrap) wrap.innerHTML = '<div class="callout callout-blue"><span>ℹ</span><span>BinaryModule no configurado</span></div>';
     return;
   }
 
@@ -4050,7 +4049,7 @@ async function loadBinaryTree(addr) {
       "function leftBV(address) view returns (uint256)",
       "function rightBV(address) view returns (uint256)",
     ];
-    const bin = contracts.binary ? new ethers.Contract(addresses.binary, BINARY_TREE_ABI, provider) : null;
+    const bin = new ethers.Contract(addresses.binary, BINARY_TREE_ABI, provider);
     const ranksRead = contracts.ranks ? new ethers.Contract(addresses.ranks, RANKS_EXTENDED_ABI, provider) : null;
     const yieldRead = contracts.yield ? new ethers.Contract(addresses.yield, YIELD_ABI, provider) : null;
     const yieldStatusCache = new Map();
@@ -4089,63 +4088,49 @@ async function loadBinaryTree(addr) {
       if (!nodeAddr || nodeAddr === ethers.ZeroAddress) return null;
       const key = String(nodeAddr).toLowerCase();
       if (nodeCache.has(key)) return nodeCache.get(key);
-
       let node = null;
       try {
-        const nowTs = Math.floor(Date.now()/1000);
-        const [userData, lChild, rChild, lBV, rBV, totalPts, personalPts, parentAddr] = await Promise.all([
+        const [userData, lChild, rChild, lBV, rBV, totalPts, personalPts] = await Promise.all([
           contracts.core.users(nodeAddr).catch(() => null),
-          bin ? bin.leftChildOf(nodeAddr).catch(() => ethers.ZeroAddress) : Promise.resolve(ethers.ZeroAddress),
-          bin ? bin.rightChildOf(nodeAddr).catch(() => ethers.ZeroAddress) : Promise.resolve(ethers.ZeroAddress),
-          bin ? bin.leftBV(nodeAddr).catch(() => 0n) : Promise.resolve(0n),
-          bin ? bin.rightBV(nodeAddr).catch(() => 0n) : Promise.resolve(0n),
+          bin.leftChildOf(nodeAddr).catch(() => ethers.ZeroAddress),
+          bin.rightChildOf(nodeAddr).catch(() => ethers.ZeroAddress),
+          bin.leftBV(nodeAddr).catch(() => 0n),
+          bin.rightBV(nodeAddr).catch(() => 0n),
           ranksRead ? ranksRead.totalPoints(nodeAddr).catch(() => 0n) : Promise.resolve(0n),
           ranksRead ? ranksRead.personalVolume(nodeAddr).catch(() => 0n) : Promise.resolve(0n),
-          bin ? bin.parentOf(nodeAddr).catch(() => ethers.ZeroAddress) : Promise.resolve(ethers.ZeroAddress),
         ]);
-
-        const yieldMeta = yieldStatusCache.get(key) || { hasAny: false, active: false };
+        const yieldMeta = yieldStatusCache.get(key) || { hasAny: false, active: false, positions: 0, principal: 0n };
         node = {
           addr: nodeAddr,
           pkg: userData ? Number(userData[3]) : 0,
-          isActive: userData ? (Number(userData[4] || 0) > nowTs) : false,
+          isActive: userData ? (Number(userData[4]) > Math.floor(Date.now()/1000)) : false,
           lChild: lChild === ethers.ZeroAddress ? null : lChild,
           rChild: rChild === ethers.ZeroAddress ? null : rChild,
-          parent: parentAddr === ethers.ZeroAddress ? null : parentAddr,
           lBV, rBV, totalPts, personalPts,
           hasYield: yieldMeta.hasAny,
           yieldActive: yieldMeta.active,
           yieldLabel: yieldMeta.active ? 'Yield activo' : (yieldMeta.hasAny ? 'Yield registrado' : 'Sin yield')
         };
-      } catch {
-        node = {
-          addr: nodeAddr, pkg: 0, isActive: false, lChild: null, rChild: null, parent: null,
-          lBV: 0n, rBV: 0n, totalPts: 0n, personalPts: 0n,
-          hasYield: false, yieldActive: false, yieldLabel: 'Sin yield'
-        };
-      }
+      } catch {}
       nodeCache.set(key, node);
       return node;
     }
 
     function compactNodeCard(node, label, emphasize = false) {
-      if (!node) return `<div style="border:1.5px dashed var(--gray-200);border-radius:var(--radius-lg);padding:10px 12px;text-align:center;min-width:150px;background:var(--white);">
-        <div style="font-size:11px;color:var(--gray-300);font-family:var(--mono);">Vacío</div>
-        <div style="font-size:10px;color:var(--gray-300);margin-top:2px;">${label}</div>
-      </div>`;
+      if (!node) return `<div style="border:1.5px dashed var(--gray-200);border-radius:var(--radius-lg);padding:10px 12px;text-align:center;min-width:155px;background:var(--white);"><div style="font-size:11px;color:var(--gray-300);font-family:var(--mono);">Vacío</div><div style="font-size:10px;color:var(--gray-300);margin-top:2px;">${label}</div></div>`;
       const color = node.isActive ? 'var(--green)' : 'var(--red)';
       const pkgName = PACKAGE_NAMES[node.pkg] || ('Paquete ' + node.pkg);
       const yieldColor = node.yieldActive ? 'var(--gold)' : (node.hasYield ? 'var(--blue)' : 'var(--gray-300)');
       const personalValue = Number(BigInt(node.personalPts || 0n) / (10n ** 18n));
-      const totalValue = Number(node.totalPts || 0n);
+      const totalValue = Number(BigInt(node.totalPts || 0n));
       return `<div style="border:1.5px solid ${emphasize ? 'var(--blue)' : color};box-shadow:${emphasize ? '0 0 0 3px rgba(46,112,247,.08)' : 'none'};border-radius:var(--radius-lg);padding:10px 12px;text-align:center;min-width:155px;background:var(--white);position:relative;">
         <div style="position:absolute;top:6px;right:8px;width:8px;height:8px;border-radius:50%;background:${color};"></div>
         <div style="font-size:10px;color:var(--gray-400);margin-bottom:3px;">${label}</div>
         <div style="font-family:var(--mono);font-size:10px;color:var(--gray-500);margin-bottom:4px;">${shortAddr(node.addr)}</div>
         <div style="font-size:11px;font-weight:700;color:var(--gray-800);margin-bottom:2px;">${pkgName}</div>
         <div style="font-size:10px;color:${yieldColor};font-weight:600;margin-bottom:4px;">${node.yieldActive ? '★ ' : (node.hasYield ? '◔ ' : '○ ')}${node.yieldLabel}</div>
-        <div style="font-size:10px;color:var(--gray-500);font-family:var(--mono);">Pts pers.: ${personalValue.toLocaleString('es-CO')}</div>
-        <div style="font-size:9px;color:var(--gray-400);font-family:var(--mono);">Pts red: ${totalValue.toLocaleString('es-CO')}</div>
+        <div style="font-size:10px;color:var(--gray-500);font-family:var(--mono);">Pts pers.: ${personalValue.toLocaleString()}</div>
+        <div style="font-size:9px;color:var(--gray-400);font-family:var(--mono);">Pts red: ${totalValue.toLocaleString()}</div>
         <div style="font-size:9px;color:var(--gray-300);margin-top:3px;">BV I: ${fmt18(node.lBV)} | BV D: ${fmt18(node.rBV)}</div>
         <div style="margin-top:6px;"><button onclick="document.getElementById('search-addr').value='${node.addr}';searchUser();" class="btn btn-outline" style="padding:3px 10px;font-size:10px;">Ver</button></div>
       </div>`;
@@ -4158,18 +4143,18 @@ async function loadBinaryTree(addr) {
     }
 
     const sponsorChain = [];
-    let currentParent = bin ? await bin.parentOf(addr).catch(() => ethers.ZeroAddress) : ethers.ZeroAddress;
+    let currentParent = await bin.parentOf(addr).catch(() => ethers.ZeroAddress);
     let sponsorGuard = 0;
-    while (currentParent && currentParent !== ethers.ZeroAddress && sponsorGuard < 10) {
+    while (currentParent && currentParent !== ethers.ZeroAddress && sponsorGuard < 8) {
       const info = await getNodeInfo(currentParent);
       if (!info) break;
       sponsorChain.unshift(info);
-      currentParent = bin ? await bin.parentOf(currentParent).catch(() => ethers.ZeroAddress) : ethers.ZeroAddress;
+      currentParent = await bin.parentOf(currentParent).catch(() => ethers.ZeroAddress);
       sponsorGuard += 1;
     }
 
     const maxLevels = 10;
-    let frontier = [{ addr, path: 'Raíz', sideLabel: 'Raíz' }];
+    let frontier = [{ addr, path: '', sideLabel: 'Raíz', viaBinary: true }];
     const descendantRows = [];
     const seen = new Set([String(addr).toLowerCase()]);
 
@@ -4184,34 +4169,61 @@ async function loadBinaryTree(addr) {
       for (const item of infos) {
         const node = item.info;
         if (!node) continue;
-        if (node.lChild) {
-          const key = String(node.lChild).toLowerCase();
-          if (!seen.has(key)) { seen.add(key); next.push({ addr: node.lChild, path: item.path === 'Raíz' ? 'I' : item.path + '-I', sideLabel: 'Izquierda' }); }
+        const lPath = item.path ? item.path + '-I' : 'I';
+        const rPath = item.path ? item.path + '-D' : 'D';
+        if (node.lChild && !seen.has(String(node.lChild).toLowerCase())) {
+          seen.add(String(node.lChild).toLowerCase());
+          next.push({ addr: node.lChild, path: lPath, sideLabel: 'Izquierda', viaBinary: true });
         }
-        if (node.rChild) {
-          const key = String(node.rChild).toLowerCase();
-          if (!seen.has(key)) { seen.add(key); next.push({ addr: node.rChild, path: item.path === 'Raíz' ? 'D' : item.path + '-D', sideLabel: 'Derecha' }); }
+        if (node.rChild && !seen.has(String(node.rChild).toLowerCase())) {
+          seen.add(String(node.rChild).toLowerCase());
+          next.push({ addr: node.rChild, path: rPath, sideLabel: 'Derecha', viaBinary: true });
         }
       }
       frontier = next;
+      if (!frontier.length) break;
     }
 
-    // Fallback/diagnostic: direct referrals from Core grouped by selected leg that are not visible in Binary
     const directCount = Number(await contracts.core.directCount(addr).catch(() => 0n));
-    const hiddenLeft = [];
-    const hiddenRight = [];
-    for (let i = 0; i < directCount; i++) {
-      const child = await contracts.core.directAt(addr, i).catch(() => null);
-      if (!child) continue;
-      const childKey = String(child).toLowerCase();
-      if (seen.has(childKey)) continue;
-      const leg = Number(await contracts.core.userLeg(child).catch(() => 0));
-      const info = await getNodeInfo(child);
-      const row = { ...info, coreLeg: leg };
-      if (leg === 1) hiddenLeft.push(row);
-      else if (leg === 2) hiddenRight.push(row);
-      else hiddenLeft.push(row);
+    const directs = (await Promise.all(Array.from({ length: Math.min(directCount, 40) }, (_, i) => contracts.core.directAt(addr, i).catch(() => null)))).filter(Boolean);
+
+    const pendingLeft = [];
+    const pendingRight = [];
+    for (const d of directs) {
+      const key = String(d).toLowerCase();
+      if (seen.has(key)) continue;
+      const info = await getNodeInfo(d);
+      if (!info) continue;
+      const leg = Number(await contracts.core.userLeg(d).catch(() => 0));
+      if (leg === 1) pendingLeft.push(info);
+      else if (leg === 2) pendingRight.push(info);
     }
+
+    function pendingChainMarkup(items, side) {
+      if (!items.length) return '';
+      return items.map((node, idx) => {
+        const route = side === 'Izquierda'
+          ? Array.from({ length: idx + 1 }, () => 'I').join('-')
+          : Array.from({ length: idx + 1 }, () => 'D').join('-');
+        return `<div style="display:flex;flex-direction:column;align-items:center;gap:4px;">
+          ${idx > 0 ? `<div style="width:2px;height:18px;background:var(--gray-300);"></div>` : `<div style="width:2px;height:18px;background:var(--gray-300);"></div>`}
+          ${compactNodeCard(node, `${side} · ${route}`, false)}
+        </div>`;
+      }).join('');
+    }
+
+    function syntheticPendingRows(items, side) {
+      return items.map((node, idx) => [{ addr: node.addr, path: side === 'Izquierda' ? Array.from({ length: idx + 1 }, () => 'I').join('-') : Array.from({ length: idx + 1 }, () => 'D').join('-'), sideLabel: side, info: node, viaBinary: false }]);
+    }
+
+    if (descendantRows.length === 1) {
+      if (pendingLeft.length) descendantRows.push(...syntheticPendingRows(pendingLeft, 'Izquierda'));
+      if (pendingRight.length) descendantRows.push(...syntheticPendingRows(pendingRight, 'Derecha'));
+    }
+
+    const fallbackNote = (pendingLeft.length || pendingRight.length)
+      ? `<div class="callout callout-blue" style="margin-top:0;"><span>ℹ</span><span>BinaryModule no devolvió hijos para algunos referidos directos. Se dibujan en la formación como referencia por la pierna asignada en Core, para que la posición sea visible.</span></div>`
+      : '';
 
     wrap.innerHTML = `
       <div style="display:flex;flex-direction:column;gap:16px;overflow-x:auto;padding-bottom:8px;">
@@ -4227,68 +4239,28 @@ async function loadBinaryTree(addr) {
         </div>
 
         <div class="sec" style="margin:0;"><span class="sec-label">Formación del árbol binario</span><span class="sec-line"></span></div>
-        ${(() => {
-          const allItems = descendantRows.flat();
-          const maxDepth = Math.max(0, descendantRows.length - 1);
-          const cardW = 190;
-          const cardH = 170;
-          const levelGap = 58;
-          const sidePadding = 80;
-          const canvasHeight = (maxDepth + 1) * (cardH + levelGap) + 40;
-          const nodeMap = new Map();
-          const placed = allItems.map(item => {
-            const depth = item.path === 'Raíz' ? 0 : item.path.split('-').length;
-            let slot = 0;
-            if (item.path !== 'Raíz') {
-              const parts = item.path.split('-');
-              for (const part of parts) slot = slot * 2 + (part === 'D' ? 1 : 0);
-            }
-            const denom = Math.pow(2, depth || 1);
-            const xPct = depth === 0 ? 50 : ((slot + 0.5) / denom) * 100;
-            const top = depth * (cardH + levelGap);
-            const xCss = depth === 0 ? '50%' : `calc(${xPct}% - 0px)`;
-            const parentPath = item.path === 'Raíz' ? null : item.path.split('-').slice(0, -1).join('-') || 'Raíz';
-            const data = { ...item, depth, slot, xPct, top, xCss, parentPath };
-            nodeMap.set(item.path, data);
-            return data;
-          });
-          const lines = placed.filter(n => n.parentPath && nodeMap.has(n.parentPath)).map(n => {
-            const p = nodeMap.get(n.parentPath);
-            const y1 = p.top + cardH;
-            const y2 = n.top;
-            return `<line x1="${p.xPct}%" y1="${y1}" x2="${n.xPct}%" y2="${y2}" stroke="rgba(17,24,39,.5)" stroke-width="3" stroke-linecap="round" />`;
-          }).join('');
-          return `
-            <div style="overflow-x:auto;padding:8px 0 12px;">
-              <div style="position:relative;min-width:${Math.max(760, Math.pow(2, Math.min(maxDepth, 5)) * cardW + sidePadding * 2)}px;height:${canvasHeight}px;background:linear-gradient(180deg, rgba(255,255,255,0) 0%, rgba(249,250,251,.55) 100%);border-radius:16px;">
-                <svg viewBox="0 0 100 ${canvasHeight}" preserveAspectRatio="none" style="position:absolute;inset:0;width:100%;height:100%;overflow:visible;pointer-events:none;">
-                  ${lines}
-                </svg>
-                ${placed.map(item => `<div style="position:absolute;left:${item.xCss};top:${item.top}px;transform:translateX(-50%);width:${cardW}px;display:flex;justify-content:center;">${compactNodeCard(item.info, item.depth === 0 ? 'Raíz consultada' : `${item.sideLabel} · ${item.path}`, item.depth === 0)}</div>`).join('')}
-              </div>
+        ${fallbackNote}
+        <div style="display:flex;flex-direction:column;gap:12px;min-width:720px;">
+          ${descendantRows.map((row, idx) => `
+            <div style="display:flex;justify-content:${row.length === 1 ? 'center' : 'center'};gap:${idx === 0 ? '0' : '10px'};flex-wrap:nowrap;overflow-x:auto;padding:4px 0;">
+              ${row.map(item => `<div style="display:flex;flex-direction:column;align-items:center;gap:6px;min-width:165px;">
+                ${idx > 0 ? '<div style="width:1px;height:14px;background:var(--gray-300);"></div>' : ''}
+                ${compactNodeCard(item.info, idx === 0 ? 'Raíz consultada' : `${item.sideLabel} · ${item.path}`, idx === 0)}
+              </div>`).join('')}
             </div>
-          `;
-        })()}
-
-        ${(hiddenLeft.length || hiddenRight.length) ? `
-          <div class="sec" style="margin:0;"><span class="sec-label">Referidos registrados no visibles en Binary</span><span class="sec-line"></span></div>
-          <div class="callout callout-blue"><span>ℹ</span><span>Estos usuarios sí están registrados en Core y tienen pierna asignada, pero no fueron devueltos por leftChildOf/rightChildOf en BinaryModule. Se muestran abajo como referencia por pierna.</span></div>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
-            <div class="panel"><div class="panel-head"><div class="panel-title">Pierna izquierda</div></div><div class="panel-body" style="display:flex;gap:10px;flex-wrap:wrap;">${hiddenLeft.length ? hiddenLeft.map(n => compactNodeCard(n, 'Core · Izquierda')).join('') : '<div style="font-size:12px;color:var(--gray-400);">Sin pendientes</div>'}</div></div>
-            <div class="panel"><div class="panel-head"><div class="panel-title">Pierna derecha</div></div><div class="panel-body" style="display:flex;gap:10px;flex-wrap:wrap;">${hiddenRight.length ? hiddenRight.map(n => compactNodeCard(n, 'Core · Derecha')).join('') : '<div style="font-size:12px;color:var(--gray-400);">Sin pendientes</div>'}</div></div>
-          </div>
-        ` : ''}
+          `).join('')}
+        </div>
 
         <div style="margin-top:2px;display:flex;gap:16px;font-size:11px;color:var(--gray-500);flex-wrap:wrap;padding:12px;background:var(--gray-50);border-radius:var(--radius);border:1px solid var(--gray-200);">
           <span style="display:flex;align-items:center;gap:5px;"><span style="width:8px;height:8px;border-radius:50%;background:var(--green);display:inline-block;"></span>Activo</span>
           <span style="display:flex;align-items:center;gap:5px;"><span style="width:8px;height:8px;border-radius:50%;background:var(--red);display:inline-block;"></span>Inactivo</span>
           <span style="display:flex;align-items:center;gap:5px;color:var(--gold);">★ Yield activo</span>
           <span style="display:flex;align-items:center;gap:5px;color:var(--blue);">◔ Yield registrado</span>
-          <span>El árbol principal se arma con BinaryModule. Yield es solo una etiqueta informativa del nodo.</span>
+          <span>La ruta I / D muestra cómo está formado el árbol desde la raíz consultada</span>
         </div>
       </div>`;
   } catch(e) {
-    wrap.innerHTML = `<div class="empty"><div class="empty-icon">⚠</div><div class="empty-title">Error cargando árbol</div><div class="empty-desc">${String(e?.message || e).slice(0,140)}</div></div>`;
+    wrap.innerHTML = `<div class="empty"><div class="empty-icon">⚠</div><div class="empty-title">Error cargando árbol</div><div class="empty-desc">${escapeHtml(String(e?.message || e)).slice(0,140)}</div></div>`;
   }
 }
 
