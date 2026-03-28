@@ -7,16 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet"/>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.7.0/ethers.umd.min.js">
-document.addEventListener('DOMContentLoaded', () => {
-  const core = document.getElementById('inp-core');
-  if (core && !core.value) core.value = TESTNET_ADDRESSES.core;
-  autoFillTestnet();
-  showLoginGate('Conecta tu wallet para habilitar el dashboard.');
-  updateAdminVisibility();
-});
-
-</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.7.0/ethers.umd.min.js"></script>
 <style>
 /* ─────────────────────────────────────────
    ATLASH · Clean White · Design System
@@ -3350,6 +3341,7 @@ async function toggleWallet() {
     signer = null;
     authState = { owner:null, guardian:null, isOwner:false, isGuardian:false, isAdmin:false };
     document.getElementById('wallet-label').textContent = 'Conectar wallet';
+    const loginBtn = document.getElementById('login-connect-btn'); if (loginBtn) loginBtn.textContent = 'Conectar wallet';
     document.getElementById('wallet-btn').classList.remove('connected');
     document.getElementById('wallet-btn').disabled = false;
     updateAdminVisibility();
@@ -3410,6 +3402,7 @@ async function toggleWallet() {
     walletAddress = await signer.getAddress();
 
     lbl.textContent = shortAddr(walletAddress);
+    const loginBtn = document.getElementById('login-connect-btn'); if (loginBtn) loginBtn.textContent = 'Wallet conectada';
     btn.disabled = false;
     btn.classList.add('connected');
     await refreshAuthState();
@@ -4645,6 +4638,28 @@ async function loadBinaryTree(addr) {
 
 
 // buyYield override integrated below
+
+
+async function bootstrapLoginMode() {
+  try {
+    if (document.getElementById('inp-core') && !document.getElementById('inp-core').value) {
+      autoFillTestnet();
+      selectNetwork('testnet');
+    }
+    await launchDapp();
+    setDashboardAccess(false);
+    showLoginGate('Conecta tu wallet para habilitar el dashboard.');
+    updateAdminVisibility();
+  } catch (e) {
+    console.error('bootstrapLoginMode error', e);
+    const line = document.getElementById('login-status-line');
+    if (line) line.textContent = 'No se pudo inicializar el dashboard. Revisa la configuración de contratos.';
+  }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  bootstrapLoginMode();
+});
 
 </script>
 </html>
