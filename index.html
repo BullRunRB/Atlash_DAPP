@@ -7,7 +7,16 @@
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet"/>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.7.0/ethers.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.7.0/ethers.umd.min.js">
+document.addEventListener('DOMContentLoaded', () => {
+  const core = document.getElementById('inp-core');
+  if (core && !core.value) core.value = TESTNET_ADDRESSES.core;
+  autoFillTestnet();
+  showLoginGate('Conecta tu wallet para habilitar el dashboard.');
+  updateAdminVisibility();
+});
+
+</script>
 <style>
 /* ─────────────────────────────────────────
    ATLASH · Clean White · Design System
@@ -736,6 +745,34 @@ body {
 /* ── PAGINATION ── */
 .pagination { display:flex; gap:6px; justify-content:center; margin-top:16px; }
 
+
+
+/* ── LOGIN GATE ── */
+#login-gate {
+  position: fixed; inset: 0; z-index: 1200;
+  background: rgba(249,250,251,.96);
+  backdrop-filter: blur(8px);
+  display: none; align-items: center; justify-content: center;
+  padding: 24px;
+}
+#login-gate.show { display:flex; }
+.login-card {
+  width:100%; max-width:560px; background:var(--white); border:1px solid var(--gray-200);
+  border-radius:var(--radius-xl); box-shadow:var(--shadow-lg); padding:32px;
+}
+.login-title { font-size:24px; font-weight:700; letter-spacing:-.5px; color:var(--gray-900); margin-bottom:8px; }
+.login-sub { font-size:14px; color:var(--gray-500); line-height:1.6; margin-bottom:22px; }
+.login-role-box {
+  background:var(--gray-50); border:1px solid var(--gray-200); border-radius:var(--radius-lg); padding:14px 16px; margin-top:16px;
+}
+.admin-grid { display:grid; grid-template-columns: repeat(2,1fr); gap:14px; margin-bottom:18px; }
+.admin-card { background:var(--white); border:1px solid var(--gray-200); border-radius:var(--radius-xl); box-shadow:var(--shadow-sm); padding:18px; }
+.admin-card h4 { font-size:13px; font-weight:700; color:var(--gray-800); margin-bottom:10px; }
+.admin-actions { display:grid; grid-template-columns: repeat(2,1fr); gap:14px; }
+.admin-form-row { display:flex; gap:8px; flex-wrap:wrap; }
+.admin-form-row .addr-inp { flex:1; min-width:0; }
+.admin-wide { grid-column:1/-1; }
+
 /* ── RESPONSIVE ── */
 @media(max-width:1100px) { .g4,.pkg-grid { grid-template-columns:repeat(2,1fr); } }
 @media(max-width:768px) {
@@ -745,6 +782,7 @@ body {
   .g4,.g3,.g2,.legs,.modes,.field-grid { grid-template-columns:1fr; }
   .pkg-grid { grid-template-columns:1fr 1fr; }
   .prod-grid { grid-template-columns:1fr; }
+  .admin-grid,.admin-actions { grid-template-columns:1fr; }
   .pos-grid { grid-template-columns:repeat(2,1fr); }
   .user-card { flex-wrap:wrap; }
   .net-row { grid-template-columns:1fr; }
@@ -777,21 +815,21 @@ body {
     <!-- Network selector -->
     <div class="form-section">Red blockchain</div>
     <div class="net-row">
-      <div class="net-opt active-main" id="net-mainnet" onclick="selectNetwork('mainnet')">
+      <div class="net-opt" id="net-mainnet" onclick="selectNetwork('mainnet')">
         <div class="net-dot net-dot-main"></div>
         <div>
           <div class="net-label">BSC Mainnet</div>
           <div class="net-sub">Chain ID: 56 · Producción</div>
         </div>
-        <div style="margin-left:auto;font-size:11px;font-weight:600;color:var(--gray-400);" id="net-check-main">✓</div>
+        <div style="margin-left:auto;font-size:11px;font-weight:600;color:var(--gray-400);" id="net-check-main" style="display:none;">✓</div>
       </div>
-      <div class="net-opt" id="net-testnet" onclick="selectNetwork('testnet')">
+      <div class="net-opt active-test" id="net-testnet" onclick="selectNetwork('testnet')">
         <div class="net-dot net-dot-test"></div>
         <div>
           <div class="net-label">BSC Testnet</div>
           <div class="net-sub">Chain ID: 97 · Pruebas</div>
         </div>
-        <div style="margin-left:auto;font-size:11px;font-weight:600;color:var(--purple);display:none;" id="net-check-test">✓</div>
+        <div style="margin-left:auto;font-size:11px;font-weight:600;color:var(--purple);display:none;" id="net-check-test" style="margin-left:auto;font-size:11px;font-weight:600;color:var(--purple);">✓</div>
       </div>
     </div>
 
@@ -851,6 +889,32 @@ body {
 </div>
 
 <!-- ═══════ APP ═══════ -->
+
+<div id="login-gate" class="show">
+  <div class="login-card">
+    <div class="setup-logo" style="margin-bottom:20px;">
+      <div class="setup-logo-mark">
+        <svg viewBox="0 0 22 22" fill="none">
+          <path d="M11 2L19 6.5V15.5L11 20L3 15.5V6.5L11 2Z" stroke="white" stroke-width="1.5" fill="none"/>
+          <path d="M11 2V20M3 6.5L19 15.5M19 6.5L3 15.5" stroke="white" stroke-width="1" opacity=".4"/>
+        </svg>
+      </div>
+      <div>
+        <div class="setup-logo-name">ATLASH</div>
+        <div class="setup-logo-env">Acceso seguro al dashboard</div>
+      </div>
+    </div>
+    <div class="login-title">Inicio de sesión con wallet</div>
+    <div class="login-sub">Conecta la wallet para habilitar el dashboard. Si la wallet conectada coincide con <strong>owner</strong> o <strong>guardian</strong>, se habilitará automáticamente el panel administrativo.</div>
+    <button class="btn-primary" id="login-connect-btn" onclick="toggleWallet()">Conectar wallet</button>
+    <div class="login-role-box">
+      <div style="font-size:11px;font-weight:600;letter-spacing:.6px;text-transform:uppercase;color:var(--gray-400);margin-bottom:8px;">Estado de acceso</div>
+      <div id="login-status-line" style="font-size:13px;color:var(--gray-700);">Configura contratos y conecta tu wallet para continuar.</div>
+      <div id="login-role-badges" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px;"></div>
+    </div>
+  </div>
+</div>
+
 <div id="app">
   <nav class="topnav">
     <div style="display:flex;align-items:center;gap:24px;">
@@ -872,6 +936,7 @@ body {
         <button class="nav-tab" onclick="switchTab('yield')">Yield</button>
         <button class="nav-tab" onclick="switchTab('marketplace')">Marketplace</button>
         <button class="nav-tab" onclick="switchTab('contracts')">Contratos</button>
+        <button class="nav-tab" id="nav-tab-admin" onclick="switchTab('admin')" style="display:none;">Admin</button>
       </div>
     </div>
     <div class="nav-right">
@@ -1102,6 +1167,64 @@ body {
       </div>
     </div>
 
+
+    <!-- ADMIN -->
+    <div class="tab-pane" id="tab-admin">
+      <div class="callout callout-amber" style="margin-bottom:16px;"><span>⚠</span><span>Este panel solo se habilita para la wallet <strong>owner</strong> o <strong>guardian</strong>. Ejecuta funciones administrativas con cuidado.</span></div>
+      <div class="admin-grid">
+        <div class="kpi"><div class="kpi-label">Rol conectado</div><div class="kpi-value" id="admin-role">—</div><div class="kpi-sub" id="admin-role-sub">Sin validar</div></div>
+        <div class="kpi"><div class="kpi-label">Rescue delay</div><div class="kpi-value c-blue" id="admin-rescue-delay">—</div><div class="kpi-sub">Configurado en AdminModule</div></div>
+        <div class="kpi"><div class="kpi-label">Límite guardian por tx</div><div class="kpi-value c-gold" id="admin-guardian-max-tx">—</div><div class="kpi-sub">USDT</div></div>
+        <div class="kpi"><div class="kpi-label">Límite guardian diario</div><div class="kpi-value c-gold" id="admin-guardian-max-day">—</div><div class="kpi-sub" id="admin-guardian-day-used">Uso diario</div></div>
+      </div>
+      <div class="admin-actions">
+        <div class="admin-card">
+          <h4>Guardian · Rescue USDT</h4>
+          <div class="field"><label class="field-label">Destino</label><input class="addr-inp" id="admin-guardian-to" placeholder="0x…"/></div>
+          <div class="field"><label class="field-label">Monto USDT</label><input class="addr-inp" id="admin-guardian-amount" placeholder="100"/></div>
+          <button class="btn btn-dark" id="btn-admin-guardian-rescue" onclick="adminGuardianRescueUSDT()">Ejecutar rescue</button>
+        </div>
+        <div class="admin-card">
+          <h4>Owner · Límites guardian</h4>
+          <div class="field"><label class="field-label">Máximo por transacción</label><input class="addr-inp" id="admin-limit-per-tx" placeholder="200"/></div>
+          <div class="field"><label class="field-label">Máximo diario</label><input class="addr-inp" id="admin-limit-daily" placeholder="1000"/></div>
+          <button class="btn btn-dark" id="btn-admin-set-limits" onclick="adminSetGuardianLimits()">Actualizar límites</button>
+        </div>
+        <div class="admin-card">
+          <h4>Owner · Rescue delay</h4>
+          <div class="field"><label class="field-label">Nuevo delay (horas)</label><input class="addr-inp" id="admin-delay-hours" placeholder="48"/></div>
+          <button class="btn btn-dark" id="btn-admin-set-delay" onclick="adminSetRescueDelay()">Actualizar delay</button>
+        </div>
+        <div class="admin-card">
+          <h4>Owner · Proponer rescue USDT</h4>
+          <div class="field"><label class="field-label">Destino</label><input class="addr-inp" id="admin-propose-usdt-to" placeholder="0x…"/></div>
+          <div class="field"><label class="field-label">Monto USDT</label><input class="addr-inp" id="admin-propose-usdt-amount" placeholder="100"/></div>
+          <button class="btn btn-dark" id="btn-admin-propose-usdt" onclick="adminProposeRescueUSDT()">Proponer rescue</button>
+        </div>
+        <div class="admin-card">
+          <h4>Owner · Proponer rescue token</h4>
+          <div class="field"><label class="field-label">Token</label><input class="addr-inp" id="admin-propose-token" placeholder="0x…"/></div>
+          <div class="field"><label class="field-label">Destino</label><input class="addr-inp" id="admin-propose-token-to" placeholder="0x…"/></div>
+          <div class="field"><label class="field-label">Monto (18 decimales)</label><input class="addr-inp" id="admin-propose-token-amount" placeholder="100"/></div>
+          <button class="btn btn-dark" id="btn-admin-propose-token" onclick="adminProposeRescueToken()">Proponer token rescue</button>
+        </div>
+        <div class="admin-card">
+          <h4>Owner · Ejecutar / cancelar rescue</h4>
+          <div class="field"><label class="field-label">Proposal ID (bytes32)</label><input class="addr-inp" id="admin-proposal-id" placeholder="0x…"/></div>
+          <div class="admin-form-row"><button class="btn btn-dark" id="btn-admin-execute" onclick="adminExecuteRescue()">Ejecutar</button><button class="btn btn-outline" id="btn-admin-cancel" onclick="adminCancelRescue()">Cancelar</button></div>
+        </div>
+        <div class="admin-card admin-wide">
+          <h4>Owner · Batch withdraw from bucket</h4>
+          <div class="field"><label class="field-label">Bucket</label><input class="addr-inp" id="admin-bucket-id" placeholder="0"/></div>
+          <div class="field"><label class="field-label">Destinos (uno por línea)</label><textarea class="addr-inp" id="admin-bucket-addresses" rows="4" placeholder="0x...
+0x..."></textarea></div>
+          <div class="field"><label class="field-label">Montos USDT (uno por línea)</label><textarea class="addr-inp" id="admin-bucket-amounts" rows="4" placeholder="100
+250"></textarea></div>
+          <button class="btn btn-dark" id="btn-admin-batch-bucket" onclick="adminBatchWithdrawBucket()">Ejecutar batch</button>
+        </div>
+      </div>
+    </div>
+
     <!-- CONTRACTS -->
     <div class="tab-pane" id="tab-contracts">
       <div class="callout callout-blue" style="margin-bottom:16px;"><span>ℹ</span><span>Contratos configurados. Usa ⚙ para actualizar.</span></div>
@@ -1308,6 +1431,24 @@ const ROLE_RESOLVER_ABI = [
   "function cashbackMultiplierBP(uint256) view returns (uint16)"
 ];
 
+const ADMIN_ABI = [
+  "function rescueDelay() view returns (uint256)",
+  "function guardianRescueMaxPerTx() view returns (uint256)",
+  "function guardianRescueDailyMax() view returns (uint256)",
+  "function guardianRescueDay() view returns (uint256)",
+  "function guardianRescuedToday() view returns (uint256)",
+  "function guardianRescueUSDT(address to, uint256 amount) external",
+  "function setGuardianRescueLimits(uint256 maxPerTx, uint256 dailyMax) external",
+  "function setRescueDelay(uint256 newDelay) external",
+  "function proposeRescue(address token, address to, uint256 amount) external returns (bytes32)",
+  "function proposeRescueUSDT(address to, uint256 amount) external returns (bytes32)",
+  "function cancelRescue(bytes32 id) external",
+  "function executeRescue(bytes32 id) external",
+  "function batchWithdrawFromBucket(uint8 bucket, address[] to, uint256[] amounts) external",
+  "event RescueProposed(bytes32 indexed id, address indexed token, address indexed to, uint256 amount, uint256 executeAfter)"
+];
+
+
 
 
 // State
@@ -1323,6 +1464,7 @@ let provider = null;
 let signer = null;
 let walletAddress = null;
 let currentUser = null;
+let authState = { owner:null, guardian:null, isOwner:false, isGuardian:false, isAdmin:false };
 
 const PACKAGE_NAMES = {1:'Trader', 2:'Network Builder', 3:'Network Leader', 4:'Ecosystem Partner'};
 const LEG_NAMES = {0:'No definida', 1:'Izquierda', 2:'Derecha'};
@@ -1387,13 +1529,14 @@ function toast(msg, type='info') {
 
 function switchTab(name) {
   document.querySelectorAll('.nav-tab').forEach((b,i) => {
-    const names = ['overview','earnings','cashback','ranks','network','yield','marketplace','contracts'];
+    const names = ['overview','earnings','cashback','ranks','network','yield','marketplace','contracts','admin'];
     b.classList.toggle('active', names[i] === name);
   });
   document.querySelectorAll('.tab-pane').forEach(pane => {
     pane.classList.toggle('active', pane.id === 'tab-'+name);
   });
   if (name === 'contracts' && contracts.core) { updateContractsTab(); loadCoreStatus(); }
+  if (name === 'admin' && authState.isAdmin) { loadAdminDashboard(); }
   if (name === 'marketplace' && (contracts.mktCatalog || contracts.mktRegistry)) loadMarketplace().catch(() => {});
   if (name === 'ranks') loadRanksTab(currentUser || null);
   if (name === 'network' && currentUser && currentNetTab === 'binary') loadBinaryTree(currentUser);
@@ -1428,7 +1571,7 @@ function toggleOptional() {
   btn.querySelector('span:last-child') || null;
 }
 
-let _selectedNetworkKey = 'mainnet'; // tracks setup card selection
+let _selectedNetworkKey = 'testnet'; // tracks setup card selection
 
 function updateNavBadge() {
   if (!activeNetwork) return;
@@ -1463,7 +1606,7 @@ async function launchDapp() {
 
   // ── 2. Show app immediately
   document.getElementById('setup-overlay').classList.add('hidden');
-  document.getElementById('app').classList.add('visible');
+  setDashboardAccess(!!walletAddress);
   document.getElementById('btn-launch').disabled = true;
   document.getElementById('btn-launch').textContent = 'Configurado';
   updateNavBadge();
@@ -1503,7 +1646,7 @@ async function launchDapp() {
   const abiMap = {
     core: CORE_ABI, lens: LENS_ABI, ranks: RANKS_ABI, pools: POOLS_ABI,
     binary: BINARY_ABI, cashback: CASHBACK_ABI, yield: YIELD_ABI,
-    roleResolver: ROLE_RESOLVER_ABI,
+    roleResolver: ROLE_RESOLVER_ABI, admin: ADMIN_ABI,
     mktRegistry: MKT_REGISTRY_ABI, mktCatalog: MKT_CATALOG_ABI,
     mktCheckout: MKT_CHECKOUT_ABI, mktTreasury: MKT_TREASURY_ABI,
     mktAccess: MKT_ACCESS_ABI, mktViews: MKT_VIEWS_ABI,
@@ -1578,6 +1721,8 @@ async function launchDapp() {
     loadMarketplace().catch(() => {});
   }
 
+  await refreshAuthState();
+  if (!walletAddress) showLoginGate('Conecta tu wallet para habilitar el dashboard.');
   toast('Conectado a ' + activeNetwork.label, 'success');
 
   // Log final state
@@ -3141,15 +3286,74 @@ function checkProtocol() {
   document.body.appendChild(b);
 }
 
+
+function showLoginGate(message) {
+  const gate = document.getElementById('login-gate');
+  if (gate) gate.classList.add('show');
+  const line = document.getElementById('login-status-line');
+  if (line && message) line.textContent = message;
+}
+function hideLoginGate() {
+  const gate = document.getElementById('login-gate');
+  if (gate) gate.classList.remove('show');
+}
+function updateAdminVisibility() {
+  const tab = document.getElementById('nav-tab-admin');
+  if (tab) tab.style.display = authState.isAdmin ? '' : 'none';
+  const badges = document.getElementById('login-role-badges');
+  if (badges) {
+    const arr = [];
+    if (walletAddress) arr.push(`<span class="badge badge-green">Wallet conectada</span>`);
+    if (authState.isOwner) arr.push(`<span class="badge badge-gold">Owner</span>`);
+    if (authState.isGuardian) arr.push(`<span class="badge badge-blue">Guardian</span>`);
+    if (!authState.isAdmin && walletAddress) arr.push(`<span class="badge badge-gray">Acceso usuario</span>`);
+    badges.innerHTML = arr.join('');
+  }
+}
+async function refreshAuthState() {
+  authState = { owner:null, guardian:null, isOwner:false, isGuardian:false, isAdmin:false };
+  if (!contracts.core) return;
+  try {
+    const [owner, guardian] = await Promise.all([
+      contracts.core.owner().catch(()=>null),
+      contracts.core.guardian().catch(()=>null)
+    ]);
+    authState.owner = owner;
+    authState.guardian = guardian;
+    if (walletAddress) {
+      authState.isOwner = !!owner && owner.toLowerCase() === walletAddress.toLowerCase();
+      authState.isGuardian = !!guardian && guardian.toLowerCase() === walletAddress.toLowerCase();
+      authState.isAdmin = authState.isOwner || authState.isGuardian;
+    }
+  } catch {}
+  updateAdminVisibility();
+  const line = document.getElementById('login-status-line');
+  if (line) {
+    if (!walletAddress) line.textContent = 'Conecta tu wallet para habilitar el dashboard.';
+    else if (authState.isOwner) line.textContent = 'Wallet validada como owner. Se habilitó el dashboard administrativo.';
+    else if (authState.isGuardian) line.textContent = 'Wallet validada como guardian. Se habilitó el dashboard administrativo.';
+    else line.textContent = 'Wallet conectada. Ya puedes usar el dashboard.';
+  }
+}
+function setDashboardAccess(enabled) {
+  const app = document.getElementById('app');
+  if (!app) return;
+  if (enabled) { app.classList.add('visible'); hideLoginGate(); }
+  else { app.classList.remove('visible'); showLoginGate(); }
+}
+
 // ─── WALLET CONNECTION - Supports MetaMask AND injected wallets (Trust, etc.) ───
 async function toggleWallet() {
   // Disconnect
   if (walletAddress) {
     walletAddress = null;
     signer = null;
+    authState = { owner:null, guardian:null, isOwner:false, isGuardian:false, isAdmin:false };
     document.getElementById('wallet-label').textContent = 'Conectar wallet';
     document.getElementById('wallet-btn').classList.remove('connected');
     document.getElementById('wallet-btn').disabled = false;
+    updateAdminVisibility();
+    showLoginGate('Wallet desconectada. Conecta nuevamente para habilitar el dashboard.');
     toast('Wallet desconectada', 'info');
     return;
   }
@@ -3208,11 +3412,14 @@ async function toggleWallet() {
     lbl.textContent = shortAddr(walletAddress);
     btn.disabled = false;
     btn.classList.add('connected');
+    await refreshAuthState();
+    setDashboardAccess(true);
     toast(`Conectado · ${activeNetwork.label}`, 'success');
     updateBuyYieldBtn();
     loadSellerBalance().catch(() => {});
     document.getElementById('search-addr').value = walletAddress;
     searchUser();
+    if (authState.isAdmin) loadAdminDashboard().catch(()=>{});
 
   } catch (e) {
     const msg = e?.message || '';
@@ -3224,6 +3431,126 @@ async function toggleWallet() {
     lbl.textContent = 'Conectar wallet';
     btn.disabled = false;
   }
+}
+
+
+async function loadAdminDashboard() {
+  if (!authState.isAdmin || !contracts.admin || !contracts.core) return;
+  try {
+    const [owner, guardian, delay, maxTx, dailyMax, dayIdx, used] = await Promise.all([
+      contracts.core.owner().catch(()=>null),
+      contracts.core.guardian().catch(()=>null),
+      contracts.admin.rescueDelay().catch(()=>0n),
+      contracts.admin.guardianRescueMaxPerTx().catch(()=>0n),
+      contracts.admin.guardianRescueDailyMax().catch(()=>0n),
+      contracts.admin.guardianRescueDay().catch(()=>0n),
+      contracts.admin.guardianRescuedToday().catch(()=>0n),
+    ]);
+    const roleEl = document.getElementById('admin-role');
+    const roleSub = document.getElementById('admin-role-sub');
+    if (roleEl) roleEl.textContent = authState.isOwner ? 'Owner' : (authState.isGuardian ? 'Guardian' : 'Usuario');
+    if (roleSub) roleSub.textContent = `Owner: ${shortAddr(owner)} · Guardian: ${shortAddr(guardian)}`;
+    document.getElementById('admin-rescue-delay').textContent = `${Math.round(Number(delay)/3600)} h`;
+    document.getElementById('admin-guardian-max-tx').textContent = fmt18(maxTx) + ' USDT';
+    document.getElementById('admin-guardian-max-day').textContent = fmt18(dailyMax) + ' USDT';
+    document.getElementById('admin-guardian-day-used').textContent = `Día ${Number(dayIdx)} · usado ${fmt18(used)} USDT`;
+    toggleAdminButtons();
+  } catch (e) { toast('No se pudo cargar el panel admin: ' + (e.message||e), 'error'); }
+}
+function toggleAdminButtons() {
+  const ownerOnly = ['btn-admin-set-limits','btn-admin-set-delay','btn-admin-propose-usdt','btn-admin-propose-token','btn-admin-execute','btn-admin-cancel','btn-admin-batch-bucket'];
+  const guardianOnly = ['btn-admin-guardian-rescue'];
+  ownerOnly.forEach(id => { const el=document.getElementById(id); if(el) el.disabled = !authState.isOwner; });
+  guardianOnly.forEach(id => { const el=document.getElementById(id); if(el) el.disabled = !authState.isGuardian; });
+}
+function parseUsdtInput(id) {
+  const v = (document.getElementById(id)?.value || '').trim();
+  if (!v) throw new Error('Monto requerido');
+  return ethers.parseUnits(v, 18);
+}
+async function adminGuardianRescueUSDT() {
+  if (!authState.isGuardian || !contracts.admin || !signer) return toast('Solo guardian', 'error');
+  try {
+    const to = document.getElementById('admin-guardian-to').value.trim();
+    if (!isValidAddr(to)) throw new Error('Destino inválido');
+    const amount = parseUsdtInput('admin-guardian-amount');
+    const tx = await contracts.admin.connect(signer).guardianRescueUSDT(to, amount); await tx.wait();
+    toast('Guardian rescue ejecutado', 'success'); loadAdminDashboard();
+  } catch(e) { toast('Error: ' + (e.shortMessage || e.message || e), 'error'); }
+}
+async function adminSetGuardianLimits() {
+  if (!authState.isOwner || !contracts.admin || !signer) return toast('Solo owner', 'error');
+  try {
+    const perTx = parseUsdtInput('admin-limit-per-tx'); const daily = parseUsdtInput('admin-limit-daily');
+    const tx = await contracts.admin.connect(signer).setGuardianRescueLimits(perTx, daily); await tx.wait();
+    toast('Límites actualizados', 'success'); loadAdminDashboard();
+  } catch(e) { toast('Error: ' + (e.shortMessage || e.message || e), 'error'); }
+}
+async function adminSetRescueDelay() {
+  if (!authState.isOwner || !contracts.admin || !signer) return toast('Solo owner', 'error');
+  try {
+    const hours = Number((document.getElementById('admin-delay-hours').value || '').trim());
+    if (!hours || hours < 0) throw new Error('Horas inválidas');
+    const tx = await contracts.admin.connect(signer).setRescueDelay(BigInt(Math.round(hours*3600))); await tx.wait();
+    toast('Rescue delay actualizado', 'success'); loadAdminDashboard();
+  } catch(e) { toast('Error: ' + (e.shortMessage || e.message || e), 'error'); }
+}
+async function adminProposeRescueUSDT() {
+  if (!authState.isOwner || !contracts.admin || !signer) return toast('Solo owner', 'error');
+  try {
+    const to = document.getElementById('admin-propose-usdt-to').value.trim(); if (!isValidAddr(to)) throw new Error('Destino inválido');
+    const amount = parseUsdtInput('admin-propose-usdt-amount');
+    const tx = await contracts.admin.connect(signer).proposeRescueUSDT(to, amount); const rc = await tx.wait();
+    toast('Propuesta USDT creada', 'success');
+    const ev = rc.logs?.find(l => l.fragment?.name === 'RescueProposed');
+    if (ev) document.getElementById('admin-proposal-id').value = ev.args.id;
+  } catch(e) { toast('Error: ' + (e.shortMessage || e.message || e), 'error'); }
+}
+async function adminProposeRescueToken() {
+  if (!authState.isOwner || !contracts.admin || !signer) return toast('Solo owner', 'error');
+  try {
+    const token = document.getElementById('admin-propose-token').value.trim();
+    const to = document.getElementById('admin-propose-token-to').value.trim();
+    if (!isValidAddr(token) || !isValidAddr(to)) throw new Error('Direcciones inválidas');
+    const amount = parseUsdtInput('admin-propose-token-amount');
+    const tx = await contracts.admin.connect(signer).proposeRescue(token, to, amount); const rc = await tx.wait();
+    toast('Propuesta token creada', 'success');
+    const ev = rc.logs?.find(l => l.fragment?.name === 'RescueProposed');
+    if (ev) document.getElementById('admin-proposal-id').value = ev.args.id;
+  } catch(e) { toast('Error: ' + (e.shortMessage || e.message || e), 'error'); }
+}
+async function adminExecuteRescue() {
+  if (!authState.isOwner || !contracts.admin || !signer) return toast('Solo owner', 'error');
+  try {
+    const id = document.getElementById('admin-proposal-id').value.trim();
+    if (!/^0x[0-9a-fA-F]{64}$/.test(id)) throw new Error('Proposal ID inválido');
+    const tx = await contracts.admin.connect(signer).executeRescue(id); await tx.wait();
+    toast('Rescue ejecutado', 'success');
+  } catch(e) { toast('Error: ' + (e.shortMessage || e.message || e), 'error'); }
+}
+async function adminCancelRescue() {
+  if (!authState.isOwner || !contracts.admin || !signer) return toast('Solo owner', 'error');
+  try {
+    const id = document.getElementById('admin-proposal-id').value.trim();
+    if (!/^0x[0-9a-fA-F]{64}$/.test(id)) throw new Error('Proposal ID inválido');
+    const tx = await contracts.admin.connect(signer).cancelRescue(id); await tx.wait();
+    toast('Rescue cancelado', 'success');
+  } catch(e) { toast('Error: ' + (e.shortMessage || e.message || e), 'error'); }
+}
+async function adminBatchWithdrawBucket() {
+  if (!authState.isOwner || !contracts.admin || !signer) return toast('Solo owner', 'error');
+  try {
+    const bucket = Number((document.getElementById('admin-bucket-id').value || '').trim());
+    const tos = (document.getElementById('admin-bucket-addresses').value || '').split(/
++/).map(s=>s.trim()).filter(Boolean);
+    const amts = (document.getElementById('admin-bucket-amounts').value || '').split(/
++/).map(s=>s.trim()).filter(Boolean);
+    if (!tos.length || tos.length !== amts.length) throw new Error('Direcciones y montos deben tener la misma cantidad');
+    tos.forEach(a => { if (!isValidAddr(a)) throw new Error('Dirección inválida en batch'); });
+    const parsed = amts.map(v => ethers.parseUnits(v, 18));
+    const tx = await contracts.admin.connect(signer).batchWithdrawFromBucket(bucket, tos, parsed); await tx.wait();
+    toast('Batch ejecutado', 'success');
+  } catch(e) { toast('Error: ' + (e.shortMessage || e.message || e), 'error'); }
 }
 
 // ═══════════════════════════════════════════
