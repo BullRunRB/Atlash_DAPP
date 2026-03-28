@@ -3328,9 +3328,9 @@ async function refreshAuthState() {
 }
 function setDashboardAccess(enabled) {
   const app = document.getElementById('app');
-  if (!app) return;
-  if (enabled) { app.classList.add('visible'); hideLoginGate(); }
-  else { app.classList.remove('visible'); showLoginGate(); }
+  if (app) app.classList.add('visible');
+  if (enabled) hideLoginGate();
+  else showLoginGate();
 }
 
 // ─── WALLET CONNECTION - Supports MetaMask AND injected wallets (Trust, etc.) ───
@@ -4642,11 +4642,76 @@ async function loadBinaryTree(addr) {
 
 async function bootstrapLoginMode() {
   try {
-    if (document.getElementById('inp-core') && !document.getElementById('inp-core').value) {
-      autoFillTestnet();
-      selectNetwork('testnet');
-    }
-    await launchDapp();
+    // Cargar contratos enseguida sin depender del botón de setup
+    activeNetwork = NETWORKS.testnet;
+    _selectedNetworkKey = 'testnet';
+    selectNetwork('testnet');
+    updateNavBadge();
+
+    // Rellenar inputs y direcciones por defecto
+    const map = {
+      'inp-core': TESTNET_ADDRESSES.core,
+      'inp-ranks': TESTNET_ADDRESSES.ranks,
+      'inp-pools': TESTNET_ADDRESSES.pools,
+      'inp-binary': TESTNET_ADDRESSES.binary,
+      'inp-cashback': TESTNET_ADDRESSES.cashback,
+      'inp-yield': TESTNET_ADDRESSES.yield,
+      'inp-role': TESTNET_ADDRESSES.roleResolver,
+      'inp-admin': TESTNET_ADDRESSES.admin,
+      'inp-mkt-registry': TESTNET_ADDRESSES.mktRegistry,
+      'inp-mkt-catalog': TESTNET_ADDRESSES.mktCatalog,
+      'inp-mkt-checkout': TESTNET_ADDRESSES.mktCheckout,
+      'inp-mkt-treasury': TESTNET_ADDRESSES.mktTreasury,
+      'inp-mkt-access': TESTNET_ADDRESSES.mktAccess,
+      'inp-mkt-views': TESTNET_ADDRESSES.mktViews,
+    };
+    Object.entries(map).forEach(([id,val]) => {
+      const el = document.getElementById(id);
+      if (el && val) el.value = val;
+    });
+
+    addresses = {
+      core: TESTNET_ADDRESSES.core,
+      ranks: TESTNET_ADDRESSES.ranks,
+      pools: TESTNET_ADDRESSES.pools,
+      binary: TESTNET_ADDRESSES.binary,
+      cashback: TESTNET_ADDRESSES.cashback,
+      yield: TESTNET_ADDRESSES.yield,
+      roleResolver: TESTNET_ADDRESSES.roleResolver,
+      admin: TESTNET_ADDRESSES.admin,
+      registry: TESTNET_ADDRESSES.registry,
+      mktRegistry: TESTNET_ADDRESSES.mktRegistry,
+      mktCatalog: TESTNET_ADDRESSES.mktCatalog,
+      mktCheckout: TESTNET_ADDRESSES.mktCheckout,
+      mktTreasury: TESTNET_ADDRESSES.mktTreasury,
+      mktAccess: TESTNET_ADDRESSES.mktAccess,
+      mktViews: TESTNET_ADDRESSES.mktViews,
+    };
+
+    provider = await createProvider(activeNetwork);
+    contracts.core = new ethers.Contract(addresses.core, CORE_ABI, provider);
+    if (addresses.ranks) contracts.ranks = new ethers.Contract(addresses.ranks, RANKS_ABI, provider);
+    if (addresses.pools) contracts.pools = new ethers.Contract(addresses.pools, POOLS_ABI, provider);
+    if (addresses.binary) contracts.binary = new ethers.Contract(addresses.binary, BINARY_ABI, provider);
+    if (addresses.cashback) contracts.cashback = new ethers.Contract(addresses.cashback, CASHBACK_ABI, provider);
+    if (addresses.yield) contracts.yield = new ethers.Contract(addresses.yield, YIELD_ABI, provider);
+    if (addresses.roleResolver) contracts.roleResolver = new ethers.Contract(addresses.roleResolver, ROLE_RESOLVER_ABI, provider);
+    if (addresses.admin) contracts.admin = new ethers.Contract(addresses.admin, ADMIN_ABI, provider);
+    if (addresses.mktRegistry) contracts.mktRegistry = new ethers.Contract(addresses.mktRegistry, MKT_REGISTRY_ABI, provider);
+    if (addresses.mktCatalog) contracts.mktCatalog = new ethers.Contract(addresses.mktCatalog, MKT_CATALOG_ABI, provider);
+    if (addresses.mktCheckout) contracts.mktCheckout = new ethers.Contract(addresses.mktCheckout, MKT_CHECKOUT_ABI, provider);
+    if (addresses.mktTreasury) contracts.mktTreasury = new ethers.Contract(addresses.mktTreasury, MKT_TREASURY_ABI, provider);
+    if (addresses.mktAccess) contracts.mktAccess = new ethers.Contract(addresses.mktAccess, MKT_ACCESS_ABI, provider);
+    if (addresses.mktViews) contracts.mktViews = new ethers.Contract(addresses.mktViews, MKT_VIEWS_ABI, provider);
+
+    sessionStorage.setItem('atlash_addrs', JSON.stringify(addresses));
+    document.getElementById('setup-overlay')?.classList.add('hidden');
+    document.getElementById('app')?.classList.add('visible');
+    updateContractsTab();
+    loadCoreStatus();
+    loadPackages();
+    loadYieldPackages();
+    loadMarketplace().catch(()=>{});
     setDashboardAccess(false);
     showLoginGate('Conecta tu wallet para habilitar el dashboard.');
     updateAdminVisibility();
