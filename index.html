@@ -1966,6 +1966,10 @@ async function loadUserFromCore(addr) {
 async function renderUserFromUserLens(addr, out) {
   const u = out.coreUser;
   const cb = out.cashback;
+  let directsCount = Number(u.directCount || 0n);
+  if ((!directsCount || directsCount < 0) && contracts.core) {
+    try { directsCount = Number(await contracts.core.directCount(addr)); } catch {}
+  }
   const ranks = { pendingUserUSDT: out.ranks.pendingTotal || 0n, poolAvailableUSDT: 0n };
   const pools = {
     monthIndex: out.pools.monthIndex || 0n,
@@ -1979,20 +1983,32 @@ async function renderUserFromUserLens(addr, out) {
     topTenPoolTotalUSDT: 0n,
     userTopTenPosition: out.pools.topTenPosition || 0
   };
-  renderUserCard({ addr, exists:u.exists, frozen:u.frozen, upline:u.upline, highestPackage:u.packageId, validUntil:u.validUntil, monthlyIncludedUntil:u.monthlyIncludedUntil, isActive:u.activeNow, inactiveSecs:0n, directs:Number(u.directCount||0n) });
-  renderStatsFromCore({ highestPackage:u.packageId, validUntil:u.validUntil, isActive:u.activeNow, frozen:u.frozen }, { balanceUSDT:cb.balance||0n, nextExpiryAt:cb.nextExpiryAt||0n, nextExpiryAmountUSDT:cb.nextExpiryAmount||0n, expiringSoonAmountUSDT:cb.expiringIn30d||0n }, Number(u.directCount||0n), u.upline);
+  if (contracts.pools) {
+    try {
+      const mi = pools.monthIndex && pools.monthIndex > 0n ? pools.monthIndex : await contracts.pools.currentMonthIndex().catch(() => 0n);
+      pools.monthIndex = mi;
+      const [leadTotal, topTotal] = await Promise.all([
+        contracts.pools.leadershipPoolTotal(mi).catch(() => 0n),
+        contracts.pools.topTenAccruedByMonth(mi).catch(() => 0n)
+      ]);
+      pools.leadershipPoolTotalUSDT = leadTotal || 0n;
+      pools.topTenPoolTotalUSDT = topTotal || 0n;
+    } catch {}
+  }
+  renderUserCard({ addr, exists:u.exists, frozen:u.frozen, upline:u.upline, highestPackage:u.packageId, validUntil:u.validUntil, monthlyIncludedUntil:u.monthlyIncludedUntil, isActive:u.activeNow, inactiveSecs:0n, directs:directsCount });
+  renderStatsFromCore({ highestPackage:u.packageId, validUntil:u.validUntil, isActive:u.activeNow, frozen:u.frozen }, { balanceUSDT:cb.balance||0n, nextExpiryAt:cb.nextExpiryAt||0n, nextExpiryAmountUSDT:cb.nextExpiryAmount||0n, expiringSoonAmountUSDT:cb.expiringIn30d||0n }, directsCount, u.upline);
   renderMembership(u.validUntil, u.monthlyIncludedUntil, u.activeNow, u.frozen);
   renderEarnings(ranks, pools, { balanceUSDT: cb.balance || 0n });
   renderCashback({ balanceUSDT:cb.balance||0n, nextExpiryAt:cb.nextExpiryAt||0n, nextExpiryAmountUSDT:cb.nextExpiryAmount||0n, expiringSoonAmountUSDT:cb.expiringIn30d||0n }, null);
   renderPools(pools);
   document.getElementById('stat-rank').textContent = out.ranks.currentRank > 0 ? 'Rango ' + out.ranks.currentRank : 'Sin rango';
-  document.getElementById('pool-leadership-total').textContent = '—';
-  document.getElementById('pool-topten-total').textContent = '—';
+  document.getElementById('pool-leadership-total').textContent = fmt18(pools.leadershipPoolTotalUSDT || 0n) + ' USDT';
+  document.getElementById('pool-topten-total').textContent = fmt18(pools.topTenPoolTotalUSDT || 0n) + ' USDT';
   await loadPackages(null, u.packageId);
   await loadYieldData(addr);
   await loadRanksTabFromUserLens(out);
   try { renderBinary(out.binary.leftBV || 0n, out.binary.rightBV || 0n, out.coreUser.chosenLeg || 0); } catch {}
-  await loadDirects(addr, Number(u.directCount || 0n));
+  await loadDirects(addr, directsCount);
 }
 
 async function loadRanksTabFromUserLens(out) {
@@ -2215,14 +2231,9 @@ function renderCashback(cb, lotsPage) {
   `;
 }
 
-function fmtInt(n) {
-  try { return Number(n || 0n).toLocaleString('es-CO'); }
-  catch { return '0'; }
-}
-
 function renderBinary(leftBV, rightBV, leg) {
-  document.getElementById('left-bv').textContent = fmtInt(leftBV);
-  document.getElementById('right-bv').textContent = fmtInt(rightBV);
+  document.getElementById('left-bv').textContent = fmt18(leftBV);
+  document.getElementById('right-bv').textContent = fmt18(rightBV);
   document.getElementById('user-leg').textContent = LEG_NAMES[Number(leg)] || 'No definida';
 }
 
