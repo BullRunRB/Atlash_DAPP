@@ -2215,9 +2215,14 @@ function renderCashback(cb, lotsPage) {
   `;
 }
 
+function fmtInt(n) {
+  try { return Number(n || 0n).toLocaleString('es-CO'); }
+  catch { return '0'; }
+}
+
 function renderBinary(leftBV, rightBV, leg) {
-  document.getElementById('left-bv').textContent = fmt18(leftBV);
-  document.getElementById('right-bv').textContent = fmt18(rightBV);
+  document.getElementById('left-bv').textContent = fmtInt(leftBV);
+  document.getElementById('right-bv').textContent = fmtInt(rightBV);
   document.getElementById('user-leg').textContent = LEG_NAMES[Number(leg)] || 'No definida';
 }
 
