@@ -1180,7 +1180,7 @@ async function createProvider(network) {
 
 const TESTNET_ADDRESSES = {
   core:'0xE3F76E478Fd2321a65bB2e12822c1E92e28b20Dd',
-  userLens:'0xE4270BbA767B1290efdf845C5898081962402f6A', adminLens:'0x25d2967910A0f641B3Aa42A1de975a951a164C4a', ranks:'0x324473Ae9289912c794917D00ad608Ad372e378E',
+  userLens:'0xc86B7455790213d22b5bE03939D67d91d6A2b944', adminLens:'0x25d2967910A0f641B3Aa42A1de975a951a164C4a', ranks:'0x324473Ae9289912c794917D00ad608Ad372e378E',
   pools:'0x640F0690a4dEcE30FD120D32c9b6FeeaAcD39409',
   binary:'0x70eA59535aa139B851171797CC42c1aF42a133CA',
   cashback:'0xe5a6Ac54E4C36d04Eac9cDDDd64aE5475d45d56e',
@@ -1240,6 +1240,8 @@ const CORE_ABI = [
   "function claimLeadership(uint256 monthIndex) returns (uint256)",
   "function claimTopTen(uint256 monthIndex) returns (uint256)",
   "function claimAll(uint256 monthIndex) returns (uint256 leadershipAmt, uint256 topTenAmt, uint256 ranksAmt)",
+  "function upgradePackage(uint8 newPackageId) returns ()",
+  "function upgradePackageWithCashback(uint8 newPackageId, uint256 cashbackToUse) returns ()",
   "error UserMissing()",
   "error Frozen()",
   "error NothingToClaim()",
@@ -1327,6 +1329,8 @@ let provider = null;
 let signer = null;
 let walletAddress = null;
 let currentUser = null;
+let currentUserPackageId = 0;
+let currentUserPackagePrice = 0n;
 
 const PACKAGE_NAMES = {1:'Trader', 2:'Network Builder', 3:'Network Leader', 4:'Ecosystem Partner'};
 const LEG_NAMES = {0:'No definida', 1:'Izquierda', 2:'Derecha'};
@@ -1926,6 +1930,8 @@ async function loadUserFromCore(addr) {
 
 
   const pkg = highestPackage > 0 ? await contracts.core.packages(highestPackage).catch(()=>null) : null;
+  currentUserPackageId = Number(highestPackage || 0);
+  currentUserPackagePrice = pkg ? BigInt(pkg[0] || 0n) : 0n;
   const now = Math.floor(Date.now()/1000);
   const isActive = validUntil > 0n && Number(validUntil) >= now;
   const inactiveSecs = isActive ? 0n : (validUntil > 0n ? BigInt(now) - validUntil : 0n);
@@ -1970,6 +1976,8 @@ async function renderUserFromUserLens(addr, out) {
   if ((!directsCount || directsCount < 0) && contracts.core) {
     try { directsCount = Number(await contracts.core.directCount(addr)); } catch {}
   }
+  currentUserPackageId = Number(u.packageId || 0);
+  currentUserPackagePrice = BigInt(out.packageInfo?.price || 0n);
   const ranks = { pendingUserUSDT: out.ranks.pendingTotal || 0n, poolAvailableUSDT: 0n };
   const pools = {
     monthIndex: out.pools.monthIndex || 0n,
@@ -2087,12 +2095,121 @@ function renderMembership(validUntil, monthlyUntil, isActive, frozen) {
   if (frozen) alertHtml = `<div class="alert alert alert-danger">❄ Cuenta congelada por administrador del ecosistema.</div>`;
   else if (!isActive && validUntil > 0n) alertHtml = `<div class="alert alert alert-warn">⚠ Membresia vencida hace ${secondsLeft(Number(validUntil))} (${tsToDate(validUntil)}).</div>`;
 
+  const canUpgrade = !!(walletAddress && currentUser && walletAddress.toLowerCase() === currentUser.toLowerCase() && currentUserPackageId > 0 && currentUserPackageId < 4 && contracts.core);
+  const packageLabel = PACKAGE_NAMES[currentUserPackageId] || ('Paquete ' + currentUserPackageId);
+  const upgradeHtml = canUpgrade ? `
+    <div class="sep" style="margin:14px 0 10px;"></div>
+    <div class="mem-row"><span class="mem-label">Paquete actual</span><span class="mem-val">${packageLabel}</span></div>
+    <div style="display:flex;justify-content:flex-end;margin-top:10px;">
+      <button class="btn btn-dark" onclick="openUpgradeModal()" style="padding:8px 16px;">Upgrade de paquete</button>
+    </div>` : '';
+
   el.innerHTML = alertHtml + `
     <div class="mem-row"><span class="mem-label">Valido hasta</span><span class="mem-val" style="color:${isActive?'var(--green)':'var(--red)'};">${tsToDate(validUntil)}</span></div>
     <div class="mem-row"><span class="mem-label">Mensualidad incluida hasta</span><span class="mem-val" style="color:var(--gray-600);">${tsToDate(monthlyUntil)}</span></div>
     <div class="mem-row"><span class="mem-label">Estado</span><span class="mem-val">${frozen?'❄ CONGELADA':isActive?'✅ ACTIVA':'🔴 INACTIVA'}</span></div>
     <div class="mem-row"><span class="mem-label">Tiempo restante</span><span class="mem-val" style="color:var(--gold);">${secondsLeft(validUntil)}</span></div>
+    ${upgradeHtml}
   `;
+}
+
+async function getUpgradeOptions() {
+  const currentId = Number(currentUserPackageId || 0);
+  const currentPrice = BigInt(currentUserPackagePrice || 0n);
+  let pkgs = [];
+  if (contracts.userLens && typeof contracts.userLens.getPackages === 'function') {
+    try { pkgs = await contracts.userLens.getPackages(); } catch {}
+  }
+  if (!pkgs.length && contracts.core) {
+    try {
+      const maxId = Number(await contracts.core.maxPackageId().catch(() => 4n));
+      for (let i = 1; i <= maxId; i++) {
+        const p = await contracts.core.packages(i).catch(() => null);
+        if (!p) continue;
+        pkgs.push({ packageId:i, price:p[0], enabled:p[3], exists:p[4] });
+      }
+    } catch {}
+  }
+  return pkgs
+    .map(p => ({
+      packageId: Number(p.packageId || p.id || 0),
+      price: BigInt(p.price || p.priceUSDT || p[1] || p[0] || 0n),
+      enabled: p.enabled ?? p[3] ?? true,
+      exists: p.exists ?? p[4] ?? true
+    }))
+    .filter(p => p.exists && p.enabled && p.packageId > currentId)
+    .sort((a,b) => a.packageId - b.packageId)
+    .map(p => ({ ...p, diff: p.price > currentPrice ? p.price - currentPrice : 0n }));
+}
+
+async function openUpgradeModal() {
+  if (!walletAddress || !currentUser || walletAddress.toLowerCase() !== currentUser.toLowerCase()) {
+    toast('Conecta y busca tu misma wallet para hacer upgrade', 'error');
+    return;
+  }
+  const options = await getUpgradeOptions();
+  const existing = document.getElementById('upgrade-modal-bg');
+  if (existing) existing.remove();
+  const bg = document.createElement('div');
+  bg.id = 'upgrade-modal-bg';
+  bg.className = 'modal-bg';
+  const currentName = PACKAGE_NAMES[currentUserPackageId] || ('Paquete ' + currentUserPackageId);
+  bg.innerHTML = `
+    <div class="modal" style="max-width:760px;">
+      <div class="modal-title">Upgrade de paquete ATLASH</div>
+      <div class="modal-sub">Paquete actual: <strong>${currentName}</strong> · Precio base: <strong>${fmt18(currentUserPackagePrice)} USDT</strong></div>
+      ${options.length ? `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;">${options.map(op => `
+        <div class="pkg-card" style="padding:16px;">
+          <div class="pkg-name">${PACKAGE_NAMES[op.packageId] || ('Paquete '+op.packageId)}</div>
+          <div class="pkg-role">Paquete ${op.packageId}</div>
+          <div class="pkg-price">${fmt18(op.price)} USDT</div>
+          <div class="mem-row"><span class="mem-label">Pagas hoy</span><span class="mem-val" style="color:var(--green);">${fmt18(op.diff)} USDT</span></div>
+          <div style="display:flex;gap:8px;margin-top:12px;">
+            <button class="btn btn-dark" style="flex:1;" onclick="executeUpgrade(${op.packageId})">Upgrade</button>
+            <button class="btn btn-outline" style="flex:1;" onclick="executeUpgrade(${op.packageId}, true)">Con cashback</button>
+          </div>
+        </div>`).join('')}</div>` : `<div class="empty"><div class="empty-icon">✅</div><div class="empty-title">No hay upgrades disponibles</div></div>`}
+      <div style="display:flex;justify-content:flex-end;margin-top:16px;"><button class="btn btn-outline" onclick="closeUpgradeModal()">Cerrar</button></div>
+    </div>`;
+  document.body.appendChild(bg);
+  bg.addEventListener('click', e => { if (e.target === bg) bg.remove(); });
+}
+
+function closeUpgradeModal() {
+  document.getElementById('upgrade-modal-bg')?.remove();
+}
+
+async function executeUpgrade(targetPackageId, useCashback = false) {
+  if (!await ensureSigner()) return;
+  if (!contracts.core) { toast('Core no configurado', 'error'); return; }
+  try {
+    const options = await getUpgradeOptions();
+    const option = options.find(x => x.packageId === Number(targetPackageId));
+    if (!option) { toast('Upgrade no disponible', 'error'); return; }
+    const coreWithSigner = contracts.core.connect(signer);
+    const usdtAddr = await contracts.core.usdt();
+    const usdt = new ethers.Contract(usdtAddr, USDT_ABI, signer);
+    if (!useCashback && option.diff > 0n) {
+      const allowance = await usdt.allowance(walletAddress, addresses.core);
+      if (allowance < option.diff) {
+        toast('Aprobando USDT para upgrade...', 'info');
+        const txA = await usdt.approve(addresses.core, option.diff);
+        await txA.wait();
+      }
+      toast('Ejecutando upgrade...', 'info');
+      const tx = await coreWithSigner.upgradePackage(option.packageId);
+      await tx.wait();
+    } else {
+      toast('Ejecutando upgrade con cashback...', 'info');
+      const tx = await coreWithSigner.upgradePackageWithCashback(option.packageId, 0);
+      await tx.wait();
+    }
+    toast('✅ Upgrade completado', 'success');
+    closeUpgradeModal();
+    await searchUser();
+  } catch (e) {
+    toast('Error upgrade: ' + formatContractError(e), 'error');
+  }
 }
 
 function renderPools(pools) {
