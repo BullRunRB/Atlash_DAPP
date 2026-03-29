@@ -725,6 +725,15 @@ body {
 .cmd-block:hover { border-color:var(--gray-300); }
 .step-title { font-size:13px; font-weight:600; color:var(--gray-800); margin-bottom:5px; margin-top:14px; }
 
+
+/* ── LOGIN GATE ── */
+#login-gate { position:fixed; inset:0; z-index:9500; background:rgba(255,255,255,.92); backdrop-filter:blur(8px); display:none; align-items:center; justify-content:center; padding:24px; }
+#login-gate.show { display:flex; }
+.login-card { width:100%; max-width:520px; background:var(--white); border:1px solid var(--gray-200); border-radius:var(--radius-xl); padding:32px; box-shadow:var(--shadow-lg); }
+.login-title { font-size:24px; font-weight:700; letter-spacing:-.5px; color:var(--gray-900); margin-bottom:8px; }
+.login-sub { font-size:14px; color:var(--gray-500); line-height:1.6; margin-bottom:22px; }
+.login-role-box { background:var(--gray-50); border:1px solid var(--gray-200); border-radius:var(--radius-lg); padding:14px 16px; margin-top:14px; }
+
 /* ── FILE WARNING ── */
 #file-warn {
   position:fixed; bottom:0; left:0; right:0; z-index:500;
@@ -851,6 +860,27 @@ body {
   </div>
 </div>
 
+<div id="login-gate" class="show">
+  <div class="login-card">
+    <div class="setup-logo" style="margin-bottom:22px;">
+      <div class="setup-logo-mark">
+        <svg viewBox="0 0 22 22" fill="none">
+          <path d="M11 2L19 6.5V15.5L11 20L3 15.5V6.5L11 2Z" stroke="white" stroke-width="1.5" fill="none"/>
+          <path d="M11 2V20M3 6.5L19 15.5M19 6.5L3 15.5" stroke="white" stroke-width="1" opacity=".4"/>
+        </svg>
+      </div>
+      <div><div class="setup-logo-name">ATLASH</div><div class="setup-logo-env">Wallet Login</div></div>
+    </div>
+    <div class="login-title">Inicio de sesión con wallet</div>
+    <div class="login-sub">Conecta la wallet para habilitar el dashboard. Si la wallet conectada coincide con <strong>owner</strong> o <strong>guardian</strong>, se habilitará automáticamente la pestaña administrativa.</div>
+    <button class="btn-primary" id="login-connect-btn" onclick="toggleWallet()">Conectar wallet</button>
+    <div class="login-role-box">
+      <div id="login-status-line" style="font-size:13px;color:var(--gray-700);">Configura contratos y conecta tu wallet para continuar.</div>
+      <div id="login-role-badges" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px;"></div>
+    </div>
+  </div>
+</div>
+
 <!-- ═══════ APP ═══════ -->
 <div id="app">
   <nav class="topnav">
@@ -873,6 +903,7 @@ body {
         <button class="nav-tab" onclick="switchTab('yield')">Yield</button>
         <button class="nav-tab" onclick="switchTab('marketplace')">Marketplace</button>
         <button class="nav-tab" onclick="switchTab('contracts')">Contratos</button>
+        <button class="nav-tab" id="nav-tab-admin" onclick="switchTab('admin')" style="display:none;">Admin</button>
       </div>
     </div>
     <div class="nav-right">
@@ -1114,6 +1145,32 @@ body {
         <div class="panel-head"><div class="panel-title">Estado del Core</div><button class="btn btn-outline" onclick="loadCoreStatus()" style="padding:5px 14px;font-size:12px;">↻ Recargar</button></div>
         <div class="panel-body" id="core-status-body"><div class="empty"><div class="empty-icon">○</div><div class="empty-title">Conectando…</div></div></div>
       </div>
+
+
+    <!-- ADMIN -->
+    <div class="tab-pane" id="tab-admin">
+      <div class="callout callout-amber" style="margin-bottom:16px;"><span>⚠</span><span>Este panel solo se habilita para la wallet <strong>owner</strong> o <strong>guardian</strong>.</span></div>
+      <div class="grid g4" style="margin-bottom:16px;">
+        <div class="kpi"><div class="kpi-label">Role</div><div class="kpi-value" id="admin-role">—</div><div class="kpi-sub" id="admin-role-sub">Wallet actual</div></div>
+        <div class="kpi"><div class="kpi-label">USDT Core</div><div class="kpi-value c-green" id="admin-core-usdt">—</div><div class="kpi-sub">Balance en core</div></div>
+        <div class="kpi"><div class="kpi-label">Reservado</div><div class="kpi-value c-gold" id="admin-core-reserved">—</div><div class="kpi-sub">USDT reservado</div></div>
+        <div class="kpi"><div class="kpi-label">Libre</div><div class="kpi-value c-blue" id="admin-core-free">—</div><div class="kpi-sub">USDT libre</div></div>
+      </div>
+      <div class="grid g3" style="margin-bottom:16px;">
+        <div class="kpi"><div class="kpi-label">Pending Ranks</div><div class="kpi-value" id="admin-pending-ranks">—</div><div class="kpi-sub">Acumulado</div></div>
+        <div class="kpi"><div class="kpi-label">Pending Liderazgo</div><div class="kpi-value" id="admin-pending-leadership">—</div><div class="kpi-sub">Acumulado</div></div>
+        <div class="kpi"><div class="kpi-label">Pending Top 10</div><div class="kpi-value" id="admin-pending-topten">—</div><div class="kpi-sub">Acumulado</div></div>
+      </div>
+      <div class="panel" style="margin-bottom:12px;">
+        <div class="panel-head"><div class="panel-title">Estado general</div></div>
+        <div class="panel-body" id="admin-overview-box"><div class="empty"><div class="empty-icon">○</div><div class="empty-title">Conecta owner o guardian</div></div></div>
+      </div>
+      <div class="panel">
+        <div class="panel-head"><div class="panel-title">Wiring checks</div></div>
+        <div class="panel-body" id="admin-wiring-box"><div class="empty"><div class="empty-icon">○</div><div class="empty-title">Sin datos</div></div></div>
+      </div>
+    </div>
+
     </div>
 
   </div>
@@ -1329,6 +1386,7 @@ let provider = null;
 let signer = null;
 let walletAddress = null;
 let currentUser = null;
+let authState = { owner:null, guardian:null, isOwner:false, isGuardian:false, isAdmin:false };
 let currentUserPackageId = 0;
 let currentUserPackagePrice = 0n;
 
@@ -1395,7 +1453,7 @@ function toast(msg, type='info') {
 
 function switchTab(name) {
   document.querySelectorAll('.nav-tab').forEach((b,i) => {
-    const names = ['overview','earnings','cashback','ranks','network','yield','marketplace','contracts'];
+    const names = ['overview','earnings','cashback','ranks','network','yield','marketplace','contracts','admin'];
     b.classList.toggle('active', names[i] === name);
   });
   document.querySelectorAll('.tab-pane').forEach(pane => {
@@ -1405,6 +1463,7 @@ function switchTab(name) {
   if (name === 'marketplace' && (contracts.mktCatalog || contracts.mktRegistry)) loadMarketplace().catch(() => {});
   if (name === 'ranks') loadRanksTab(currentUser || null);
   if (name === 'network' && currentUser && currentNetTab === 'binary') loadBinaryTree(currentUser);
+  if (name === 'admin' && authState.isAdmin) loadAdminDashboard().catch(()=>{});
 }
 
 async function copyText(text) {
@@ -1471,7 +1530,7 @@ async function launchDapp() {
 
   // ── 2. Show app immediately
   document.getElementById('setup-overlay').classList.add('hidden');
-  document.getElementById('app').classList.add('visible');
+  setDashboardAccess(!!walletAddress);
   document.getElementById('btn-launch').disabled = true;
   document.getElementById('btn-launch').textContent = 'Configurado';
   updateNavBadge();
@@ -1587,6 +1646,8 @@ async function launchDapp() {
     loadMarketplace().catch(() => {});
   }
 
+  await refreshAuthState();
+  if (!walletAddress) showLoginGate('Conecta tu wallet para habilitar el dashboard.');
   toast('Conectado a ' + activeNetwork.label, 'success');
 
   // Log final state
@@ -3308,88 +3369,116 @@ function checkProtocol() {
   document.body.appendChild(b);
 }
 
+function showLoginGate(message) { const gate = document.getElementById('login-gate'); if (gate) gate.classList.add('show'); const line = document.getElementById('login-status-line'); if (line && message) line.textContent = message; }
+function hideLoginGate() { const gate = document.getElementById('login-gate'); if (gate) gate.classList.remove('show'); }
+function updateAdminVisibility() {
+  const tab = document.getElementById('nav-tab-admin'); if (tab) tab.style.display = authState.isAdmin ? '' : 'none';
+  const badges = document.getElementById('login-role-badges');
+  if (badges) { const arr=[]; if (walletAddress) arr.push(`<span class="badge badge-green">Wallet conectada</span>`); if (authState.isOwner) arr.push(`<span class="badge badge-gold">Owner</span>`); if (authState.isGuardian) arr.push(`<span class="badge badge-blue">Guardian</span>`); if (!authState.isAdmin && walletAddress) arr.push(`<span class="badge badge-gray">Acceso usuario</span>`); badges.innerHTML = arr.join(''); }
+}
+async function refreshAuthState() {
+  authState = { owner:null, guardian:null, isOwner:false, isGuardian:false, isAdmin:false };
+  if (!contracts.core) return;
+  try { const [owner, guardian] = await Promise.all([contracts.core.owner().catch(()=>null), contracts.core.guardian().catch(()=>null)]); authState.owner=owner; authState.guardian=guardian; if (walletAddress) { authState.isOwner=!!owner && owner.toLowerCase()===walletAddress.toLowerCase(); authState.isGuardian=!!guardian && guardian.toLowerCase()===walletAddress.toLowerCase(); authState.isAdmin=authState.isOwner||authState.isGuardian; } } catch {}
+  updateAdminVisibility();
+  const line = document.getElementById('login-status-line');
+  if (line) { if (!walletAddress) line.textContent='Conecta tu wallet para habilitar el dashboard.'; else if (authState.isOwner) line.textContent='Wallet validada como owner. Se habilitó la pestaña admin.'; else if (authState.isGuardian) line.textContent='Wallet validada como guardian. Se habilitó la pestaña admin.'; else line.textContent='Wallet conectada. Ya puedes usar el dashboard.'; }
+}
+function setDashboardAccess(enabled) { const app = document.getElementById('app'); if (app) app.classList.add('visible'); if (enabled) hideLoginGate(); else showLoginGate(); }
+
 // ─── WALLET CONNECTION - Supports MetaMask AND injected wallets (Trust, etc.) ───
+async function ensureWalletOnActiveNetwork() {
+  if (!window.ethereum) throw new Error('Wallet no detectada');
+  if (!activeNetwork) throw new Error('Red no inicializada');
+  let chainHex = await window.ethereum.request({ method: 'eth_chainId' });
+  let chainId = parseInt(chainHex, 16);
+  if (chainId === activeNetwork.chainId) return;
+  try {
+    await window.ethereum.request({ method: 'wallet_switchEthereumChain', params: [{ chainId: activeNetwork.chainIdHex }] });
+  } catch (switchErr) {
+    if (switchErr?.code === 4902 || String(switchErr?.message || '').toLowerCase().includes('unrecognized chain')) {
+      await window.ethereum.request({
+        method: 'wallet_addEthereumChain',
+        params: [{ chainId: activeNetwork.chainIdHex, chainName: activeNetwork.label, nativeCurrency: activeNetwork.nativeCurrency, rpcUrls: [activeNetwork.rpc], blockExplorerUrls: [activeNetwork.explorer] }]
+      });
+    } else { throw switchErr; }
+  }
+}
+
 async function toggleWallet() {
-  // Disconnect
+  const lbl = document.getElementById('wallet-label');
+  const btn = document.getElementById('wallet-btn');
+  const loginBtn = document.getElementById('login-connect-btn');
   if (walletAddress) {
-    walletAddress = null;
-    signer = null;
-    document.getElementById('wallet-label').textContent = 'Conectar wallet';
-    document.getElementById('wallet-btn').classList.remove('connected');
-    document.getElementById('wallet-btn').disabled = false;
+    walletAddress = null; signer = null; authState = { owner:null, guardian:null, isOwner:false, isGuardian:false, isAdmin:false };
+    if (lbl) lbl.textContent = 'Conectar wallet';
+    if (loginBtn) loginBtn.textContent = 'Conectar wallet';
+    if (btn) { btn.classList.remove('connected'); btn.disabled = false; }
+    updateAdminVisibility();
+    showLoginGate('Wallet desconectada. Conecta nuevamente para habilitar el dashboard.');
     toast('Wallet desconectada', 'info');
     return;
   }
-
   if (window.location.protocol === 'file:') { showWalletHelp(); return; }
   if (!window.ethereum) { showWalletHelp(); return; }
-  if (!activeNetwork) { toast('Lanza el dashboard primero', 'error'); return; }
-
-  const lbl = document.getElementById('wallet-label');
-  const btn = document.getElementById('wallet-btn');
-
-  lbl.textContent = 'Conectando...';
-  btn.disabled = true;
-
+  if (!activeNetwork || !contracts.core) { toast('El dashboard aún se está inicializando. Intenta de nuevo en unos segundos.', 'error'); return; }
+  if (lbl) lbl.textContent = 'Conectando...';
+  if (loginBtn) loginBtn.textContent = 'Conectando...';
+  if (btn) btn.disabled = true;
   try {
-    // Step 1: request accounts (opens wallet popup)
     const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
     if (!accounts || !accounts[0]) throw new Error('Sin cuentas');
-
-    // Step 2: check chain
-    const chainHex = await window.ethereum.request({ method: 'eth_chainId' });
-    const chainId  = parseInt(chainHex, 16);
-    const target   = activeNetwork.chainId;
-
-    if (chainId !== target) {
-      // Try to switch - but DON'T await forever, use timeout
-      toast(`Red incorrecta (${chainId}). Cambia a ${activeNetwork.label} (${target}) en tu wallet.`, 'error');
-      
-      // Try silently
-      window.ethereum.request({
-        method: 'wallet_switchEthereumChain',
-        params: [{ chainId: activeNetwork.chainIdHex }]
-      }).catch(() => {
-        window.ethereum.request({
-          method: 'wallet_addEthereumChain',
-          params: [{
-            chainId: activeNetwork.chainIdHex,
-            chainName: activeNetwork.label,
-            nativeCurrency: activeNetwork.nativeCurrency,
-            rpcUrls: [activeNetwork.rpc],
-            blockExplorerUrls: [activeNetwork.explorer]
-          }]
-        }).catch(() => {});
-      });
-
-      lbl.textContent = 'Conectar wallet';
-      btn.disabled = false;
-      return;
-    }
-
-    // Step 3: build signer
+    await ensureWalletOnActiveNetwork();
     const ethProv = new ethers.BrowserProvider(window.ethereum);
     signer = await ethProv.getSigner();
     walletAddress = await signer.getAddress();
-
-    lbl.textContent = shortAddr(walletAddress);
-    btn.disabled = false;
-    btn.classList.add('connected');
+    if (lbl) lbl.textContent = shortAddr(walletAddress);
+    if (loginBtn) loginBtn.textContent = 'Wallet conectada';
+    if (btn) { btn.disabled = false; btn.classList.add('connected'); }
+    await refreshAuthState();
+    setDashboardAccess(true);
     toast(`Conectado · ${activeNetwork.label}`, 'success');
-    updateBuyYieldBtn();
-    loadSellerBalance().catch(() => {});
-    document.getElementById('search-addr').value = walletAddress;
+    updateBuyYieldBtn(); loadSellerBalance().catch(()=>{});
+    const search = document.getElementById('search-addr'); if (search) search.value = walletAddress;
     searchUser();
-
+    if (authState.isAdmin) loadAdminDashboard().catch(()=>{});
   } catch (e) {
+    console.error('toggleWallet error', e);
     const msg = e?.message || '';
-    if (msg.includes('rejected') || msg.includes('denied') || e?.code === 4001) {
-      toast('Conexion rechazada por el usuario', 'error');
-    } else {
-      toast('Error al conectar: ' + msg.slice(0, 60), 'error');
-    }
-    lbl.textContent = 'Conectar wallet';
-    btn.disabled = false;
+    if (msg.includes('rejected') || msg.includes('denied') || e?.code === 4001) toast('Conexion rechazada por el usuario', 'error');
+    else toast('Error al conectar: ' + msg.slice(0,120), 'error');
+    if (lbl) lbl.textContent = 'Conectar wallet';
+    if (loginBtn) loginBtn.textContent = 'Conectar wallet';
+    if (btn) btn.disabled = false;
+  }
+}
+
+async function loadAdminDashboard() {
+  if (!authState.isAdmin) return;
+  const ov = await loadAdminLensOverview();
+  if (!ov) return;
+  const role = authState.isOwner ? 'Owner' : (authState.isGuardian ? 'Guardian' : 'Usuario');
+  document.getElementById('admin-role').textContent = role;
+  document.getElementById('admin-role-sub').textContent = walletAddress ? shortAddr(walletAddress) : 'Wallet actual';
+  const core = ov.core || {}; const wiring = ov.wiring || {}; const month = ov.month || {};
+  document.getElementById('admin-core-usdt').textContent = fmt18(core.usdtBalance || 0n) + ' USDT';
+  document.getElementById('admin-core-reserved').textContent = fmt18(core.reservedUSDT || 0n) + ' USDT';
+  document.getElementById('admin-core-free').textContent = fmt18(core.freeUSDT || 0n) + ' USDT';
+  document.getElementById('admin-pending-ranks').textContent = fmt18(core.pendingRanksAmount || 0n) + ' USDT';
+  document.getElementById('admin-pending-leadership').textContent = fmt18(core.pendingLeadershipAmount || 0n) + ' USDT';
+  document.getElementById('admin-pending-topten').textContent = fmt18(core.pendingTopTenAmount || 0n) + ' USDT';
+  const box = document.getElementById('admin-overview-box');
+  if (box) box.innerHTML = `
+    <div class="mem-row"><span class="mem-label">Owner</span><span class="mem-val">${shortAddr(core.owner)}</span></div>
+    <div class="mem-row"><span class="mem-label">Guardian</span><span class="mem-val">${shortAddr(core.guardian)}</span></div>
+    <div class="mem-row"><span class="mem-label">Usuarios</span><span class="mem-val">${fmtIntPoints(core.totalUsers || 0n)}</span></div>
+    <div class="mem-row"><span class="mem-label">Month index</span><span class="mem-val">${fmtIntPoints(core.currentMonthIndex || month.monthIndex || 0n)}</span></div>
+    <div class="mem-row"><span class="mem-label">Leadership accrued</span><span class="mem-val">${fmt18(month.leadershipAccrued || 0n)} USDT</span></div>
+    <div class="mem-row" style="border:none;"><span class="mem-label">Top 10 accrued</span><span class="mem-val">${fmt18(month.topTenAccrued || 0n)} USDT</span></div>`;
+  const wbox = document.getElementById('admin-wiring-box');
+  if (wbox) {
+    const rows = Object.entries(wiring).map(([k,v]) => `<div class="ctr-row"><span class="ctr-name">${k}</span><span class="ctr-chip ${v?'chip-ok':'chip-no'}">${v?'OK':'FAIL'}</span></div>`).join('');
+    wbox.innerHTML = rows || '<div class="empty"><div class="empty-icon">○</div><div class="empty-title">Sin checks</div></div>';
   }
 }
 
