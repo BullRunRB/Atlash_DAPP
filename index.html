@@ -736,34 +736,6 @@ body {
 /* ── PAGINATION ── */
 .pagination { display:flex; gap:6px; justify-content:center; margin-top:16px; }
 
-
-
-/* ── LOGIN GATE ── */
-#login-gate {
-  position: fixed; inset: 0; z-index: 1200;
-  background: rgba(249,250,251,.96);
-  backdrop-filter: blur(8px);
-  display: none; align-items: center; justify-content: center;
-  padding: 24px;
-}
-#login-gate.show { display:flex; }
-.login-card {
-  width:100%; max-width:560px; background:var(--white); border:1px solid var(--gray-200);
-  border-radius:var(--radius-xl); box-shadow:var(--shadow-lg); padding:32px;
-}
-.login-title { font-size:24px; font-weight:700; letter-spacing:-.5px; color:var(--gray-900); margin-bottom:8px; }
-.login-sub { font-size:14px; color:var(--gray-500); line-height:1.6; margin-bottom:22px; }
-.login-role-box {
-  background:var(--gray-50); border:1px solid var(--gray-200); border-radius:var(--radius-lg); padding:14px 16px; margin-top:16px;
-}
-.admin-grid { display:grid; grid-template-columns: repeat(2,1fr); gap:14px; margin-bottom:18px; }
-.admin-card { background:var(--white); border:1px solid var(--gray-200); border-radius:var(--radius-xl); box-shadow:var(--shadow-sm); padding:18px; }
-.admin-card h4 { font-size:13px; font-weight:700; color:var(--gray-800); margin-bottom:10px; }
-.admin-actions { display:grid; grid-template-columns: repeat(2,1fr); gap:14px; }
-.admin-form-row { display:flex; gap:8px; flex-wrap:wrap; }
-.admin-form-row .addr-inp { flex:1; min-width:0; }
-.admin-wide { grid-column:1/-1; }
-
 /* ── RESPONSIVE ── */
 @media(max-width:1100px) { .g4,.pkg-grid { grid-template-columns:repeat(2,1fr); } }
 @media(max-width:768px) {
@@ -773,7 +745,6 @@ body {
   .g4,.g3,.g2,.legs,.modes,.field-grid { grid-template-columns:1fr; }
   .pkg-grid { grid-template-columns:1fr 1fr; }
   .prod-grid { grid-template-columns:1fr; }
-  .admin-grid,.admin-actions { grid-template-columns:1fr; }
   .pos-grid { grid-template-columns:repeat(2,1fr); }
   .user-card { flex-wrap:wrap; }
   .net-row { grid-template-columns:1fr; }
@@ -806,21 +777,21 @@ body {
     <!-- Network selector -->
     <div class="form-section">Red blockchain</div>
     <div class="net-row">
-      <div class="net-opt" id="net-mainnet" onclick="selectNetwork('mainnet')">
+      <div class="net-opt active-main" id="net-mainnet" onclick="selectNetwork('mainnet')">
         <div class="net-dot net-dot-main"></div>
         <div>
           <div class="net-label">BSC Mainnet</div>
           <div class="net-sub">Chain ID: 56 · Producción</div>
         </div>
-        <div style="margin-left:auto;font-size:11px;font-weight:600;color:var(--gray-400);" id="net-check-main" style="display:none;">✓</div>
+        <div style="margin-left:auto;font-size:11px;font-weight:600;color:var(--gray-400);" id="net-check-main">✓</div>
       </div>
-      <div class="net-opt active-test" id="net-testnet" onclick="selectNetwork('testnet')">
+      <div class="net-opt" id="net-testnet" onclick="selectNetwork('testnet')">
         <div class="net-dot net-dot-test"></div>
         <div>
           <div class="net-label">BSC Testnet</div>
           <div class="net-sub">Chain ID: 97 · Pruebas</div>
         </div>
-        <div style="margin-left:auto;font-size:11px;font-weight:600;color:var(--purple);display:none;" id="net-check-test" style="margin-left:auto;font-size:11px;font-weight:600;color:var(--purple);">✓</div>
+        <div style="margin-left:auto;font-size:11px;font-weight:600;color:var(--purple);display:none;" id="net-check-test">✓</div>
       </div>
     </div>
 
@@ -847,7 +818,8 @@ body {
 
       <div class="form-section">Módulos del ecosistema</div>
       <div class="field-grid">
-        <div class="field"><label class="field-label">DashboardLens</label><input class="addr-inp" id="inp-lens" placeholder="0x…" spellcheck="false"/></div>
+        <div class="field"><label class="field-label">AtlashUserLensV3</label><input class="addr-inp" id="inp-user-lens" placeholder="0x…" spellcheck="false"/></div>
+        <div class="field"><label class="field-label">AtlashAdminLensV3</label><input class="addr-inp" id="inp-admin-lens" placeholder="0x…" spellcheck="false"/></div>
         <div class="field"><label class="field-label">YieldProgramModule</label><input class="addr-inp" id="inp-yield" placeholder="0x…" spellcheck="false"/></div>
         <div class="field"><label class="field-label">RanksModule</label><input class="addr-inp" id="inp-ranks" placeholder="0x…" spellcheck="false"/></div>
         <div class="field"><label class="field-label">PoolsModule</label><input class="addr-inp" id="inp-pools" placeholder="0x…" spellcheck="false"/></div>
@@ -880,32 +852,6 @@ body {
 </div>
 
 <!-- ═══════ APP ═══════ -->
-
-<div id="login-gate" class="show">
-  <div class="login-card">
-    <div class="setup-logo" style="margin-bottom:20px;">
-      <div class="setup-logo-mark">
-        <svg viewBox="0 0 22 22" fill="none">
-          <path d="M11 2L19 6.5V15.5L11 20L3 15.5V6.5L11 2Z" stroke="white" stroke-width="1.5" fill="none"/>
-          <path d="M11 2V20M3 6.5L19 15.5M19 6.5L3 15.5" stroke="white" stroke-width="1" opacity=".4"/>
-        </svg>
-      </div>
-      <div>
-        <div class="setup-logo-name">ATLASH</div>
-        <div class="setup-logo-env">Acceso seguro al dashboard</div>
-      </div>
-    </div>
-    <div class="login-title">Inicio de sesión con wallet</div>
-    <div class="login-sub">Conecta la wallet para habilitar el dashboard. Si la wallet conectada coincide con <strong>owner</strong> o <strong>guardian</strong>, se habilitará automáticamente el panel administrativo.</div>
-    <button class="btn-primary" id="login-connect-btn" onclick="toggleWallet()">Conectar wallet</button>
-    <div class="login-role-box">
-      <div style="font-size:11px;font-weight:600;letter-spacing:.6px;text-transform:uppercase;color:var(--gray-400);margin-bottom:8px;">Estado de acceso</div>
-      <div id="login-status-line" style="font-size:13px;color:var(--gray-700);">Configura contratos y conecta tu wallet para continuar.</div>
-      <div id="login-role-badges" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px;"></div>
-    </div>
-  </div>
-</div>
-
 <div id="app">
   <nav class="topnav">
     <div style="display:flex;align-items:center;gap:24px;">
@@ -927,7 +873,6 @@ body {
         <button class="nav-tab" onclick="switchTab('yield')">Yield</button>
         <button class="nav-tab" onclick="switchTab('marketplace')">Marketplace</button>
         <button class="nav-tab" onclick="switchTab('contracts')">Contratos</button>
-        <button class="nav-tab" id="nav-tab-admin" onclick="switchTab('admin')" style="display:none;">Admin</button>
       </div>
     </div>
     <div class="nav-right">
@@ -1158,64 +1103,6 @@ body {
       </div>
     </div>
 
-
-    <!-- ADMIN -->
-    <div class="tab-pane" id="tab-admin">
-      <div class="callout callout-amber" style="margin-bottom:16px;"><span>⚠</span><span>Este panel solo se habilita para la wallet <strong>owner</strong> o <strong>guardian</strong>. Ejecuta funciones administrativas con cuidado.</span></div>
-      <div class="admin-grid">
-        <div class="kpi"><div class="kpi-label">Rol conectado</div><div class="kpi-value" id="admin-role">—</div><div class="kpi-sub" id="admin-role-sub">Sin validar</div></div>
-        <div class="kpi"><div class="kpi-label">Rescue delay</div><div class="kpi-value c-blue" id="admin-rescue-delay">—</div><div class="kpi-sub">Configurado en AdminModule</div></div>
-        <div class="kpi"><div class="kpi-label">Límite guardian por tx</div><div class="kpi-value c-gold" id="admin-guardian-max-tx">—</div><div class="kpi-sub">USDT</div></div>
-        <div class="kpi"><div class="kpi-label">Límite guardian diario</div><div class="kpi-value c-gold" id="admin-guardian-max-day">—</div><div class="kpi-sub" id="admin-guardian-day-used">Uso diario</div></div>
-      </div>
-      <div class="admin-actions">
-        <div class="admin-card">
-          <h4>Guardian · Rescue USDT</h4>
-          <div class="field"><label class="field-label">Destino</label><input class="addr-inp" id="admin-guardian-to" placeholder="0x…"/></div>
-          <div class="field"><label class="field-label">Monto USDT</label><input class="addr-inp" id="admin-guardian-amount" placeholder="100"/></div>
-          <button class="btn btn-dark" id="btn-admin-guardian-rescue" onclick="adminGuardianRescueUSDT()">Ejecutar rescue</button>
-        </div>
-        <div class="admin-card">
-          <h4>Owner · Límites guardian</h4>
-          <div class="field"><label class="field-label">Máximo por transacción</label><input class="addr-inp" id="admin-limit-per-tx" placeholder="200"/></div>
-          <div class="field"><label class="field-label">Máximo diario</label><input class="addr-inp" id="admin-limit-daily" placeholder="1000"/></div>
-          <button class="btn btn-dark" id="btn-admin-set-limits" onclick="adminSetGuardianLimits()">Actualizar límites</button>
-        </div>
-        <div class="admin-card">
-          <h4>Owner · Rescue delay</h4>
-          <div class="field"><label class="field-label">Nuevo delay (horas)</label><input class="addr-inp" id="admin-delay-hours" placeholder="48"/></div>
-          <button class="btn btn-dark" id="btn-admin-set-delay" onclick="adminSetRescueDelay()">Actualizar delay</button>
-        </div>
-        <div class="admin-card">
-          <h4>Owner · Proponer rescue USDT</h4>
-          <div class="field"><label class="field-label">Destino</label><input class="addr-inp" id="admin-propose-usdt-to" placeholder="0x…"/></div>
-          <div class="field"><label class="field-label">Monto USDT</label><input class="addr-inp" id="admin-propose-usdt-amount" placeholder="100"/></div>
-          <button class="btn btn-dark" id="btn-admin-propose-usdt" onclick="adminProposeRescueUSDT()">Proponer rescue</button>
-        </div>
-        <div class="admin-card">
-          <h4>Owner · Proponer rescue token</h4>
-          <div class="field"><label class="field-label">Token</label><input class="addr-inp" id="admin-propose-token" placeholder="0x…"/></div>
-          <div class="field"><label class="field-label">Destino</label><input class="addr-inp" id="admin-propose-token-to" placeholder="0x…"/></div>
-          <div class="field"><label class="field-label">Monto (18 decimales)</label><input class="addr-inp" id="admin-propose-token-amount" placeholder="100"/></div>
-          <button class="btn btn-dark" id="btn-admin-propose-token" onclick="adminProposeRescueToken()">Proponer token rescue</button>
-        </div>
-        <div class="admin-card">
-          <h4>Owner · Ejecutar / cancelar rescue</h4>
-          <div class="field"><label class="field-label">Proposal ID (bytes32)</label><input class="addr-inp" id="admin-proposal-id" placeholder="0x…"/></div>
-          <div class="admin-form-row"><button class="btn btn-dark" id="btn-admin-execute" onclick="adminExecuteRescue()">Ejecutar</button><button class="btn btn-outline" id="btn-admin-cancel" onclick="adminCancelRescue()">Cancelar</button></div>
-        </div>
-        <div class="admin-card admin-wide">
-          <h4>Owner · Batch withdraw from bucket</h4>
-          <div class="field"><label class="field-label">Bucket</label><input class="addr-inp" id="admin-bucket-id" placeholder="0"/></div>
-          <div class="field"><label class="field-label">Destinos (uno por línea)</label><textarea class="addr-inp" id="admin-bucket-addresses" rows="4" placeholder="0x...
-0x..."></textarea></div>
-          <div class="field"><label class="field-label">Montos USDT (uno por línea)</label><textarea class="addr-inp" id="admin-bucket-amounts" rows="4" placeholder="100
-250"></textarea></div>
-          <button class="btn btn-dark" id="btn-admin-batch-bucket" onclick="adminBatchWithdrawBucket()">Ejecutar batch</button>
-        </div>
-      </div>
-    </div>
-
     <!-- CONTRACTS -->
     <div class="tab-pane" id="tab-contracts">
       <div class="callout callout-blue" style="margin-bottom:16px;"><span>ℹ</span><span>Contratos configurados. Usa ⚙ para actualizar.</span></div>
@@ -1293,7 +1180,7 @@ async function createProvider(network) {
 
 const TESTNET_ADDRESSES = {
   core:'0xE3F76E478Fd2321a65bB2e12822c1E92e28b20Dd',
-  lens:'', ranks:'0x324473Ae9289912c794917D00ad608Ad372e378E',
+  userLens:'0xE4270BbA767B1290efdf845C5898081962402f6A', adminLens:'0x25d2967910A0f641B3Aa42A1de975a951a164C4a', ranks:'0x324473Ae9289912c794917D00ad608Ad372e378E',
   pools:'0x640F0690a4dEcE30FD120D32c9b6FeeaAcD39409',
   binary:'0x70eA59535aa139B851171797CC42c1aF42a133CA',
   cashback:'0xe5a6Ac54E4C36d04Eac9cDDDd64aE5475d45d56e',
@@ -1361,10 +1248,13 @@ const CORE_ABI = [
   "error Paused()"
 ];
 
-const LENS_ABI = [
-  "function getUser(address user) view returns (tuple(tuple(address core, address usdt, address owner, address guardian, bool paused, bool monthlyEnabled, uint256 monthlyFeeUSDT, uint256 inscriptionFeeUSDT, address brokerWallet, address academyWallet, address logrosWallet, address feeWallet, address inscriptionWallet, address ranksModule, address poolsModule, address cashbackEngine, address benefitsRegistry, address roleResolver, uint8 maxPackageId, uint256 pendingRanksAmountUSDT, uint256 pendingLeadershipAmountUSDT, uint256 pendingTopTenAmountUSDT) core, tuple(address user, bool exists, bool frozen, address upline, uint8 packageId, uint256 validUntil, uint256 monthlyIncludedUntil, bool isActive, uint256 inactiveSeconds) user, tuple(uint8 packageId, uint256 priceUSDT, uint256 brokerFeeUSDT, uint16 includedMonths, bool enabled, bool exists) pkg, tuple(uint256 balanceUSDT, uint256 ttlSeconds, uint256 suspensionExpirySeconds, uint256 maxSpendBP, uint256 nextExpiryAt, uint256 nextExpiryAmountUSDT, uint256 inactiveSeconds, bool willExpireAllOnReactivation, uint256 secondsUntilSuspensionExpiry, uint256 expiringSoonWindowSeconds, uint256 expiringSoonAmountUSDT) cashback, tuple(uint256 pendingUserUSDT, uint256 poolAvailableUSDT) ranks, tuple(uint256 monthIndex, uint256 monthStartAt, uint256 monthEndAt, uint256 leadershipClaimableUSDT, uint256 topTenClaimableUSDT, bool leadershipClosed, bool topTenClosed, uint256 leadershipPoolTotalUSDT, uint256 topTenPoolTotalUSDT, uint8 userTopTenPosition) pools) dash, tuple(uint256 nextCursor, uint256 totalLotsReturned, uint256[] lotIndexes, uint256[] amountsUSDT, uint256[] expiresAt, bool[] expired) lotsPage, uint8[] activePackageIds)"
+const USER_LENS_V3_ABI = [
+  "function getPackages() view returns (tuple(uint8 packageId,uint256 price,uint256 brokerFee,uint16 includedMonths,bool enabled,bool exists,uint256 promoPrice,uint256 promoExpiresAt,bool promoEnabled,bool benefitsActive,uint32 benefitsVersion,bool hasNetwork,uint8 maxBonusLevels,uint8 maxPointLevels,bool hasPools,uint16 cashbackBP,uint8 rankCap,uint8 role,uint16 cashbackMultiplierBP)[])",
+  "function getUserFrontend(address user,uint256 monthIndex,uint256[] yieldPositionIds) view returns (tuple(tuple(address core,address usdt,address benefits,address cashback,address roleResolver,address ranks,address pools,address binary,address yield,address adminModule) modules,tuple(bool cashbackCoreOk,bool cashbackBenefitsOk,bool cashbackResolverOk,bool ranksCoreOk,bool ranksBenefitsOk,bool ranksYieldCallerOk,bool ranksBinaryCallerOk,bool poolsCoreOk,bool binaryCoreOk,bool binaryRanksOk,bool binaryVolumeCallerOk,bool yieldCoreOk,bool yieldRanksOk,bool yieldBinaryOk) wiring,tuple(address user,bool exists,bool frozen,bool activeNow,bool monthlyCovered,address upline,uint8 packageId,uint8 chosenLeg,uint256 validUntil,uint256 monthlyIncludedUntil,uint256 directCount) coreUser,tuple(uint32 version,bool hasNetwork,uint8 maxBonusLevels,uint8 maxPointLevels,bool hasPools,uint16 cashbackBP,uint8 rankCap) lockedBenefits,tuple(uint8 packageId,uint256 price,uint256 brokerFee,uint16 includedMonths,bool enabled,bool exists,uint256 promoPrice,uint256 promoExpiresAt,bool promoEnabled,bool benefitsActive,uint32 benefitsVersion,bool hasNetwork,uint8 maxBonusLevels,uint8 maxPointLevels,bool hasPools,uint16 cashbackBP,uint8 rankCap,uint8 role,uint16 cashbackMultiplierBP) packageInfo,tuple(uint256 balance,uint256 ttl,uint256 suspensionExpiry,uint16 maxSpendBPDefault,uint256 maxSpendMonthlyBP,uint256 maxSpendUpgradeBP,uint256 maxSpendStoreBP,uint256 spendableForMonthly,uint256 spendableForUpgrade,uint256 spendableForStore,bool hasNextExpiry,uint256 nextExpiryAt,uint256 nextExpiryAmount,uint256 nextExpiryLotIndex,uint256 expiringIn30d) cashback,tuple(uint8 currentRank,uint8 lockedRankCap,uint256 totalPoints,uint256 personalVolume,uint256 pendingTotal,uint256 pendingCurrentWeekBinary,uint256 rollingWeek0,uint256 rollingWeek1,uint256 rollingWeek2,uint256 rollingWeek3,uint256[10] pendingRankRewards) ranks,tuple(bool placed,address parent,bool isLeftSide,address leftChild,address rightChild,uint256 leftBV,uint256 rightBV,uint32 currentWeekId,uint32 lastSettledWeek) binary,tuple(uint256 monthIndex,uint256 monthStartAt,uint256 monthEndAt,uint256 userPointsThisMonth,uint256 leadershipClaimable,uint256 topTenClaimable,bool leadershipClaimed,bool topTenClaimed,bool leadershipMonthClosed,bool topTenMonthClosed,uint8 topTenPosition) pools,tuple(uint256 positionId,address user,uint256 basePrincipal,uint256 principal,uint256 paidOut,uint256 pendingAccrued,uint256 accruedTotal,uint32 lastDay,uint32 grantedDay,uint32 deadlineDay,uint32 compoundLockUntilDay,bool compound,bool completed,uint8 voucherStatus,uint16 voucherDirects,uint256 voucherTotalVolume,uint8 voucherSide)[] yieldPositions))"
 ];
-
+const ADMIN_LENS_V3_ABI = [
+  "function getAdminOverview(uint256 monthIndex) view returns (tuple(tuple(address core,address usdt,address benefits,address cashback,address roleResolver,address ranks,address pools,address binary,address yield,address adminModule,address configModule) modules,tuple(bool cashbackCoreOk,bool cashbackBenefitsOk,bool cashbackResolverOk,bool coreRanksOk,bool corePoolsOk,bool coreBinaryOk,bool ranksCoreOk,bool ranksBenefitsOk,bool ranksYieldCallerOk,bool ranksBinaryCallerOk,bool poolsCoreOk,bool binaryCoreOk,bool binaryRanksOk,bool binaryVolumeCallerOk,bool yieldCoreOk,bool yieldRanksOk,bool yieldBinaryOk,bool adminCoreOk,bool configCoreOk,bool configRegistryOk,bool configPoolsOk,bool configResolverOk) wiring,tuple(address owner,address guardian,address inscriptionWallet,bool paused,bool monthlyEnabled,bool requireActiveForEarnings,uint256 monthlyFee,uint256 inscriptionFee,uint8 maxPackageId,uint256 totalUsers,uint256 currentMonthIndex,uint256 reservedUSDT,uint256 freeUSDT,uint256 pendingRanksAmount,uint256 pendingLeadershipAmount,uint256 pendingTopTenAmount,bool ranksDispatchEnabled,bool leadershipDispatchEnabled,bool topTenDispatchEnabled,uint256 bucketBroker,uint256 bucketAcademy,uint256 bucketLogros,uint256 bucketFee,uint256 usdtBalance) core,tuple(address owner,address core,address benefitsRegistry,address roleResolver,uint16 maxSpendBPDefault,uint16 cashbackMultiplierBP,uint256 suspensionExpiry,uint256 ttlCore,uint256 usdtBalance) cashback,tuple(address owner,address core,address coreCaller,address yieldCaller,address binaryCaller,address benefitsRegistry,bool paused,uint16 rankMultiplierBP,uint16 binaryMultiplierBP,uint16 emergencyReductionBP,uint16 reserveBufferBP,uint16 minReservePoolBP,uint16 pointsDecayBPPerWeek,uint8 eligibilityWeeks,uint16 releaseFactorBP,uint256 totalAccrued,uint256 totalReserved,uint256 totalPaid,uint256 totalRanksAccrued,uint256 totalRanksReserved,uint256 totalRanksPaid,uint256 totalBinaryAccrued,uint256 totalBinaryReserved,uint256 totalBinaryPaid,uint256 requiredReserve,uint256 surplus,uint256 availableForNewReserve,uint256 usdtBalance) ranks,tuple(address owner,address core,address coreCaller,bool paused,uint256 rescueDelay,uint16 emergencyReductionBP,uint16 leadershipAdvancedBP,uint8 topTenCount,uint256 topTenMinPoints,uint8 advancedPackageId,uint8 elitePackageId,uint256 totalLeadershipAccrued,uint256 totalLeadershipPaid,uint256 totalTopTenAccrued,uint256 totalTopTenPaid,uint256 usdtBalance) pools,tuple(address owner,address guardian,address core,address ranks,address volumeCaller,uint16 binaryBP,uint32 hotPropagationLimit,uint256 nextDepositId) binary,tuple(bool configured,address owner,address guardian,address core,address ranks,address binary,address ownersWallet,address broker2Wallet,uint256 buyFee,uint256 maxClaimPerTx,uint16 minDailyRateBP,uint16 maxDailyRateBP,uint256 totalActivePrincipal,uint256 nextPositionId,uint256 yieldPoolBalance,uint256 minYieldBuy,uint8 voucherMinDirects,uint16 todayRateBP,uint256 usdtBalance) yield,tuple(uint256 monthIndex,uint256 monthStartAt,uint256 monthEndAt,uint256 leadershipAccrued,uint256 topTenAccrued,bool leadershipClosed,bool topTenClosed,uint256 leadershipPoolTotal,uint256 leadershipPoolAdvanced,uint256 leadershipPoolElite,uint256 leadershipTotalPtsAdvanced,uint256 leadershipTotalPtsElite,uint256 topTenPoolClosed,uint256 topTenTotalPts,address[10] topTenLeaders,uint256[10] topTenLeaderPts) month))"
+];
 const RANKS_ABI = [
   "function pendingTotal(address) view returns (uint256)",
   "function userRank(address) view returns (uint8)",
@@ -1422,29 +1312,11 @@ const ROLE_RESOLVER_ABI = [
   "function cashbackMultiplierBP(uint256) view returns (uint16)"
 ];
 
-const ADMIN_ABI = [
-  "function rescueDelay() view returns (uint256)",
-  "function guardianRescueMaxPerTx() view returns (uint256)",
-  "function guardianRescueDailyMax() view returns (uint256)",
-  "function guardianRescueDay() view returns (uint256)",
-  "function guardianRescuedToday() view returns (uint256)",
-  "function guardianRescueUSDT(address to, uint256 amount) external",
-  "function setGuardianRescueLimits(uint256 maxPerTx, uint256 dailyMax) external",
-  "function setRescueDelay(uint256 newDelay) external",
-  "function proposeRescue(address token, address to, uint256 amount) external returns (bytes32)",
-  "function proposeRescueUSDT(address to, uint256 amount) external returns (bytes32)",
-  "function cancelRescue(bytes32 id) external",
-  "function executeRescue(bytes32 id) external",
-  "function batchWithdrawFromBucket(uint8 bucket, address[] to, uint256[] amounts) external",
-  "event RescueProposed(bytes32 indexed id, address indexed token, address indexed to, uint256 amount, uint256 executeAfter)"
-];
-
-
 
 
 // State
 let contracts = {
-  core: null, lens: null, ranks: null,
+  core: null, userLens: null, adminLens: null, ranks: null,
   pools: null, cashback: null, binary: null,
   yield: null, roleResolver: null,
   mktRegistry: null, mktCatalog: null, mktCheckout: null,
@@ -1455,7 +1327,6 @@ let provider = null;
 let signer = null;
 let walletAddress = null;
 let currentUser = null;
-let authState = { owner:null, guardian:null, isOwner:false, isGuardian:false, isAdmin:false };
 
 const PACKAGE_NAMES = {1:'Trader', 2:'Network Builder', 3:'Network Leader', 4:'Ecosystem Partner'};
 const LEG_NAMES = {0:'No definida', 1:'Izquierda', 2:'Derecha'};
@@ -1520,14 +1391,13 @@ function toast(msg, type='info') {
 
 function switchTab(name) {
   document.querySelectorAll('.nav-tab').forEach((b,i) => {
-    const names = ['overview','earnings','cashback','ranks','network','yield','marketplace','contracts','admin'];
+    const names = ['overview','earnings','cashback','ranks','network','yield','marketplace','contracts'];
     b.classList.toggle('active', names[i] === name);
   });
   document.querySelectorAll('.tab-pane').forEach(pane => {
     pane.classList.toggle('active', pane.id === 'tab-'+name);
   });
   if (name === 'contracts' && contracts.core) { updateContractsTab(); loadCoreStatus(); }
-  if (name === 'admin' && authState.isAdmin) { loadAdminDashboard(); }
   if (name === 'marketplace' && (contracts.mktCatalog || contracts.mktRegistry)) loadMarketplace().catch(() => {});
   if (name === 'ranks') loadRanksTab(currentUser || null);
   if (name === 'network' && currentUser && currentNetTab === 'binary') loadBinaryTree(currentUser);
@@ -1562,7 +1432,7 @@ function toggleOptional() {
   btn.querySelector('span:last-child') || null;
 }
 
-let _selectedNetworkKey = 'testnet'; // tracks setup card selection
+let _selectedNetworkKey = 'mainnet'; // tracks setup card selection
 
 function updateNavBadge() {
   if (!activeNetwork) return;
@@ -1597,7 +1467,7 @@ async function launchDapp() {
 
   // ── 2. Show app immediately
   document.getElementById('setup-overlay').classList.add('hidden');
-  setDashboardAccess(!!walletAddress);
+  document.getElementById('app').classList.add('visible');
   document.getElementById('btn-launch').disabled = true;
   document.getElementById('btn-launch').textContent = 'Configurado';
   updateNavBadge();
@@ -1605,7 +1475,8 @@ async function launchDapp() {
   // ── 3. Save ALL addresses (never fails)
   addresses.core        = coreAddr;
   const fields = [
-    ['inp-lens',         'lens'],
+    ['inp-user-lens',    'userLens'],
+    ['inp-admin-lens',   'adminLens'],
     ['inp-ranks',        'ranks'],
     ['inp-pools',        'pools'],
     ['inp-binary',       'binary'],
@@ -1635,9 +1506,9 @@ async function launchDapp() {
 
   // ── 5. Instantiate ALL contracts immediately
   const abiMap = {
-    core: CORE_ABI, lens: LENS_ABI, ranks: RANKS_ABI, pools: POOLS_ABI,
+    core: CORE_ABI, userLens: USER_LENS_V3_ABI, adminLens: ADMIN_LENS_V3_ABI, ranks: RANKS_ABI, pools: POOLS_ABI,
     binary: BINARY_ABI, cashback: CASHBACK_ABI, yield: YIELD_ABI,
-    roleResolver: ROLE_RESOLVER_ABI, admin: ADMIN_ABI,
+    roleResolver: ROLE_RESOLVER_ABI,
     mktRegistry: MKT_REGISTRY_ABI, mktCatalog: MKT_CATALOG_ABI,
     mktCheckout: MKT_CHECKOUT_ABI, mktTreasury: MKT_TREASURY_ABI,
     mktAccess: MKT_ACCESS_ABI, mktViews: MKT_VIEWS_ABI,
@@ -1712,8 +1583,6 @@ async function launchDapp() {
     loadMarketplace().catch(() => {});
   }
 
-  await refreshAuthState();
-  if (!walletAddress) showLoginGate('Conecta tu wallet para habilitar el dashboard.');
   toast('Conectado a ' + activeNetwork.label, 'success');
 
   // Log final state
@@ -1736,7 +1605,8 @@ function openConfig() {
   if (activeNetwork) selectNetwork(activeNetwork === NETWORKS.testnet ? 'testnet' : 'mainnet');
   // Pre-fill existing
   if (addresses.core) document.getElementById('inp-core').value = addresses.core;
-  if (addresses.lens) document.getElementById('inp-lens').value = addresses.lens;
+  if (addresses.userLens) document.getElementById('inp-user-lens').value = addresses.userLens;
+  if (addresses.adminLens) document.getElementById('inp-admin-lens').value = addresses.adminLens;
   if (addresses.ranks) document.getElementById('inp-ranks').value = addresses.ranks;
   if (addresses.pools) document.getElementById('inp-pools').value = addresses.pools;
   if (addresses.binary) document.getElementById('inp-binary').value = addresses.binary;
@@ -1763,7 +1633,7 @@ function autoFillTestnet() {
   if (opt && opt.style.display !== 'block') toggleOptional();
   const t = TESTNET_ADDRESSES;
   const map = {
-    'inp-core': t.core, 'inp-lens': t.lens, 'inp-ranks': t.ranks,
+    'inp-core': t.core, 'inp-user-lens': t.userLens, 'inp-admin-lens': t.adminLens, 'inp-ranks': t.ranks,
     'inp-pools': t.pools, 'inp-binary': t.binary, 'inp-cashback': t.cashback,
     'inp-yield': t.yield, 'inp-role': t.roleResolver, 'inp-admin': t.admin,
     'inp-mkt-registry': t.mktRegistry, 'inp-mkt-catalog': t.mktCatalog,
@@ -1963,8 +1833,8 @@ async function searchUser() {
   currentUser = addr;
 
   try {
-    if (contracts.lens) {
-      await loadUserFromLens(addr);
+    if (contracts.userLens) {
+      await loadUserFromUserLens(addr);
     } else {
       await loadUserFromCore(addr);
     }
@@ -1974,14 +1844,32 @@ async function searchUser() {
   }
 }
 
-async function loadUserFromLens(addr) {
+async function loadUserFromUserLens(addr) {
   try {
-    const [dash, lotsPage, activePackageIds] = await contracts.lens.getUser(addr);
-    renderUserFromLens(addr, dash, lotsPage, activePackageIds);
+    const monthIndex = contracts.pools ? await contracts.pools.currentMonthIndex().catch(()=>0n) : 0n;
+    const yieldPositionIds = await detectUserYieldPositionIds(addr);
+    const out = await contracts.userLens.getUserFrontend(addr, monthIndex, yieldPositionIds);
+    await renderUserFromUserLens(addr, out);
   } catch(e) {
-    console.warn('Lens error, falling back to core:', e);
+    console.warn('UserLens error, falling back to core:', e);
     await loadUserFromCore(addr);
   }
+}
+
+async function detectUserYieldPositionIds(userAddr) {
+  try {
+    if (!contracts.yield) return [];
+    const nextId = await contracts.yield.nextPositionId().catch(()=>1n);
+    const total = Math.max(0, Number(nextId) - 1);
+    const ids = [];
+    const scanCount = Math.min(total, 120);
+    const startId = Math.max(1, total - scanCount + 1);
+    for (let id = startId; id <= total; id++) {
+      const p = await contracts.yield.positions(id).catch(()=>null);
+      if (p && String(p.user||'').toLowerCase() === String(userAddr).toLowerCase()) ids.push(id);
+    }
+    return ids;
+  } catch { return []; }
 }
 
 async function loadUserFromCore(addr) {
@@ -2075,56 +1963,56 @@ async function loadUserFromCore(addr) {
   if (document.getElementById('tab-network')?.classList.contains('active') && currentNetTab === 'binary') loadBinaryTree(addr).catch(()=>{});
 }
 
-async function renderUserFromLens(addr, dash, lotsPage, activePackageIds) {
-  const u = dash.user;
-  const pkg = dash.pkg;
-  const cb = dash.cashback;
-  const ranks = dash.ranks;
-  const pools = dash.pools;
-
-  renderUserCard({
-    addr,
-    exists: u.exists,
-    frozen: u.frozen,
-    upline: u.upline,
-    highestPackage: u.packageId,
-    validUntil: u.validUntil,
-    monthlyIncludedUntil: u.monthlyIncludedUntil,
-    isActive: u.isActive,
-    inactiveSecs: u.inactiveSeconds,
-    directs: 0
-  });
-
-  renderStatsFromCore({
-    highestPackage: u.packageId,
-    validUntil: u.validUntil,
-    isActive: u.isActive,
-    frozen: u.frozen
-  }, {
-    balanceUSDT: cb.balanceUSDT,
-    nextExpiryAt: cb.nextExpiryAt,
-    nextExpiryAmountUSDT: cb.nextExpiryAmountUSDT,
-    expiringSoonAmountUSDT: cb.expiringSoonAmountUSDT
-  }, 0, u.upline);
-
-  renderMembership(u.validUntil, u.monthlyIncludedUntil, u.isActive, u.frozen);
-  renderEarnings(ranks, pools, {balanceUSDT: cb.balanceUSDT});
-  renderCashback({
-    balanceUSDT: cb.balanceUSDT,
-    nextExpiryAt: cb.nextExpiryAt,
-    nextExpiryAmountUSDT: cb.nextExpiryAmountUSDT,
-    expiringSoonAmountUSDT: cb.expiringSoonAmountUSDT
-  }, lotsPage);
+async function renderUserFromUserLens(addr, out) {
+  const u = out.coreUser;
+  const cb = out.cashback;
+  const ranks = { pendingUserUSDT: out.ranks.pendingTotal || 0n, poolAvailableUSDT: 0n };
+  const pools = {
+    monthIndex: out.pools.monthIndex || 0n,
+    monthStartAt: out.pools.monthStartAt || 0n,
+    monthEndAt: out.pools.monthEndAt || 0n,
+    leadershipClaimableUSDT: out.pools.leadershipClaimable || 0n,
+    topTenClaimableUSDT: out.pools.topTenClaimable || 0n,
+    leadershipClosed: out.pools.leadershipMonthClosed || false,
+    topTenClosed: out.pools.topTenMonthClosed || false,
+    leadershipPoolTotalUSDT: 0n,
+    topTenPoolTotalUSDT: 0n,
+    userTopTenPosition: out.pools.topTenPosition || 0
+  };
+  renderUserCard({ addr, exists:u.exists, frozen:u.frozen, upline:u.upline, highestPackage:u.packageId, validUntil:u.validUntil, monthlyIncludedUntil:u.monthlyIncludedUntil, isActive:u.activeNow, inactiveSecs:0n, directs:Number(u.directCount||0n) });
+  renderStatsFromCore({ highestPackage:u.packageId, validUntil:u.validUntil, isActive:u.activeNow, frozen:u.frozen }, { balanceUSDT:cb.balance||0n, nextExpiryAt:cb.nextExpiryAt||0n, nextExpiryAmountUSDT:cb.nextExpiryAmount||0n, expiringSoonAmountUSDT:cb.expiringIn30d||0n }, Number(u.directCount||0n), u.upline);
+  renderMembership(u.validUntil, u.monthlyIncludedUntil, u.activeNow, u.frozen);
+  renderEarnings(ranks, pools, { balanceUSDT: cb.balance || 0n });
+  renderCashback({ balanceUSDT:cb.balance||0n, nextExpiryAt:cb.nextExpiryAt||0n, nextExpiryAmountUSDT:cb.nextExpiryAmount||0n, expiringSoonAmountUSDT:cb.expiringIn30d||0n }, null);
   renderPools(pools);
-
-  document.getElementById('pool-leadership-total').textContent = fmt18(pools.leadershipPoolTotalUSDT) + ' USDT';
-  document.getElementById('pool-topten-total').textContent = fmt18(pools.topTenPoolTotalUSDT) + ' USDT';
-
-  if (activePackageIds && activePackageIds.length > 0) {
-    loadPackages(activePackageIds, u.packageId);
-  }
-  // Load yield
+  document.getElementById('stat-rank').textContent = out.ranks.currentRank > 0 ? 'Rango ' + out.ranks.currentRank : 'Sin rango';
+  document.getElementById('pool-leadership-total').textContent = '—';
+  document.getElementById('pool-topten-total').textContent = '—';
+  await loadPackages(null, u.packageId);
   await loadYieldData(addr);
+  await loadRanksTabFromUserLens(out);
+  try { renderBinary(out.binary.leftBV || 0n, out.binary.rightBV || 0n, out.coreUser.chosenLeg || 0); } catch {}
+  await loadDirects(addr, Number(u.directCount || 0n));
+}
+
+async function loadRanksTabFromUserLens(out) {
+  try {
+    const rankVal = document.getElementById('rank-current');
+    const nextLabel = document.getElementById('rank-next-label');
+    const ptsEl = document.getElementById('rank-personal-pts');
+    const volEl = document.getElementById('rank-personal-vol');
+    const pendingEl = document.getElementById('rank-pending-total');
+    if (rankVal) rankVal.textContent = out.ranks.currentRank > 0 ? 'Rango ' + out.ranks.currentRank : 'Sin rango';
+    if (nextLabel) nextLabel.textContent = 'Cap bloqueado: ' + Number(out.ranks.lockedRankCap || 0);
+    if (ptsEl) ptsEl.textContent = Number(out.ranks.totalPoints || 0n).toLocaleString('es-CO');
+    if (volEl) volEl.textContent = fmt18(out.ranks.personalVolume || 0n) + ' USDT';
+    if (pendingEl) pendingEl.textContent = fmt18(out.ranks.pendingTotal || 0n) + ' USDT';
+    const wrap = document.getElementById('ranks-progression');
+    if (wrap) {
+      const rewards = Array.from(out.ranks.pendingRankRewards || []);
+      wrap.innerHTML = Array.from({length:10}, (_,i)=>`<div class="claim-row"><div><div class="claim-name">Rango ${i+1}</div><div class="claim-sub">Premio pendiente</div></div><div class="claim-amount">${fmt18(rewards[i]||0n)} USDT</div></div>`).join('');
+    }
+  } catch(e) { console.warn('loadRanksTabFromUserLens', e); }
 }
 
 // ─── RENDER FUNCTIONS ───
@@ -2613,15 +2501,24 @@ async function loadPackages(activeIds, userPkg) {
   if (!contracts.core) return;
 
   try {
-    const maxId = activeIds ? Math.max(...activeIds.map(Number)) : Number(await contracts.core.maxPackageId());
     const pkgDefs = [];
-
-    for (let i = 1; i <= maxId; i++) {
-      if (activeIds && !activeIds.map(Number).includes(i)) continue;
-      try {
-        const [price, brokerFee, includedMonths, enabled, exists] = await contracts.core.packages(i);
-        if (exists) pkgDefs.push({id:i, price, brokerFee, includedMonths, enabled});
-      } catch {}
+    if (contracts.userLens) {
+      const all = await contracts.userLens.getPackages().catch(()=>[]);
+      for (const p of all) {
+        const id = Number(p.packageId || 0);
+        if (!id) continue;
+        if (activeIds && !activeIds.map(Number).includes(id)) continue;
+        if (p.exists) pkgDefs.push({id, price:p.price, brokerFee:p.brokerFee, includedMonths:p.includedMonths, enabled:p.enabled});
+      }
+    } else {
+      const maxId = activeIds ? Math.max(...activeIds.map(Number)) : Number(await contracts.core.maxPackageId());
+      for (let i = 1; i <= maxId; i++) {
+        if (activeIds && !activeIds.map(Number).includes(i)) continue;
+        try {
+          const [price, brokerFee, includedMonths, enabled, exists] = await contracts.core.packages(i);
+          if (exists) pkgDefs.push({id:i, price, brokerFee, includedMonths, enabled});
+        } catch {}
+      }
     }
 
     if (pkgDefs.length === 0) {
@@ -2672,7 +2569,8 @@ function updateContractsTab() {
   }
   const items = [
     {name: 'Core (MultiPackageWithRanksV3)', key: 'core'},
-    {name: 'DashboardLens', key: 'lens'},
+    {name: 'AtlashUserLensV3', key: 'userLens'},
+    {name: 'AtlashAdminLensV3', key: 'adminLens'},
     {name: 'RanksModule', key: 'ranks'},
     {name: 'PoolsModule', key: 'pools'},
     {name: 'BinaryModule', key: 'binary'},
@@ -3277,288 +3175,101 @@ function checkProtocol() {
   document.body.appendChild(b);
 }
 
-
-function showLoginGate(message) {
-  const gate = document.getElementById('login-gate');
-  if (gate) gate.classList.add('show');
-  const line = document.getElementById('login-status-line');
-  if (line && message) line.textContent = message;
-}
-function hideLoginGate() {
-  const gate = document.getElementById('login-gate');
-  if (gate) gate.classList.remove('show');
-}
-function updateAdminVisibility() {
-  const tab = document.getElementById('nav-tab-admin');
-  if (tab) tab.style.display = authState.isAdmin ? '' : 'none';
-  const badges = document.getElementById('login-role-badges');
-  if (badges) {
-    const arr = [];
-    if (walletAddress) arr.push(`<span class="badge badge-green">Wallet conectada</span>`);
-    if (authState.isOwner) arr.push(`<span class="badge badge-gold">Owner</span>`);
-    if (authState.isGuardian) arr.push(`<span class="badge badge-blue">Guardian</span>`);
-    if (!authState.isAdmin && walletAddress) arr.push(`<span class="badge badge-gray">Acceso usuario</span>`);
-    badges.innerHTML = arr.join('');
-  }
-}
-async function refreshAuthState() {
-  authState = { owner:null, guardian:null, isOwner:false, isGuardian:false, isAdmin:false };
-  if (!contracts.core) return;
-  try {
-    const [owner, guardian] = await Promise.all([
-      contracts.core.owner().catch(()=>null),
-      contracts.core.guardian().catch(()=>null)
-    ]);
-    authState.owner = owner;
-    authState.guardian = guardian;
-    if (walletAddress) {
-      authState.isOwner = !!owner && owner.toLowerCase() === walletAddress.toLowerCase();
-      authState.isGuardian = !!guardian && guardian.toLowerCase() === walletAddress.toLowerCase();
-      authState.isAdmin = authState.isOwner || authState.isGuardian;
-    }
-  } catch {}
-  updateAdminVisibility();
-  const line = document.getElementById('login-status-line');
-  if (line) {
-    if (!walletAddress) line.textContent = 'Conecta tu wallet para habilitar el dashboard.';
-    else if (authState.isOwner) line.textContent = 'Wallet validada como owner. Se habilitó el dashboard administrativo.';
-    else if (authState.isGuardian) line.textContent = 'Wallet validada como guardian. Se habilitó el dashboard administrativo.';
-    else line.textContent = 'Wallet conectada. Ya puedes usar el dashboard.';
-  }
-}
-function setDashboardAccess(enabled) {
-  const app = document.getElementById('app');
-  if (app) app.classList.add('visible');
-  if (enabled) hideLoginGate();
-  else showLoginGate();
-}
-
 // ─── WALLET CONNECTION - Supports MetaMask AND injected wallets (Trust, etc.) ───
-async function ensureWalletOnActiveNetwork() {
-  if (!window.ethereum) throw new Error('Wallet no detectada');
-  if (!activeNetwork) throw new Error('Red no inicializada');
-
-  let chainHex = await window.ethereum.request({ method: 'eth_chainId' });
-  let chainId = parseInt(chainHex, 16);
-  if (chainId === activeNetwork.chainId) return;
-
-  try {
-    await window.ethereum.request({
-      method: 'wallet_switchEthereumChain',
-      params: [{ chainId: activeNetwork.chainIdHex }]
-    });
-  } catch (switchErr) {
-    if (switchErr?.code === 4902 || String(switchErr?.message || '').toLowerCase().includes('unrecognized chain')) {
-      await window.ethereum.request({
-        method: 'wallet_addEthereumChain',
-        params: [{
-          chainId: activeNetwork.chainIdHex,
-          chainName: activeNetwork.label,
-          nativeCurrency: activeNetwork.nativeCurrency,
-          rpcUrls: [activeNetwork.rpc],
-          blockExplorerUrls: [activeNetwork.explorer]
-        }]
-      });
-    } else {
-      throw switchErr;
-    }
-  }
-
-  chainHex = await window.ethereum.request({ method: 'eth_chainId' });
-  chainId = parseInt(chainHex, 16);
-  if (chainId !== activeNetwork.chainId) {
-    throw new Error('No fue posible cambiar la red a ' + activeNetwork.label);
-  }
-}
-
 async function toggleWallet() {
-  const lbl = document.getElementById('wallet-label');
-  const btn = document.getElementById('wallet-btn');
-  const loginBtn = document.getElementById('login-connect-btn');
-
+  // Disconnect
   if (walletAddress) {
     walletAddress = null;
     signer = null;
-    authState = { owner:null, guardian:null, isOwner:false, isGuardian:false, isAdmin:false };
-    if (lbl) lbl.textContent = 'Conectar wallet';
-    if (loginBtn) loginBtn.textContent = 'Conectar wallet';
-    if (btn) {
-      btn.classList.remove('connected');
-      btn.disabled = false;
-    }
-    updateAdminVisibility();
-    showLoginGate('Wallet desconectada. Conecta nuevamente para habilitar el dashboard.');
+    document.getElementById('wallet-label').textContent = 'Conectar wallet';
+    document.getElementById('wallet-btn').classList.remove('connected');
+    document.getElementById('wallet-btn').disabled = false;
     toast('Wallet desconectada', 'info');
     return;
   }
 
   if (window.location.protocol === 'file:') { showWalletHelp(); return; }
   if (!window.ethereum) { showWalletHelp(); return; }
-  if (!activeNetwork || !contracts.core) {
-    toast('El dashboard aún se está inicializando. Intenta de nuevo en unos segundos.', 'error');
-    return;
-  }
+  if (!activeNetwork) { toast('Lanza el dashboard primero', 'error'); return; }
 
-  if (lbl) lbl.textContent = 'Conectando...';
-  if (loginBtn) loginBtn.textContent = 'Conectando...';
-  if (btn) btn.disabled = true;
+  const lbl = document.getElementById('wallet-label');
+  const btn = document.getElementById('wallet-btn');
+
+  lbl.textContent = 'Conectando...';
+  btn.disabled = true;
 
   try {
+    // Step 1: request accounts (opens wallet popup)
     const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
     if (!accounts || !accounts[0]) throw new Error('Sin cuentas');
 
-    await ensureWalletOnActiveNetwork();
+    // Step 2: check chain
+    const chainHex = await window.ethereum.request({ method: 'eth_chainId' });
+    const chainId  = parseInt(chainHex, 16);
+    const target   = activeNetwork.chainId;
 
+    if (chainId !== target) {
+      // Try to switch - but DON'T await forever, use timeout
+      toast(`Red incorrecta (${chainId}). Cambia a ${activeNetwork.label} (${target}) en tu wallet.`, 'error');
+      
+      // Try silently
+      window.ethereum.request({
+        method: 'wallet_switchEthereumChain',
+        params: [{ chainId: activeNetwork.chainIdHex }]
+      }).catch(() => {
+        window.ethereum.request({
+          method: 'wallet_addEthereumChain',
+          params: [{
+            chainId: activeNetwork.chainIdHex,
+            chainName: activeNetwork.label,
+            nativeCurrency: activeNetwork.nativeCurrency,
+            rpcUrls: [activeNetwork.rpc],
+            blockExplorerUrls: [activeNetwork.explorer]
+          }]
+        }).catch(() => {});
+      });
+
+      lbl.textContent = 'Conectar wallet';
+      btn.disabled = false;
+      return;
+    }
+
+    // Step 3: build signer
     const ethProv = new ethers.BrowserProvider(window.ethereum);
     signer = await ethProv.getSigner();
     walletAddress = await signer.getAddress();
 
-    if (lbl) lbl.textContent = shortAddr(walletAddress);
-    if (loginBtn) loginBtn.textContent = 'Wallet conectada';
-    if (btn) {
-      btn.disabled = false;
-      btn.classList.add('connected');
-    }
-
-    await refreshAuthState();
-    setDashboardAccess(true);
+    lbl.textContent = shortAddr(walletAddress);
+    btn.disabled = false;
+    btn.classList.add('connected');
     toast(`Conectado · ${activeNetwork.label}`, 'success');
     updateBuyYieldBtn();
     loadSellerBalance().catch(() => {});
-    const search = document.getElementById('search-addr');
-    if (search) search.value = walletAddress;
+    document.getElementById('search-addr').value = walletAddress;
     searchUser();
-    if (authState.isAdmin) loadAdminDashboard().catch(()=>{});
+
   } catch (e) {
-    console.error('toggleWallet error', e);
     const msg = e?.message || '';
     if (msg.includes('rejected') || msg.includes('denied') || e?.code === 4001) {
       toast('Conexion rechazada por el usuario', 'error');
     } else {
-      toast('Error al conectar: ' + msg.slice(0, 120), 'error');
+      toast('Error al conectar: ' + msg.slice(0, 60), 'error');
     }
-    if (lbl) lbl.textContent = 'Conectar wallet';
-    if (loginBtn) loginBtn.textContent = 'Conectar wallet';
-    if (btn) btn.disabled = false;
+    lbl.textContent = 'Conectar wallet';
+    btn.disabled = false;
   }
 }
 
 
-async function loadAdminDashboard() {
-  if (!authState.isAdmin || !contracts.admin || !contracts.core) return;
+async function loadAdminLensOverview() {
+  if (!contracts.adminLens || !walletAddress) return null;
   try {
-    const [owner, guardian, delay, maxTx, dailyMax, dayIdx, used] = await Promise.all([
-      contracts.core.owner().catch(()=>null),
-      contracts.core.guardian().catch(()=>null),
-      contracts.admin.rescueDelay().catch(()=>0n),
-      contracts.admin.guardianRescueMaxPerTx().catch(()=>0n),
-      contracts.admin.guardianRescueDailyMax().catch(()=>0n),
-      contracts.admin.guardianRescueDay().catch(()=>0n),
-      contracts.admin.guardianRescuedToday().catch(()=>0n),
-    ]);
-    const roleEl = document.getElementById('admin-role');
-    const roleSub = document.getElementById('admin-role-sub');
-    if (roleEl) roleEl.textContent = authState.isOwner ? 'Owner' : (authState.isGuardian ? 'Guardian' : 'Usuario');
-    if (roleSub) roleSub.textContent = `Owner: ${shortAddr(owner)} · Guardian: ${shortAddr(guardian)}`;
-    document.getElementById('admin-rescue-delay').textContent = `${Math.round(Number(delay)/3600)} h`;
-    document.getElementById('admin-guardian-max-tx').textContent = fmt18(maxTx) + ' USDT';
-    document.getElementById('admin-guardian-max-day').textContent = fmt18(dailyMax) + ' USDT';
-    document.getElementById('admin-guardian-day-used').textContent = `Día ${Number(dayIdx)} · usado ${fmt18(used)} USDT`;
-    toggleAdminButtons();
-  } catch (e) { toast('No se pudo cargar el panel admin: ' + (e.message||e), 'error'); }
-}
-function toggleAdminButtons() {
-  const ownerOnly = ['btn-admin-set-limits','btn-admin-set-delay','btn-admin-propose-usdt','btn-admin-propose-token','btn-admin-execute','btn-admin-cancel','btn-admin-batch-bucket'];
-  const guardianOnly = ['btn-admin-guardian-rescue'];
-  ownerOnly.forEach(id => { const el=document.getElementById(id); if(el) el.disabled = !authState.isOwner; });
-  guardianOnly.forEach(id => { const el=document.getElementById(id); if(el) el.disabled = !authState.isGuardian; });
-}
-function parseUsdtInput(id) {
-  const v = (document.getElementById(id)?.value || '').trim();
-  if (!v) throw new Error('Monto requerido');
-  return ethers.parseUnits(v, 18);
-}
-async function adminGuardianRescueUSDT() {
-  if (!authState.isGuardian || !contracts.admin || !signer) return toast('Solo guardian', 'error');
-  try {
-    const to = document.getElementById('admin-guardian-to').value.trim();
-    if (!isValidAddr(to)) throw new Error('Destino inválido');
-    const amount = parseUsdtInput('admin-guardian-amount');
-    const tx = await contracts.admin.connect(signer).guardianRescueUSDT(to, amount); await tx.wait();
-    toast('Guardian rescue ejecutado', 'success'); loadAdminDashboard();
-  } catch(e) { toast('Error: ' + (e.shortMessage || e.message || e), 'error'); }
-}
-async function adminSetGuardianLimits() {
-  if (!authState.isOwner || !contracts.admin || !signer) return toast('Solo owner', 'error');
-  try {
-    const perTx = parseUsdtInput('admin-limit-per-tx'); const daily = parseUsdtInput('admin-limit-daily');
-    const tx = await contracts.admin.connect(signer).setGuardianRescueLimits(perTx, daily); await tx.wait();
-    toast('Límites actualizados', 'success'); loadAdminDashboard();
-  } catch(e) { toast('Error: ' + (e.shortMessage || e.message || e), 'error'); }
-}
-async function adminSetRescueDelay() {
-  if (!authState.isOwner || !contracts.admin || !signer) return toast('Solo owner', 'error');
-  try {
-    const hours = Number((document.getElementById('admin-delay-hours').value || '').trim());
-    if (!hours || hours < 0) throw new Error('Horas inválidas');
-    const tx = await contracts.admin.connect(signer).setRescueDelay(BigInt(Math.round(hours*3600))); await tx.wait();
-    toast('Rescue delay actualizado', 'success'); loadAdminDashboard();
-  } catch(e) { toast('Error: ' + (e.shortMessage || e.message || e), 'error'); }
-}
-async function adminProposeRescueUSDT() {
-  if (!authState.isOwner || !contracts.admin || !signer) return toast('Solo owner', 'error');
-  try {
-    const to = document.getElementById('admin-propose-usdt-to').value.trim(); if (!isValidAddr(to)) throw new Error('Destino inválido');
-    const amount = parseUsdtInput('admin-propose-usdt-amount');
-    const tx = await contracts.admin.connect(signer).proposeRescueUSDT(to, amount); const rc = await tx.wait();
-    toast('Propuesta USDT creada', 'success');
-    const ev = rc.logs?.find(l => l.fragment?.name === 'RescueProposed');
-    if (ev) document.getElementById('admin-proposal-id').value = ev.args.id;
-  } catch(e) { toast('Error: ' + (e.shortMessage || e.message || e), 'error'); }
-}
-async function adminProposeRescueToken() {
-  if (!authState.isOwner || !contracts.admin || !signer) return toast('Solo owner', 'error');
-  try {
-    const token = document.getElementById('admin-propose-token').value.trim();
-    const to = document.getElementById('admin-propose-token-to').value.trim();
-    if (!isValidAddr(token) || !isValidAddr(to)) throw new Error('Direcciones inválidas');
-    const amount = parseUsdtInput('admin-propose-token-amount');
-    const tx = await contracts.admin.connect(signer).proposeRescue(token, to, amount); const rc = await tx.wait();
-    toast('Propuesta token creada', 'success');
-    const ev = rc.logs?.find(l => l.fragment?.name === 'RescueProposed');
-    if (ev) document.getElementById('admin-proposal-id').value = ev.args.id;
-  } catch(e) { toast('Error: ' + (e.shortMessage || e.message || e), 'error'); }
-}
-async function adminExecuteRescue() {
-  if (!authState.isOwner || !contracts.admin || !signer) return toast('Solo owner', 'error');
-  try {
-    const id = document.getElementById('admin-proposal-id').value.trim();
-    if (!/^0x[0-9a-fA-F]{64}$/.test(id)) throw new Error('Proposal ID inválido');
-    const tx = await contracts.admin.connect(signer).executeRescue(id); await tx.wait();
-    toast('Rescue ejecutado', 'success');
-  } catch(e) { toast('Error: ' + (e.shortMessage || e.message || e), 'error'); }
-}
-async function adminCancelRescue() {
-  if (!authState.isOwner || !contracts.admin || !signer) return toast('Solo owner', 'error');
-  try {
-    const id = document.getElementById('admin-proposal-id').value.trim();
-    if (!/^0x[0-9a-fA-F]{64}$/.test(id)) throw new Error('Proposal ID inválido');
-    const tx = await contracts.admin.connect(signer).cancelRescue(id); await tx.wait();
-    toast('Rescue cancelado', 'success');
-  } catch(e) { toast('Error: ' + (e.shortMessage || e.message || e), 'error'); }
-}
-async function adminBatchWithdrawBucket() {
-  if (!authState.isOwner || !contracts.admin || !signer) return toast('Solo owner', 'error');
-  try {
-    const bucket = Number((document.getElementById('admin-bucket-id').value || '').trim());
-    const tos = (document.getElementById('admin-bucket-addresses').value || '').split(/\n+/).map(s=>s.trim()).filter(Boolean);
-    const amts = (document.getElementById('admin-bucket-amounts').value || '').split(/\n+/).map(s=>s.trim()).filter(Boolean);
-    if (!tos.length || tos.length !== amts.length) throw new Error('Direcciones y montos deben tener la misma cantidad');
-    tos.forEach(a => { if (!isValidAddr(a)) throw new Error('Dirección inválida en batch'); });
-    const parsed = amts.map(v => ethers.parseUnits(v, 18));
-    const tx = await contracts.admin.connect(signer).batchWithdrawFromBucket(bucket, tos, parsed); await tx.wait();
-    toast('Batch ejecutado', 'success');
-  } catch(e) { toast('Error: ' + (e.shortMessage || e.message || e), 'error'); }
+    const [owner, guardian] = await Promise.all([contracts.core.owner().catch(()=>null), contracts.core.guardian().catch(()=>null)]);
+    const mine = String(walletAddress).toLowerCase();
+    if (owner && String(owner).toLowerCase() !== mine && guardian && String(guardian).toLowerCase() !== mine) return null;
+    const monthIndex = contracts.core.currentMonthIndex ? await contracts.core.currentMonthIndex().catch(()=>0n) : 0n;
+    return await contracts.adminLens.getAdminOverview(monthIndex);
+  } catch(e) { console.warn('admin lens overview', e); return null; }
 }
 
 // ═══════════════════════════════════════════
@@ -4653,122 +4364,6 @@ async function loadBinaryTree(addr) {
 
 
 // buyYield override integrated below
-
-
-async function bootstrapLoginMode() {
-  try {
-    // Cargar contratos enseguida sin depender del botón de setup
-    activeNetwork = NETWORKS.testnet;
-    _selectedNetworkKey = 'testnet';
-    selectNetwork('testnet');
-    updateNavBadge();
-
-    // Rellenar inputs y direcciones por defecto
-    const map = {
-      'inp-core': TESTNET_ADDRESSES.core,
-      'inp-ranks': TESTNET_ADDRESSES.ranks,
-      'inp-pools': TESTNET_ADDRESSES.pools,
-      'inp-binary': TESTNET_ADDRESSES.binary,
-      'inp-cashback': TESTNET_ADDRESSES.cashback,
-      'inp-yield': TESTNET_ADDRESSES.yield,
-      'inp-role': TESTNET_ADDRESSES.roleResolver,
-      'inp-admin': TESTNET_ADDRESSES.admin,
-      'inp-mkt-registry': TESTNET_ADDRESSES.mktRegistry,
-      'inp-mkt-catalog': TESTNET_ADDRESSES.mktCatalog,
-      'inp-mkt-checkout': TESTNET_ADDRESSES.mktCheckout,
-      'inp-mkt-treasury': TESTNET_ADDRESSES.mktTreasury,
-      'inp-mkt-access': TESTNET_ADDRESSES.mktAccess,
-      'inp-mkt-views': TESTNET_ADDRESSES.mktViews,
-    };
-    Object.entries(map).forEach(([id,val]) => {
-      const el = document.getElementById(id);
-      if (el && val) el.value = val;
-    });
-
-    addresses = {
-      core: TESTNET_ADDRESSES.core,
-      ranks: TESTNET_ADDRESSES.ranks,
-      pools: TESTNET_ADDRESSES.pools,
-      binary: TESTNET_ADDRESSES.binary,
-      cashback: TESTNET_ADDRESSES.cashback,
-      yield: TESTNET_ADDRESSES.yield,
-      roleResolver: TESTNET_ADDRESSES.roleResolver,
-      admin: TESTNET_ADDRESSES.admin,
-      registry: TESTNET_ADDRESSES.registry,
-      mktRegistry: TESTNET_ADDRESSES.mktRegistry,
-      mktCatalog: TESTNET_ADDRESSES.mktCatalog,
-      mktCheckout: TESTNET_ADDRESSES.mktCheckout,
-      mktTreasury: TESTNET_ADDRESSES.mktTreasury,
-      mktAccess: TESTNET_ADDRESSES.mktAccess,
-      mktViews: TESTNET_ADDRESSES.mktViews,
-    };
-
-    provider = await createProvider(activeNetwork);
-    contracts.core = new ethers.Contract(addresses.core, CORE_ABI, provider);
-    if (addresses.ranks) contracts.ranks = new ethers.Contract(addresses.ranks, RANKS_ABI, provider);
-    if (addresses.pools) contracts.pools = new ethers.Contract(addresses.pools, POOLS_ABI, provider);
-    if (addresses.binary) contracts.binary = new ethers.Contract(addresses.binary, BINARY_ABI, provider);
-    if (addresses.cashback) contracts.cashback = new ethers.Contract(addresses.cashback, CASHBACK_ABI, provider);
-    if (addresses.yield) contracts.yield = new ethers.Contract(addresses.yield, YIELD_ABI, provider);
-    if (addresses.roleResolver) contracts.roleResolver = new ethers.Contract(addresses.roleResolver, ROLE_RESOLVER_ABI, provider);
-    if (addresses.admin) contracts.admin = new ethers.Contract(addresses.admin, ADMIN_ABI, provider);
-    if (addresses.mktRegistry) contracts.mktRegistry = new ethers.Contract(addresses.mktRegistry, MKT_REGISTRY_ABI, provider);
-    if (addresses.mktCatalog) contracts.mktCatalog = new ethers.Contract(addresses.mktCatalog, MKT_CATALOG_ABI, provider);
-    if (addresses.mktCheckout) contracts.mktCheckout = new ethers.Contract(addresses.mktCheckout, MKT_CHECKOUT_ABI, provider);
-    if (addresses.mktTreasury) contracts.mktTreasury = new ethers.Contract(addresses.mktTreasury, MKT_TREASURY_ABI, provider);
-    if (addresses.mktAccess) contracts.mktAccess = new ethers.Contract(addresses.mktAccess, MKT_ACCESS_ABI, provider);
-    if (addresses.mktViews) contracts.mktViews = new ethers.Contract(addresses.mktViews, MKT_VIEWS_ABI, provider);
-
-    sessionStorage.setItem('atlash_addrs', JSON.stringify(addresses));
-    document.getElementById('setup-overlay')?.classList.add('hidden');
-    document.getElementById('app')?.classList.add('visible');
-    updateContractsTab();
-    loadCoreStatus();
-    loadPackages();
-    loadYieldPackages();
-    loadMarketplace().catch(()=>{});
-    setDashboardAccess(false);
-    showLoginGate('Conecta tu wallet para habilitar el dashboard.');
-    updateAdminVisibility();
-  } catch (e) {
-    console.error('bootstrapLoginMode error', e);
-    const line = document.getElementById('login-status-line');
-    if (line) line.textContent = 'No se pudo inicializar el dashboard. Revisa la configuración de contratos.';
-  }
-}
-
-
-if (window.ethereum) {
-  window.ethereum.on?.('accountsChanged', async (accounts) => {
-    if (!accounts || !accounts.length) {
-      walletAddress = null;
-      signer = null;
-      authState = { owner:null, guardian:null, isOwner:false, isGuardian:false, isAdmin:false };
-      const lbl = document.getElementById('wallet-label'); if (lbl) lbl.textContent = 'Conectar wallet';
-      const loginBtn = document.getElementById('login-connect-btn'); if (loginBtn) loginBtn.textContent = 'Conectar wallet';
-      const btn = document.getElementById('wallet-btn'); if (btn) { btn.disabled = false; btn.classList.remove('connected'); }
-      updateAdminVisibility();
-      showLoginGate('Wallet desconectada. Conecta nuevamente para habilitar el dashboard.');
-      return;
-    }
-    try {
-      if (!activeNetwork || !contracts.core) return;
-      const ethProv = new ethers.BrowserProvider(window.ethereum);
-      signer = await ethProv.getSigner();
-      walletAddress = await signer.getAddress();
-      const lbl = document.getElementById('wallet-label'); if (lbl) lbl.textContent = shortAddr(walletAddress);
-      const loginBtn = document.getElementById('login-connect-btn'); if (loginBtn) loginBtn.textContent = 'Wallet conectada';
-      const btn = document.getElementById('wallet-btn'); if (btn) { btn.disabled = false; btn.classList.add('connected'); }
-      await refreshAuthState();
-      setDashboardAccess(true);
-    } catch {}
-  });
-  window.ethereum.on?.('chainChanged', () => window.location.reload());
-}
-
-document.addEventListener('DOMContentLoaded', () => {
-  bootstrapLoginMode();
-});
 
 </script>
 </html>
