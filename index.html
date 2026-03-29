@@ -4587,5 +4587,101 @@ async function loadBinaryTree(addr) {
 
 // buyYield override integrated below
 
+
+
+async function bootstrapLoginMode() {
+  try {
+    activeNetwork = NETWORKS.testnet;
+    updateNavBadge();
+    addresses = {
+      core: TESTNET_ADDRESSES.core,
+      userLens: TESTNET_ADDRESSES.userLens,
+      adminLens: TESTNET_ADDRESSES.adminLens,
+      ranks: TESTNET_ADDRESSES.ranks,
+      pools: TESTNET_ADDRESSES.pools,
+      binary: TESTNET_ADDRESSES.binary,
+      cashback: TESTNET_ADDRESSES.cashback,
+      yield: TESTNET_ADDRESSES.yield,
+      roleResolver: TESTNET_ADDRESSES.roleResolver,
+      admin: TESTNET_ADDRESSES.admin,
+      registry: TESTNET_ADDRESSES.registry,
+      mktRegistry: TESTNET_ADDRESSES.mktRegistry,
+      mktCatalog: TESTNET_ADDRESSES.mktCatalog,
+      mktCheckout: TESTNET_ADDRESSES.mktCheckout,
+      mktTreasury: TESTNET_ADDRESSES.mktTreasury,
+      mktAccess: TESTNET_ADDRESSES.mktAccess,
+      mktRenewal: TESTNET_ADDRESSES.mktRenewal,
+      mktViews: TESTNET_ADDRESSES.mktViews,
+    };
+
+    provider = await createProvider(activeNetwork);
+    contracts.core = new ethers.Contract(addresses.core, CORE_ABI, provider);
+    if (addresses.userLens) contracts.userLens = new ethers.Contract(addresses.userLens, USER_LENS_V3_ABI, provider);
+    if (addresses.adminLens) contracts.adminLens = new ethers.Contract(addresses.adminLens, ADMIN_LENS_V3_ABI, provider);
+    if (addresses.ranks) contracts.ranks = new ethers.Contract(addresses.ranks, RANKS_ABI, provider);
+    if (addresses.pools) contracts.pools = new ethers.Contract(addresses.pools, POOLS_ABI, provider);
+    if (addresses.binary) contracts.binary = new ethers.Contract(addresses.binary, BINARY_ABI, provider);
+    if (addresses.cashback) contracts.cashback = new ethers.Contract(addresses.cashback, CASHBACK_ABI, provider);
+    if (addresses.yield) contracts.yield = new ethers.Contract(addresses.yield, YIELD_ABI, provider);
+    if (addresses.roleResolver) contracts.roleResolver = new ethers.Contract(addresses.roleResolver, ROLE_RESOLVER_ABI, provider);
+    if (addresses.admin) contracts.admin = new ethers.Contract(addresses.admin, ADMIN_ABI, provider);
+    if (addresses.mktRegistry) contracts.mktRegistry = new ethers.Contract(addresses.mktRegistry, MKT_REGISTRY_ABI, provider);
+    if (addresses.mktCatalog) contracts.mktCatalog = new ethers.Contract(addresses.mktCatalog, MKT_CATALOG_ABI, provider);
+    if (addresses.mktCheckout) contracts.mktCheckout = new ethers.Contract(addresses.mktCheckout, MKT_CHECKOUT_ABI, provider);
+    if (addresses.mktTreasury) contracts.mktTreasury = new ethers.Contract(addresses.mktTreasury, MKT_TREASURY_ABI, provider);
+    if (addresses.mktAccess) contracts.mktAccess = new ethers.Contract(addresses.mktAccess, MKT_ACCESS_ABI, provider);
+    if (addresses.mktViews) contracts.mktViews = new ethers.Contract(addresses.mktViews, MKT_VIEWS_ABI, provider);
+    if (addresses.mktRenewal) contracts.mktRenewal = new ethers.Contract(addresses.mktRenewal, MKT_RENEWAL_ABI, provider);
+
+    sessionStorage.setItem('atlash_addrs', JSON.stringify(addresses));
+    const setup = document.getElementById('setup-overlay'); if (setup) setup.classList.add('hidden');
+    const app = document.getElementById('app'); if (app) app.classList.add('visible');
+    updateContractsTab();
+    loadCoreStatus();
+    loadPackages();
+    loadYieldPackages();
+    loadMarketplace().catch(()=>{});
+    setDashboardAccess(false);
+    showLoginGate('Conecta tu wallet para habilitar el dashboard.');
+    updateAdminVisibility();
+  } catch (e) {
+    console.error('bootstrapLoginMode error', e);
+    const line = document.getElementById('login-status-line');
+    if (line) line.textContent = 'No se pudo inicializar el dashboard. Revisa la configuración de contratos.';
+  }
+}
+
+if (window.ethereum) {
+  window.ethereum.on?.('accountsChanged', async (accounts) => {
+    if (!accounts || !accounts.length) {
+      walletAddress = null;
+      signer = null;
+      authState = { owner:null, guardian:null, isOwner:false, isGuardian:false, isAdmin:false };
+      const lbl = document.getElementById('wallet-label'); if (lbl) lbl.textContent = 'Conectar wallet';
+      const loginBtn = document.getElementById('login-connect-btn'); if (loginBtn) loginBtn.textContent = 'Conectar wallet';
+      const btn = document.getElementById('wallet-btn'); if (btn) { btn.disabled = false; btn.classList.remove('connected'); }
+      updateAdminVisibility();
+      showLoginGate('Wallet desconectada. Conecta nuevamente para habilitar el dashboard.');
+      return;
+    }
+    try {
+      if (!activeNetwork || !contracts.core) return;
+      const ethProv = new ethers.BrowserProvider(window.ethereum);
+      signer = await ethProv.getSigner();
+      walletAddress = await signer.getAddress();
+      const lbl = document.getElementById('wallet-label'); if (lbl) lbl.textContent = shortAddr(walletAddress);
+      const loginBtn = document.getElementById('login-connect-btn'); if (loginBtn) loginBtn.textContent = 'Wallet conectada';
+      const btn = document.getElementById('wallet-btn'); if (btn) { btn.disabled = false; btn.classList.add('connected'); }
+      await refreshAuthState();
+      setDashboardAccess(true);
+    } catch (e) { console.error('accountsChanged error', e); }
+  });
+  window.ethereum.on?.('chainChanged', () => window.location.reload());
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  bootstrapLoginMode();
+});
+
 </script>
 </html>
