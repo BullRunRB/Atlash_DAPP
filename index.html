@@ -1225,9 +1225,12 @@ async function createProvider(network) {
   const rpcs = network.rpcs;
   for (const rpc of rpcs) {
     try {
-      const p = new ethers.JsonRpcProvider(rpc, { name: network.label, chainId: network.chainId }, { staticNetwork: true });
+      const p = new ethers.JsonRpcProvider(
+        rpc,
+        { chainId: network.chainId, name: network.label },
+        { staticNetwork: true }
+      );
       p.pollingInterval = 60000;
-      // Quick test with 5s timeout
       const networkInfo = await Promise.race([
         p.getNetwork(),
         new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 5000))
@@ -1240,9 +1243,12 @@ async function createProvider(network) {
       console.warn('RPC failed:', rpc, e.message);
     }
   }
-  // If all fail, return provider with first RPC anyway (reads might still work)
   console.warn('All RPCs failed, using first as fallback');
-  const fallback = new ethers.JsonRpcProvider(rpcs[0], { name: network.label, chainId: network.chainId }, { staticNetwork: true });
+  const fallback = new ethers.JsonRpcProvider(
+    rpcs[0],
+    { chainId: network.chainId, name: network.label },
+    { staticNetwork: true }
+  );
   fallback.pollingInterval = 60000;
   return fallback;
 }
@@ -1404,7 +1410,6 @@ let currentUser = null;
 let authState = { owner:null, guardian:null, isOwner:false, isGuardian:false, isAdmin:false };
 let currentUserPackageId = 0;
 let currentUserPackagePrice = 0n;
-let upgradeCashbackContext = { balance: 0n, spendableForUpgrade: 0n };
 
 const PACKAGE_NAMES = {1:'Trader', 2:'Network Builder', 3:'Network Leader', 4:'Ecosystem Partner'};
 const PACKAGE_COLORS = {1:'var(--blue)', 2:'var(--purple)', 3:'var(--gold)', 4:'var(--green)'};
@@ -1654,7 +1659,25 @@ async function launchDapp() {
     }
   }).catch(() => {});
 
-  // Yield y Marketplace se cargan bajo demanda al abrir sus pestañas para evitar tráfico RPC continuo.
+  // Load yield stats
+  if (contracts.yield) {
+    contracts.yield.yieldPoolBalance().then(v => {
+      const el = document.getElementById('yield-pool-balance');
+      if (el) el.textContent = fmt18(v) + ' USDT';
+    }).catch(() => {});
+    contracts.yield.minDailyRateBP().then(min =>
+      contracts.yield.maxDailyRateBP().then(max => {
+        const el = document.getElementById('yield-rate-range');
+        if (el) el.textContent = (Number(min)/100).toFixed(2) + '% - ' + (Number(max)/100).toFixed(2) + '%';
+      })
+    ).catch(() => {});
+    loadYieldPackages();
+  }
+
+  // Load marketplace
+  if (contracts.mktCatalog || contracts.mktRegistry) {
+    loadMarketplace().catch(() => {});
+  }
 
   await refreshAuthState();
   if (!walletAddress) showLoginGate('Conecta tu wallet para habilitar el dashboard.');
@@ -2242,76 +2265,57 @@ async function getUpgradeOptions() {
     .map(p => ({ ...p, diff: p.price > currentPrice ? p.price - currentPrice : 0n }));
 }
 
-
-async function getUpgradeCashbackContext() {
+async function getUpgradeCashbackState() {
   let balance = 0n;
-  let spendableForUpgrade = 0n;
+  let spendable = 0n;
   try {
-    if (contracts.userLens && currentUser) {
-      const monthIndex = contracts.pools ? await contracts.pools.currentMonthIndex().catch(() => 0n) : 0n;
-      const out = await contracts.userLens.getUserFrontend(currentUser, monthIndex, []).catch(() => null);
-      if (out && out.cashback) {
+    if (contracts.userLens && currentUser && contracts.pools) {
+      const monthIndex = await contracts.pools.currentMonthIndex().catch(()=>0n);
+      const yieldPositionIds = [];
+      const out = await contracts.userLens.getUserFrontend(currentUser, monthIndex, yieldPositionIds).catch(()=>null);
+      if (out?.cashback) {
         balance = BigInt(out.cashback.balance || 0n);
-        spendableForUpgrade = BigInt(out.cashback.spendableForUpgrade || 0n);
+        spendable = BigInt(out.cashback.spendableForUpgrade || 0n);
       }
     }
-  } catch (e) {
-    console.warn('getUpgradeCashbackContext userLens fallback:', e);
-  }
-
+  } catch {}
   if (balance === 0n && contracts.cashback && currentUser) {
-    try {
-      balance = BigInt(await contracts.cashback.balanceOf(currentUser).catch(() => 0n));
-    } catch {}
+    try { balance = BigInt(await contracts.cashback.balanceOf(currentUser)); } catch {}
   }
-
-  if (spendableForUpgrade === 0n) {
-    spendableForUpgrade = balance;
-  }
-
-  upgradeCashbackContext = {
-    balance,
-    spendableForUpgrade
-  };
-  return upgradeCashbackContext;
+  return { balance, spendable };
 }
 
-function clampUpgradeCashbackValue(rawValue, maxUsable) {
-  try {
-    const clean = String(rawValue ?? '').replace(',', '.').trim();
-    if (!clean) return 0n;
-    let parsed = ethers.parseUnits(clean, 18);
-    if (parsed < 0n) parsed = 0n;
-    if (parsed > maxUsable) parsed = maxUsable;
-    return parsed;
-  } catch {
-    return 0n;
-  }
+function updateUpgradeCashbackPreview(packageId, diffRaw, spendableRaw) {
+  const input = document.getElementById(`upgrade-cb-input-${packageId}`);
+  const appliedEl = document.getElementById(`upgrade-cb-applied-${packageId}`);
+  const payEl = document.getElementById(`upgrade-cb-pay-${packageId}`);
+  const maxBtn = document.getElementById(`upgrade-cb-max-${packageId}`);
+  const diff = BigInt(diffRaw || 0n);
+  const spendable = BigInt(spendableRaw || 0n);
+  if (!input || !appliedEl || !payEl) return 0n;
+  let typed = input.value === '' ? '0' : input.value.replace(',', '.');
+  let parsed = 0;
+  if (!isFinite(Number(typed))) typed = '0';
+  parsed = Number(typed);
+  if (parsed < 0) parsed = 0;
+  let amount = ethers.parseUnits(parsed.toString(), 18);
+  const maxUsable = spendable < diff ? spendable : diff;
+  if (amount > maxUsable) amount = maxUsable;
+  input.value = Number(ethers.formatUnits(amount, 18)).toString();
+  appliedEl.textContent = fmt18(amount) + ' USDT';
+  payEl.textContent = fmt18(diff > amount ? diff - amount : 0n) + ' USDT';
+  if (maxBtn) maxBtn.disabled = maxUsable === 0n;
+  return amount;
 }
 
-function updateUpgradeCashbackCard(packageId, diffRaw, maxUsableRaw) {
-  try {
-    const diff = BigInt(diffRaw || 0n);
-    const maxUsable = BigInt(maxUsableRaw || 0n);
-    const input = document.getElementById(`upgrade-cb-input-${packageId}`);
-    const appliedEl = document.getElementById(`upgrade-cb-applied-${packageId}`);
-    const payEl = document.getElementById(`upgrade-cb-pay-${packageId}`);
-    const hintEl = document.getElementById(`upgrade-cb-hint-${packageId}`);
-    if (!input || !appliedEl || !payEl) return;
-
-    const normalized = clampUpgradeCashbackValue(input.value, maxUsable);
-    const normalizedText = Number(ethers.formatUnits(normalized, 18)).toFixed(2);
-    if (input.value !== '' && Number(input.value || 0) !== Number(normalizedText)) {
-      input.value = normalizedText;
-    }
-
-    const usdtToPay = diff > normalized ? diff - normalized : 0n;
-    appliedEl.textContent = fmt18(normalized) + ' USDT';
-    payEl.textContent = fmt18(usdtToPay) + ' USDT';
-    if (hintEl) hintEl.textContent = `Máximo usable en este upgrade: ${fmt18(maxUsable)} USDT`;
-  } catch (e) {
-    console.warn('updateUpgradeCashbackCard:', e);
-  }
+function setUpgradeCashbackMax(packageId, diffRaw, spendableRaw) {
+  const input = document.getElementById(`upgrade-cb-input-${packageId}`);
+  if (!input) return;
+  const diff = BigInt(diffRaw || 0n);
+  const spendable = BigInt(spendableRaw || 0n);
+  const maxUsable = spendable < diff ? spendable : diff;
+  input.value = Number(ethers.formatUnits(maxUsable, 18)).toString();
+  updateUpgradeCashbackPreview(packageId, diffRaw, spendableRaw);
 }
 
 async function openUpgradeModal() {
@@ -2319,87 +2323,51 @@ async function openUpgradeModal() {
     toast('Conecta y busca tu misma wallet para hacer upgrade', 'error');
     return;
   }
-
-  const [options, cashbackCtx] = await Promise.all([
-    getUpgradeOptions(),
-    getUpgradeCashbackContext()
-  ]);
-
+  const options = await getUpgradeOptions();
+  const cbState = await getUpgradeCashbackState();
   const existing = document.getElementById('upgrade-modal-bg');
   if (existing) existing.remove();
   const bg = document.createElement('div');
   bg.id = 'upgrade-modal-bg';
   bg.className = 'modal-bg';
   const currentName = PACKAGE_NAMES[currentUserPackageId] || ('Paquete ' + currentUserPackageId);
-
   bg.innerHTML = `
-    <div class="modal" style="max-width:980px;">
+    <div class="modal" style="max-width:860px;">
       <div class="modal-title">Upgrade de paquete ATLASH</div>
       <div class="modal-sub">Paquete actual: <strong>${currentName}</strong> · Precio base: <strong>${fmt18(currentUserPackagePrice)} USDT</strong></div>
-
-      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;margin-bottom:16px;">
-        <div class="dist-box" style="margin-bottom:0;">
-          <div class="dist-title">Cashback disponible</div>
-          <div style="font-size:20px;font-weight:700;color:var(--green);font-family:var(--mono);">${fmt18(cashbackCtx.balance)} USDT</div>
-        </div>
-        <div class="dist-box" style="margin-bottom:0;">
-          <div class="dist-title">Máximo gastable en upgrade</div>
-          <div style="font-size:20px;font-weight:700;color:var(--blue);font-family:var(--mono);">${fmt18(cashbackCtx.spendableForUpgrade)} USDT</div>
-        </div>
+      <div class="callout callout-blue" style="margin-bottom:16px;">
+        <span>ℹ</span>
+        <span>Cashback disponible: <strong>${fmt18(cbState.balance)} USDT</strong> · Máximo gastable en upgrade: <strong>${fmt18(cbState.spendable)} USDT</strong></span>
       </div>
-
-      ${options.length ? `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px;">${options.map(op => {
-        const maxUsable = op.diff > 0n ? (cashbackCtx.spendableForUpgrade < op.diff ? cashbackCtx.spendableForUpgrade : op.diff) : 0n;
+      ${options.length ? `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px;">${options.map(op => {
+        const maxUsable = cbState.spendable < op.diff ? cbState.spendable : op.diff;
         return `
         <div class="pkg-card" style="padding:16px;">
           <div class="pkg-name">${PACKAGE_NAMES[op.packageId] || ('Paquete '+op.packageId)}</div>
           <div class="pkg-role">Paquete ${op.packageId}</div>
           <div class="pkg-price">${fmt18(op.price)} USDT</div>
-
-          <div class="mem-row"><span class="mem-label">Diferencia del upgrade</span><span class="mem-val">${fmt18(op.diff)} USDT</span></div>
-          <div class="mem-row"><span class="mem-label">Cashback disponible</span><span class="mem-val" style="color:var(--green);">${fmt18(cashbackCtx.balance)} USDT</span></div>
-          <div class="mem-row"><span class="mem-label">Máximo usable</span><span class="mem-val" style="color:var(--blue);">${fmt18(maxUsable)} USDT</span></div>
-
-          <div style="margin-top:10px;">
-            <label class="field-label" for="upgrade-cb-input-${op.packageId}">Cashback a usar</label>
-            <input
-              id="upgrade-cb-input-${op.packageId}"
-              class="addr-inp"
-              type="number"
-              min="0"
-              step="0.01"
-              inputmode="decimal"
-              placeholder="0.00"
-              value="0"
-              oninput="updateUpgradeCashbackCard(${op.packageId}, '${op.diff.toString()}', '${maxUsable.toString()}')"
-              ${maxUsable === 0n ? 'disabled' : ''}
-              style="font-family:var(--font);"
-            />
-            <div id="upgrade-cb-hint-${op.packageId}" class="field-hint">Máximo usable en este upgrade: ${fmt18(maxUsable)} USDT</div>
+          <div class="mem-row"><span class="mem-label">Diferencia upgrade</span><span class="mem-val" style="color:var(--green);">${fmt18(op.diff)} USDT</span></div>
+          <div class="mem-row"><span class="mem-label">Máximo con cashback</span><span class="mem-val">${fmt18(maxUsable)} USDT</span></div>
+          <div style="margin-top:10px;border:1px solid var(--gray-200);border-radius:12px;padding:12px;background:var(--gray-50);">
+            <label class="field-label">Cashback a usar</label>
+            <div style="display:flex;gap:8px;align-items:center;">
+              <input id="upgrade-cb-input-${op.packageId}" class="addr-inp" type="number" min="0" step="0.01" value="0" oninput="updateUpgradeCashbackPreview(${op.packageId}, '${op.diff}', '${maxUsable}')" style="font-family:var(--font);"/>
+              <button id="upgrade-cb-max-${op.packageId}" class="btn btn-outline" type="button" onclick="setUpgradeCashbackMax(${op.packageId}, '${op.diff}', '${maxUsable}')" style="padding:8px 12px;">Usar máximo</button>
+            </div>
+            <div class="field-hint">Disponible: ${fmt18(cbState.balance)} USDT · Tope para este upgrade: ${fmt18(maxUsable)} USDT</div>
+            <div class="mem-row" style="margin-top:8px;"><span class="mem-label">Cashback aplicado</span><span class="mem-val" id="upgrade-cb-applied-${op.packageId}">0.00 USDT</span></div>
+            <div class="mem-row"><span class="mem-label">USDT a pagar hoy</span><span class="mem-val" id="upgrade-cb-pay-${op.packageId}" style="color:var(--green);">${fmt18(op.diff)} USDT</span></div>
           </div>
-
-          <div class="dist-box" style="margin-top:12px;margin-bottom:0;">
-            <div class="mem-row"><span class="mem-label">Cashback aplicado</span><span class="mem-val" id="upgrade-cb-applied-${op.packageId}" style="color:var(--green);">0.00 USDT</span></div>
-            <div class="mem-row" style="border-bottom:none;"><span class="mem-label">USDT a pagar hoy</span><span class="mem-val" id="upgrade-cb-pay-${op.packageId}" style="color:var(--gold);">${fmt18(op.diff)} USDT</span></div>
-          </div>
-
           <div style="display:flex;gap:8px;margin-top:12px;">
-            <button class="btn btn-dark" style="flex:1;" onclick="executeUpgrade(${op.packageId})">Upgrade</button>
+            <button class="btn btn-dark" style="flex:1;" onclick="executeUpgrade(${op.packageId}, false)">Upgrade normal</button>
             <button class="btn btn-outline" style="flex:1;" onclick="executeUpgrade(${op.packageId}, true)">Con cashback</button>
           </div>
-        </div>`;
-      }).join('')}</div>` : `<div class="empty"><div class="empty-icon">✅</div><div class="empty-title">No hay upgrades disponibles</div></div>`}
-
+        </div>`}).join('')}</div>` : `<div class="empty"><div class="empty-icon">✅</div><div class="empty-title">No hay upgrades disponibles</div></div>`}
       <div style="display:flex;justify-content:flex-end;margin-top:16px;"><button class="btn btn-outline" onclick="closeUpgradeModal()">Cerrar</button></div>
     </div>`;
-
   document.body.appendChild(bg);
   bg.addEventListener('click', e => { if (e.target === bg) bg.remove(); });
-
-  options.forEach(op => {
-    const maxUsable = op.diff > 0n ? (cashbackCtx.spendableForUpgrade < op.diff ? cashbackCtx.spendableForUpgrade : op.diff) : 0n;
-    updateUpgradeCashbackCard(op.packageId, op.diff, maxUsable);
-  });
+  options.forEach(op => updateUpgradeCashbackPreview(op.packageId, op.diff, (cbState.spendable < op.diff ? cbState.spendable : op.diff)));
 }
 
 function closeUpgradeModal() {
@@ -2410,17 +2378,12 @@ async function executeUpgrade(targetPackageId, useCashback = false) {
   if (!await ensureSigner()) return;
   if (!contracts.core) { toast('Core no configurado', 'error'); return; }
   try {
-    const [options, cashbackCtx] = await Promise.all([
-      getUpgradeOptions(),
-      getUpgradeCashbackContext()
-    ]);
+    const options = await getUpgradeOptions();
     const option = options.find(x => x.packageId === Number(targetPackageId));
     if (!option) { toast('Upgrade no disponible', 'error'); return; }
-
     const coreWithSigner = contracts.core.connect(signer);
     const usdtAddr = await contracts.core.usdt();
     const usdt = new ethers.Contract(usdtAddr, USDT_ABI, signer);
-
     if (!useCashback && option.diff > 0n) {
       const allowance = await usdt.allowance(walletAddress, addresses.core);
       if (allowance < option.diff) {
@@ -2432,29 +2395,20 @@ async function executeUpgrade(targetPackageId, useCashback = false) {
       const tx = await coreWithSigner.upgradePackage(option.packageId);
       await tx.wait();
     } else {
-      const maxUsable = option.diff > 0n ? (cashbackCtx.spendableForUpgrade < option.diff ? cashbackCtx.spendableForUpgrade : option.diff) : 0n;
-      const inputEl = document.getElementById(`upgrade-cb-input-${option.packageId}`);
-      const cashbackToUse = clampUpgradeCashbackValue(inputEl ? inputEl.value : '0', maxUsable);
-      const usdtNeeded = option.diff > cashbackToUse ? option.diff - cashbackToUse : 0n;
-
-      if (cashbackToUse <= 0n && usdtNeeded === option.diff) {
-        toast('No se seleccionó cashback. Se ejecutará pagando solo con USDT.', 'info');
+      const cbState = await getUpgradeCashbackState();
+      const maxUsable = cbState.spendable < option.diff ? cbState.spendable : option.diff;
+      let cashbackToUse = 0n;
+      const input = document.getElementById(`upgrade-cb-input-${option.packageId}`);
+      if (input) {
+        const raw = String(input.value || '0').replace(',', '.');
+        const numeric = isFinite(Number(raw)) ? Number(raw) : 0;
+        cashbackToUse = ethers.parseUnits(Math.max(0, numeric).toString(), 18);
       }
-
-      if (usdtNeeded > 0n) {
-        const allowance = await usdt.allowance(walletAddress, addresses.core);
-        if (allowance < usdtNeeded) {
-          toast('Aprobando USDT restante para upgrade...', 'info');
-          const txA = await usdt.approve(addresses.core, usdtNeeded);
-          await txA.wait();
-        }
-      }
-
-      toast(`Ejecutando upgrade con cashback (${fmt18(cashbackToUse)} USDT)...`, 'info');
+      if (cashbackToUse > maxUsable) cashbackToUse = maxUsable;
+      toast('Ejecutando upgrade con cashback...', 'info');
       const tx = await coreWithSigner.upgradePackageWithCashback(option.packageId, cashbackToUse);
       await tx.wait();
     }
-
     toast('✅ Upgrade completado', 'success');
     closeUpgradeModal();
     await searchUser();
@@ -2462,7 +2416,6 @@ async function executeUpgrade(targetPackageId, useCashback = false) {
     toast('Error upgrade: ' + formatContractError(e), 'error');
   }
 }
-
 
 function renderPools(pools) {
   const el = document.getElementById('pools-body');
@@ -4870,6 +4823,8 @@ async function bootstrapLoginMode() {
     updateContractsTab();
     loadCoreStatus();
     loadPackages();
+    loadYieldPackages();
+    loadMarketplace().catch(()=>{});
     setDashboardAccess(false);
     showLoginGate('Conecta tu wallet para habilitar el dashboard.');
     updateAdminVisibility();
@@ -4909,11 +4864,21 @@ if (window.ethereum) {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-  // Init ligera para GitHub Pages: no auto-conecta ni precarga módulos pesados
-  activeNetwork = NETWORKS.testnet;
-  updateNavBadge();
-  const app = document.getElementById('app'); if (app) app.classList.add('visible');
-  showLoginGate('Conecta tu wallet o usa configuración manual. La carga pesada queda bajo demanda.');
+  const saved = sessionStorage.getItem('atlash_addrs');
+  if (saved) {
+    try {
+      const parsed = JSON.parse(saved);
+      if (parsed?.core) {
+        addresses = parsed;
+        if (document.getElementById('inp-core')) document.getElementById('inp-core').value = parsed.core || '';
+      }
+    } catch {}
+  }
+  selectNetwork('testnet');
+  if (document.getElementById('inp-core') && !document.getElementById('inp-core').value) {
+    document.getElementById('inp-core').value = TESTNET_ADDRESSES.core;
+  }
+  showLoginGate('Configura contratos y conecta tu wallet para continuar.');
 });
 
 </script>
