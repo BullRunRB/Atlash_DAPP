@@ -555,6 +555,12 @@ body {
 }
 .pkg-card:hover { border-color: var(--gray-300); box-shadow: var(--shadow); }
 .pkg-card.mine { border-color: var(--gray-900); }
+.pkg-card.active { box-shadow: var(--shadow); }
+.pkg-card.pkg-1.active { border-color:#6b7280; box-shadow:0 0 0 1px rgba(107,114,128,.15), var(--shadow); }
+.pkg-card.pkg-2.active { border-color:var(--blue); box-shadow:0 0 0 1px rgba(37,99,235,.15), var(--shadow); }
+.pkg-card.pkg-3.active { border-color:var(--purple); box-shadow:0 0 0 1px rgba(124,58,237,.15), var(--shadow); }
+.pkg-card.pkg-4.active { border-color:var(--gold); box-shadow:0 0 0 1px rgba(184,134,11,.18), var(--shadow); }
+
 .pkg-num { position: absolute; top: 14px; right: 16px; font-size: 40px; font-weight: 900; color: var(--gray-100); line-height: 1; letter-spacing: -3px; }
 .pkg-name { font-size: 14px; font-weight: 700; color: var(--gray-900); margin-bottom: 2px; }
 .pkg-role { font-size: 11px; color: var(--gray-400); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px; }
@@ -1397,6 +1403,8 @@ const PACKAGE_NAMES = {1:'Trader', 2:'Network Builder', 3:'Network Leader', 4:'E
 const PACKAGE_COLORS = {1:'var(--blue)', 2:'var(--purple)', 3:'var(--gold)', 4:'var(--green)'};
 const LEG_NAMES = {0:'No definida', 1:'Izquierda', 2:'Derecha'};
 const MONTH_NAMES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+function monthNameFromIndex(mi){ const n = Number(mi ?? 0); return MONTH_NAMES[((n % 12) + 12) % 12] || `Mes ${n}`; }
+const MONTH_NAMES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 
 // ─── UTILS ───
 function fmt18(n) {
@@ -2026,7 +2034,8 @@ async function loadUserFromCore(addr) {
   renderStatsFromCore({highestPackage, validUntil, isActive, frozen}, cashbackData, directs, upline);
   renderMembership(validUntil, monthlyIncludedUntil, isActive, frozen);
   renderEarnings(ranksData, poolsData, cashbackData);
-  renderCashback(cashbackData, null);
+  const cashbackLots = await loadCashbackLots(addr);
+  renderCashback(cashbackData, cashbackLots);
   renderPools(poolsData);
 
   if (contracts.binary) {
@@ -2108,7 +2117,8 @@ async function renderUserFromUserLens(addr, out) {
   renderStatsFromCore({ highestPackage:u.packageId, validUntil:u.validUntil, isActive:u.activeNow, frozen:u.frozen }, { balanceUSDT:cb.balance||0n, nextExpiryAt:cb.nextExpiryAt||0n, nextExpiryAmountUSDT:cb.nextExpiryAmount||0n, expiringSoonAmountUSDT:cb.expiringIn30d||0n }, directsCount, u.upline);
   renderMembership(u.validUntil, u.monthlyIncludedUntil, u.activeNow, u.frozen);
   renderEarnings(ranks, pools, { balanceUSDT: cb.balance || 0n });
-  renderCashback({ balanceUSDT:cb.balance||0n, nextExpiryAt:cb.nextExpiryAt||0n, nextExpiryAmountUSDT:cb.nextExpiryAmount||0n, expiringSoonAmountUSDT:cb.expiringIn30d||0n }, null);
+  const cashbackLots = await loadCashbackLots(addr);
+  renderCashback({ balanceUSDT:cb.balance||0n, nextExpiryAt:cb.nextExpiryAt||0n, nextExpiryAmountUSDT:cb.nextExpiryAmount||0n, expiringSoonAmountUSDT:cb.expiringIn30d||0n }, cashbackLots);
   renderPools(pools);
   document.getElementById('stat-rank').textContent = out.ranks.currentRank > 0 ? 'Rango ' + out.ranks.currentRank : 'Sin rango';
   document.getElementById('pool-leadership-total').textContent = fmt18((pools.leadershipAccruedUSDT ?? pools.leadershipPoolTotalUSDT ?? 0n)) + ' USDT';
@@ -2318,7 +2328,7 @@ function renderPools(pools) {
   const el = document.getElementById('pools-body');
   const badge = document.getElementById('pools-month-badge');
   const mi = pools.monthIndex || 0n;
-  badge.innerHTML = `<span class="badge badge-blue">Mes ${Number(mi)}</span>`;
+  badge.innerHTML = `<span class="badge badge-blue">${monthNameFromIndex(mi)}</span>`;
 
   const leadershipShown = pools.leadershipClosed ? (pools.leadershipClaimableUSDT || 0n) : 0n;
   const topTenShown = pools.topTenClosed ? (pools.topTenClaimableUSDT || 0n) : 0n;
@@ -2366,7 +2376,7 @@ function renderEarnings(ranks, pools, cb) {
     },
     {
       name: '🌟 Pool Liderazgo',
-      desc: 'Mes ' + Number(pools.monthIndex || 0n),
+      desc: monthNameFromIndex(pools.monthIndex || 0n),
       amount: (pools.leadershipClosed ? (pools.leadershipClaimableUSDT || 0n) : 0n),
       poolInfo: 'Total acumulado: ' + fmt18((pools.leadershipAccruedUSDT ?? pools.leadershipPoolTotalUSDT ?? 0n)) + ' USDT' + (pools.leadershipClosed ? '' : ' · Pendiente de cierre'),
       canClaim: walletAddress && currentUser === walletAddress && !!pools.leadershipClosed,
@@ -2374,7 +2384,7 @@ function renderEarnings(ranks, pools, cb) {
     },
     {
       name: '🔟 Pool Top 10',
-      desc: 'Mes ' + Number(pools.monthIndex || 0n),
+      desc: monthNameFromIndex(pools.monthIndex || 0n),
       amount: (pools.topTenClosed ? (pools.topTenClaimableUSDT || 0n) : 0n),
       poolInfo: 'Total pool: ' + fmt18(pools.topTenPoolTotalUSDT || 0n) + ' USDT' + (pools.topTenClosed ? '' : ' · Pendiente de cierre'),
       canClaim: walletAddress && currentUser === walletAddress && !!pools.topTenClosed,
@@ -2406,6 +2416,29 @@ function renderEarnings(ranks, pools, cb) {
       </div>
     `).join('')}
   `;
+}
+
+
+async function loadCashbackLots(addr) {
+  if (!contracts.cashback || !addr) return null;
+  try {
+    const res = await contracts.cashback.cashbackLotsSummary(addr, 0).catch(() => null);
+    if (!res) return null;
+    const lotIndexes = Array.from(res.lotIndexes || []);
+    const amounts = Array.from(res.amounts || []);
+    const expiresAts = Array.from(res.expiresAts || []);
+    const now = BigInt(Math.floor(Date.now()/1000));
+    return {
+      lotIndexes,
+      amountsUSDT: amounts,
+      expiresAt: expiresAts,
+      expired: expiresAts.map(ts => BigInt(ts || 0) <= now),
+      totalLotsReturned: Number(res.totalLotsReturned || lotIndexes.length || 0)
+    };
+  } catch (e) {
+    console.warn('loadCashbackLots', e);
+    return null;
+  }
 }
 
 function renderCashback(cb, lotsPage) {
@@ -2779,7 +2812,7 @@ async function loadPackages(activeIds, userPkg) {
       const b = benefits[p.id] || {};
       const isUserPkg = Number(userPkg) === p.id;
       return `
-        <div class="pkg-card ${isUserPkg?'active':''}">
+        <div class="pkg-card pkg-${p.id} ${isUserPkg?'active':''}">
           <div class="pkg-num">${p.id}</div>
           <div class="pkg-name">${PACKAGE_NAMES[p.id] || 'Paquete '+p.id}</div>
           ${b.role ? `<div style="font-size:11px;color:var(--text-muted);font-family:var(--mono),monospace;margin-bottom:10px;text-transform:uppercase;letter-spacing:1px;">${b.role}</div>` : ''}
