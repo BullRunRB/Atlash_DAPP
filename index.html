@@ -836,7 +836,6 @@ body {
         <div class="field"><label class="field-label">CashbackEngine</label><input class="addr-inp" id="inp-cashback" placeholder="0x…" spellcheck="false"/></div>
         <div class="field"><label class="field-label">RoleResolver</label><input class="addr-inp" id="inp-role" placeholder="0x…" spellcheck="false"/></div>
         <div class="field"><label class="field-label">EcosystemAdminModule</label><input class="addr-inp" id="inp-admin" placeholder="0x…" spellcheck="false"/></div>
-        <div class="field"><label class="field-label">EcosystemConfigModule</label><input class="addr-inp" id="inp-config" placeholder="0x…" spellcheck="false"/></div>
       </div>
 
       <div class="form-section">Marketplace</div>
@@ -1146,7 +1145,7 @@ body {
         <div class="panel-head"><div class="panel-title">Estado del Core</div><button class="btn btn-outline" onclick="loadCoreStatus()" style="padding:5px 14px;font-size:12px;">↻ Recargar</button></div>
         <div class="panel-body" id="core-status-body"><div class="empty"><div class="empty-icon">○</div><div class="empty-title">Conectando…</div></div></div>
       </div>
-    </div>
+
 
     <!-- ADMIN -->
     <div class="tab-pane" id="tab-admin">
@@ -1170,6 +1169,8 @@ body {
         <div class="panel-head"><div class="panel-title">Wiring checks</div></div>
         <div class="panel-body" id="admin-wiring-box"><div class="empty"><div class="empty-icon">○</div><div class="empty-title">Sin datos</div></div></div>
       </div>
+    </div>
+
     </div>
 
   </div>
@@ -1235,19 +1236,17 @@ async function createProvider(network) {
 }
 
 const TESTNET_ADDRESSES = {
-  registry:'0x994B0941327e94b408E653f3ae7AEC27Fb3cF5D1',
-  roleResolver:'0x150653928A2EFeEC19a9281ac2D421eDB359d9Ed',
-  cashback:'0x25c2dBf970Ba97883997cf115a934C114Fe76D5B',
-  core:'0x0a05766358131dcC42922Bf846826BDFD9021566',
-  ranks:'0xA5EFe849039deDf5Aba9aF9b8AccdE81c311E467',
-  pools:'0x356A604F80680B650cfB6F6EfC54B9C3144dEe56',
-  binary:'0x99CaE21ad682BB2e260d6e5E59b664eb873D5E87',
-  yield:'0x9706568f95d094897aD49A7AD73220185f67d0C4',
-  admin:'0x10184f03ab029Aaf42B330b2916edf668F441851',
-  config:'0xdf7EF1B08aa2Dc3191f95E1D07c0e11A8B5f3918',
-  userLens:'0x62d7D68cD9902dD8ae9e485495f1a64c71975Df9',
-  adminLens:'0xf70A5186cbE6b74428638f14b67f9E5EFc015B94',
-  mktRegistry:'', mktCatalog:'', mktCheckout:'', mktTreasury:'', mktAccess:'', mktRenewal:'', mktViews:''
+  core:'0xE3F76E478Fd2321a65bB2e12822c1E92e28b20Dd',
+  userLens:'0xc86B7455790213d22b5bE03939D67d91d6A2b944', adminLens:'0x25d2967910A0f641B3Aa42A1de975a951a164C4a', ranks:'0x324473Ae9289912c794917D00ad608Ad372e378E',
+  pools:'0x640F0690a4dEcE30FD120D32c9b6FeeaAcD39409',
+  binary:'0x70eA59535aa139B851171797CC42c1aF42a133CA',
+  cashback:'0xe5a6Ac54E4C36d04Eac9cDDDd64aE5475d45d56e',
+  yield:'0xb3f493dd449F2Ec1fc78200D87f3fA10e26e2E49',
+  roleResolver:'0x907105B6B10Fb13011c181F9735D2A03A1fd3FB6',
+  admin:'0x9Bc974Bbc17cF90A40929D07f9fF8A8E5Dbf25B3',
+  registry:'0x3B03f7794766c2b4C2A38115005f19F761E076a4',
+  mktRegistry:'0xf9541311E9556ab59406cd318d2fA5f1C3dE418f', mktCatalog:'0xf484ba0088623346aAF54c31Bc271f8A47176ACE', mktCheckout:'0x119bf8d51667160CbA1F3e12e3639A4932DD3269',
+  mktTreasury:'0x11eE7bC91DC7cc8A50A8c7308E5e2cbb56319F36', mktAccess:'0xd251D6eE26AECFD1eeA45763Fc4e7e087F912B71', mktRenewal:'0x406B5bAeb4Df8c02DF8cd5c132BD15DD0DD78DEd', mktViews:'0x877670cd7c69426419A2607822e9e22C7a81D5FA'
 };
 
 
@@ -1282,9 +1281,6 @@ const CORE_ABI = [
   "function pendingLeadershipAmount() view returns (uint256)",
   "function pendingTopTenAmount() view returns (uint256)",
   "function totalUsers() view returns (uint256)",
-  "function currentMonthIndex() view returns (uint256)",
-  "function adminModule() view returns (address)",
-  "function configModule() view returns (address)",
   "function getUserStatus(address) view returns (uint8 highestPackage, uint256 validUntil, address upline, bool exists, bool frozen)",
   "function users(address) view returns (bool exists, bool frozen, address upline, uint8 highestPackage, uint256 validUntil, uint256 monthlyIncludedUntil)",
   "function packages(uint8) view returns (uint256 price, uint256 brokerFee, uint16 includedMonths, bool enabled, bool exists)",
@@ -1383,7 +1379,7 @@ const ROLE_RESOLVER_ABI = [
 let contracts = {
   core: null, userLens: null, adminLens: null, ranks: null,
   pools: null, cashback: null, binary: null,
-  yield: null, roleResolver: null, config: null,
+  yield: null, roleResolver: null,
   mktRegistry: null, mktCatalog: null, mktCheckout: null,
   mktTreasury: null, mktAccess: null, mktRenewal: null, mktViews: null
 };
@@ -1501,7 +1497,7 @@ function toggleOptional() {
   btn.querySelector('span:last-child') || null;
 }
 
-let _selectedNetworkKey = 'testnet'; // tracks setup card selection
+let _selectedNetworkKey = 'mainnet'; // tracks setup card selection
 
 function updateNavBadge() {
   if (!activeNetwork) return;
@@ -1553,7 +1549,6 @@ async function launchDapp() {
     ['inp-yield',        'yield'],
     ['inp-role',         'roleResolver'],
     ['inp-admin',        'admin'],
-    ['inp-config',       'config'],
     ['inp-mkt-registry', 'mktRegistry'],
     ['inp-mkt-catalog',  'mktCatalog'],
     ['inp-mkt-checkout', 'mktCheckout'],
@@ -1606,9 +1601,7 @@ async function launchDapp() {
     contracts.core.cashback(),
     contracts.core.binary(),
     contracts.core.roleResolver ? contracts.core.roleResolver().catch(() => null) : Promise.resolve(null),
-    contracts.core.adminModule ? contracts.core.adminModule().catch(() => null) : Promise.resolve(null),
-    contracts.core.configModule ? contracts.core.configModule().catch(() => null) : Promise.resolve(null),
-  ]).then(([r, p, cb, bin, rr, adm, cfg]) => {
+  ]).then(([r, p, cb, bin, rr]) => {
     let updated = false;
     const tryAdd = (res, key, abi) => {
       const v = res.status === 'fulfilled' ? res.value : null;
@@ -1627,8 +1620,6 @@ async function launchDapp() {
       contracts.roleResolver = new ethers.Contract(rr.value, ROLE_RESOLVER_ABI, provider);
       updated = true;
     }
-    if (adm.status === 'fulfilled' && adm.value && !isZero(adm.value) && !addresses.admin) { addresses.admin = adm.value; updated = true; }
-    if (cfg.status === 'fulfilled' && cfg.value && !isZero(cfg.value) && !addresses.config) { addresses.config = cfg.value; updated = true; }
     if (updated) {
       updateContractsTab();
       sessionStorage.setItem('atlash_addrs', JSON.stringify(addresses));
@@ -1690,11 +1681,9 @@ function openConfig() {
   const inpYield = document.getElementById('inp-yield');
   const inpRole = document.getElementById('inp-role');
   const inpAdmin = document.getElementById('inp-admin');
-  const inpConfig = document.getElementById('inp-config');
   if (inpYield && addresses.yield) inpYield.value = addresses.yield;
   if (inpRole && addresses.roleResolver) inpRole.value = addresses.roleResolver;
   if (inpAdmin && addresses.admin) inpAdmin.value = addresses.admin;
-  if (inpConfig && addresses.config) inpConfig.value = addresses.config;
   // Marketplace
   const mktInputs = ['mkt-registry','mkt-catalog','mkt-checkout','mkt-treasury','mkt-access','mkt-renewal','mkt-views'];
   const mktKeys   = ['mktRegistry','mktCatalog','mktCheckout','mktTreasury','mktAccess','mktRenewal','mktViews'];
@@ -1713,7 +1702,7 @@ function autoFillTestnet() {
   const map = {
     'inp-core': t.core, 'inp-user-lens': t.userLens, 'inp-admin-lens': t.adminLens, 'inp-ranks': t.ranks,
     'inp-pools': t.pools, 'inp-binary': t.binary, 'inp-cashback': t.cashback,
-    'inp-yield': t.yield, 'inp-role': t.roleResolver, 'inp-admin': t.admin, 'inp-config': t.config,
+    'inp-yield': t.yield, 'inp-role': t.roleResolver, 'inp-admin': t.admin,
     'inp-mkt-registry': t.mktRegistry, 'inp-mkt-catalog': t.mktCatalog,
     'inp-mkt-checkout': t.mktCheckout, 'inp-mkt-treasury': t.mktTreasury,
     'inp-mkt-access': t.mktAccess, 'inp-mkt-renewal': t.mktRenewal, 'inp-mkt-views': t.mktViews
@@ -1987,7 +1976,7 @@ async function loadUserFromCore(addr) {
         contracts.pools.leadershipPoolTotal(mi),
         contracts.pools.topTenAccruedByMonth(mi)
       ]);
-      poolsData = {leadershipClaimableUSDT:l, topTenClaimableUSDT:t, leadershipPoolTotalUSDT:lTotal, topTenPoolTotalUSDT:tTotal, monthIndex:mi};
+      poolsData = {leadershipClaimableUSDT:0n, topTenClaimableUSDT:0n, leadershipPoolTotalUSDT:lTotal, topTenPoolTotalUSDT:tTotal, monthIndex:mi, leadershipClosed:false, topTenClosed:false};
     } catch {}
   }
 
@@ -2297,26 +2286,28 @@ function renderPools(pools) {
 
   const pos = pools.userTopTenPosition;
   const inTopTen = pos > 0;
+  const leadershipReclamable = pools.leadershipClosed ? (pools.leadershipClaimableUSDT||0n) : 0n;
+  const topTenReclamable = pools.topTenClosed ? (pools.topTenClaimableUSDT||0n) : 0n;
 
   el.innerHTML = `
     <div class="pool-row">
       <div>
-        <div class="pool-name">Pool Liderazgo ${pools.leadershipClosed ? '<span class="badge badge-green">Cerrado</span>' : ''}</div>
+        <div class="pool-name">Pool Liderazgo ${pools.leadershipClosed ? '<span class="badge badge-green">Cerrado</span>' : '<span class="badge badge-amber">Abierto</span>'}</div>
         <div class="pool-info">Total: ${fmt18(pools.leadershipPoolTotalUSDT||0n)} USDT</div>
       </div>
       <div>
-        <div class="pool-amount">${fmt18(pools.leadershipClaimableUSDT||0n)} USDT</div>
-        <div class="pool-sub">Reclamable</div>
+        <div class="pool-amount">${fmt18(leadershipReclamable)} USDT</div>
+        <div class="pool-sub">${pools.leadershipClosed ? 'Reclamable' : 'Pendiente de cierre'}</div>
       </div>
     </div>
     <div class="pool-row">
       <div>
-        <div class="pool-name">Pool Top 10 ${inTopTen ? `<span class="badge badge-gold">#${pos}</span>` : ''}</div>
+        <div class="pool-name">Pool Top 10 ${inTopTen ? `<span class="badge badge-gold">#${pos}</span>` : ''} ${pools.topTenClosed ? '<span class="badge badge-green">Cerrado</span>' : '<span class="badge badge-amber">Abierto</span>'}</div>
         <div class="pool-info">Total: ${fmt18(pools.topTenPoolTotalUSDT||0n)} USDT</div>
       </div>
       <div>
-        <div class="pool-amount">${fmt18(pools.topTenClaimableUSDT||0n)} USDT</div>
-        <div class="pool-sub">Reclamable</div>
+        <div class="pool-amount">${fmt18(topTenReclamable)} USDT</div>
+        <div class="pool-sub">${pools.topTenClosed ? 'Reclamable' : 'Pendiente de cierre'}</div>
       </div>
     </div>
   `;
@@ -2336,17 +2327,17 @@ function renderEarnings(ranks, pools, cb) {
     {
       name: '🌟 Pool Liderazgo',
       desc: 'Mes ' + Number(pools.monthIndex || 0n),
-      amount: pools.leadershipClaimableUSDT || 0n,
-      poolInfo: 'Total pool: ' + fmt18(pools.leadershipPoolTotalUSDT || 0n) + ' USDT',
-      canClaim: walletAddress && currentUser === walletAddress,
+      amount: pools.leadershipClosed ? (pools.leadershipClaimableUSDT || 0n) : 0n,
+      poolInfo: (pools.leadershipClosed ? 'Total pool: ' : 'Mes abierto · total pool: ') + fmt18(pools.leadershipPoolTotalUSDT || 0n) + ' USDT',
+      canClaim: walletAddress && currentUser === walletAddress && !!pools.leadershipClosed,
       onClaim: () => claimLeadership(pools.monthIndex)
     },
     {
       name: '🔟 Pool Top 10',
       desc: 'Mes ' + Number(pools.monthIndex || 0n),
-      amount: pools.topTenClaimableUSDT || 0n,
-      poolInfo: 'Total pool: ' + fmt18(pools.topTenPoolTotalUSDT || 0n) + ' USDT',
-      canClaim: walletAddress && currentUser === walletAddress,
+      amount: pools.topTenClosed ? (pools.topTenClaimableUSDT || 0n) : 0n,
+      poolInfo: (pools.topTenClosed ? 'Total pool: ' : 'Mes abierto · total pool: ') + fmt18(pools.topTenPoolTotalUSDT || 0n) + ' USDT',
+      canClaim: walletAddress && currentUser === walletAddress && !!pools.topTenClosed,
       onClaim: () => claimTopTen(pools.monthIndex)
     },
     
@@ -2423,8 +2414,8 @@ function renderCashback(cb, lotsPage) {
 }
 
 function renderBinary(leftBV, rightBV, leg) {
-  document.getElementById('left-bv').textContent = fmtIntPoints(leftBV);
-  document.getElementById('right-bv').textContent = fmtIntPoints(rightBV);
+  document.getElementById('left-bv').textContent = fmtIntPoints(leftBV || 0n);
+  document.getElementById('right-bv').textContent = fmtIntPoints(rightBV || 0n);
   document.getElementById('user-leg').textContent = LEG_NAMES[Number(leg)] || 'No definida';
 }
 
@@ -2785,7 +2776,6 @@ function updateContractsTab() {
     {name: 'YieldProgramModule', key: 'yield'},
     {name: 'RoleResolver', key: 'roleResolver'},
     {name: 'EcosystemAdminModule',    key: 'admin'},
-    {name: 'EcosystemConfigModule',    key: 'config'},
     {name: '- Marketplace -',          key: null},
     {name: 'MarketplaceRegistry',      key: 'mktRegistry'},
     {name: 'MarketplaceCatalog',       key: 'mktCatalog'},
