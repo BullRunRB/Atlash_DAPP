@@ -1236,15 +1236,16 @@ async function createProvider(network) {
 }
 
 const TESTNET_ADDRESSES = {
-  core:'0xE3F76E478Fd2321a65bB2e12822c1E92e28b20Dd',
-  userLens:'0xc86B7455790213d22b5bE03939D67d91d6A2b944', adminLens:'0x25d2967910A0f641B3Aa42A1de975a951a164C4a', ranks:'0x324473Ae9289912c794917D00ad608Ad372e378E',
-  pools:'0x640F0690a4dEcE30FD120D32c9b6FeeaAcD39409',
-  binary:'0x70eA59535aa139B851171797CC42c1aF42a133CA',
-  cashback:'0xe5a6Ac54E4C36d04Eac9cDDDd64aE5475d45d56e',
-  yield:'0xb3f493dd449F2Ec1fc78200D87f3fA10e26e2E49',
-  roleResolver:'0x907105B6B10Fb13011c181F9735D2A03A1fd3FB6',
-  admin:'0x9Bc974Bbc17cF90A40929D07f9fF8A8E5Dbf25B3',
-  registry:'0x3B03f7794766c2b4C2A38115005f19F761E076a4',
+  core:'0x0a05766358131dcC42922Bf846826BDFD9021566',
+  userLens:'0x62d7D68cD9902dD8ae9e485495f1a64c71975Df9', adminLens:'0xf70A5186cbE6b74428638f14b67f9E5EFc015B94', ranks:'0xA5EFe849039deDf5Aba9aF9b8AccdE81c311E467',
+  pools:'0x356A604F80680B650cfB6F6EfC54B9C3144dEe56',
+  binary:'0x99CaE21ad682BB2e260d6e5E59b664eb873D5E87',
+  cashback:'0x25c2dBf970Ba97883997cf115a934C114Fe76D5B',
+  yield:'0x9706568f95d094897aD49A7AD73220185f67d0C4',
+  roleResolver:'0x150653928A2EFeEC19a9281ac2D421eDB359d9Ed',
+  admin:'0x10184f03ab029Aaf42B330b2916edf668F441851',
+  config:'0xdf7EF1B08aa2Dc3191f95E1D07c0e11A8B5f3918',
+  registry:'0x994B0941327e94b408E653f3ae7AEC27Fb3cF5D1',
   mktRegistry:'0xf9541311E9556ab59406cd318d2fA5f1C3dE418f', mktCatalog:'0xf484ba0088623346aAF54c31Bc271f8A47176ACE', mktCheckout:'0x119bf8d51667160CbA1F3e12e3639A4932DD3269',
   mktTreasury:'0x11eE7bC91DC7cc8A50A8c7308E5e2cbb56319F36', mktAccess:'0xd251D6eE26AECFD1eeA45763Fc4e7e087F912B71', mktRenewal:'0x406B5bAeb4Df8c02DF8cd5c132BD15DD0DD78DEd', mktViews:'0x877670cd7c69426419A2607822e9e22C7a81D5FA'
 };
@@ -1954,7 +1955,7 @@ async function loadUserFromCore(addr) {
   const directs = directCountRes.status === 'fulfilled' ? Number(directCountRes.value) : 0;
 
   let ranksData = {pendingUserUSDT: 0n, poolAvailableUSDT: 0n};
-  let poolsData = {leadershipClaimableUSDT:0n, topTenClaimableUSDT:0n, leadershipPoolTotalUSDT:0n, topTenPoolTotalUSDT:0n, monthIndex:0n};
+  let poolsData = {leadershipClaimableUSDT:0n, topTenClaimableUSDT:0n, leadershipPoolTotalUSDT:0n, topTenPoolTotalUSDT:0n, monthIndex:0n, leadershipClosed:false, topTenClosed:false};
   let cashbackData = {balanceUSDT:0n, nextExpiryAt:0n, nextExpiryAmountUSDT:0n, expiringSoonAmountUSDT:0n};
 
   if (contracts.ranks) {
@@ -1976,7 +1977,7 @@ async function loadUserFromCore(addr) {
         contracts.pools.leadershipPoolTotal(mi),
         contracts.pools.topTenAccruedByMonth(mi)
       ]);
-      poolsData = {leadershipClaimableUSDT:0n, topTenClaimableUSDT:0n, leadershipPoolTotalUSDT:lTotal, topTenPoolTotalUSDT:tTotal, monthIndex:mi, leadershipClosed:false, topTenClosed:false};
+      poolsData = {leadershipClaimableUSDT:l, topTenClaimableUSDT:t, leadershipPoolTotalUSDT:lTotal, topTenPoolTotalUSDT:tTotal, monthIndex:mi};
     } catch {}
   }
 
@@ -2281,13 +2282,14 @@ function renderPools(pools) {
   const mi = pools.monthIndex || 0n;
   badge.innerHTML = `<span class="badge badge-blue">Mes ${Number(mi)}</span>`;
 
+  const leadershipShown = pools.leadershipClosed ? (pools.leadershipClaimableUSDT || 0n) : 0n;
+  const topTenShown = pools.topTenClosed ? (pools.topTenClaimableUSDT || 0n) : 0n;
+
   document.getElementById('pool-leadership-total').textContent = fmt18(pools.leadershipPoolTotalUSDT||0n) + ' USDT';
   document.getElementById('pool-topten-total').textContent = fmt18(pools.topTenPoolTotalUSDT||0n) + ' USDT';
 
   const pos = pools.userTopTenPosition;
   const inTopTen = pos > 0;
-  const leadershipReclamable = pools.leadershipClosed ? (pools.leadershipClaimableUSDT||0n) : 0n;
-  const topTenReclamable = pools.topTenClosed ? (pools.topTenClaimableUSDT||0n) : 0n;
 
   el.innerHTML = `
     <div class="pool-row">
@@ -2296,7 +2298,7 @@ function renderPools(pools) {
         <div class="pool-info">Total: ${fmt18(pools.leadershipPoolTotalUSDT||0n)} USDT</div>
       </div>
       <div>
-        <div class="pool-amount">${fmt18(leadershipReclamable)} USDT</div>
+        <div class="pool-amount">${fmt18(leadershipShown)} USDT</div>
         <div class="pool-sub">${pools.leadershipClosed ? 'Reclamable' : 'Pendiente de cierre'}</div>
       </div>
     </div>
@@ -2306,7 +2308,7 @@ function renderPools(pools) {
         <div class="pool-info">Total: ${fmt18(pools.topTenPoolTotalUSDT||0n)} USDT</div>
       </div>
       <div>
-        <div class="pool-amount">${fmt18(topTenReclamable)} USDT</div>
+        <div class="pool-amount">${fmt18(topTenShown)} USDT</div>
         <div class="pool-sub">${pools.topTenClosed ? 'Reclamable' : 'Pendiente de cierre'}</div>
       </div>
     </div>
@@ -2327,16 +2329,16 @@ function renderEarnings(ranks, pools, cb) {
     {
       name: '🌟 Pool Liderazgo',
       desc: 'Mes ' + Number(pools.monthIndex || 0n),
-      amount: pools.leadershipClosed ? (pools.leadershipClaimableUSDT || 0n) : 0n,
-      poolInfo: (pools.leadershipClosed ? 'Total pool: ' : 'Mes abierto · total pool: ') + fmt18(pools.leadershipPoolTotalUSDT || 0n) + ' USDT',
+      amount: (pools.leadershipClosed ? (pools.leadershipClaimableUSDT || 0n) : 0n),
+      poolInfo: 'Total pool: ' + fmt18(pools.leadershipPoolTotalUSDT || 0n) + ' USDT' + (pools.leadershipClosed ? '' : ' · Pendiente de cierre'),
       canClaim: walletAddress && currentUser === walletAddress && !!pools.leadershipClosed,
       onClaim: () => claimLeadership(pools.monthIndex)
     },
     {
       name: '🔟 Pool Top 10',
       desc: 'Mes ' + Number(pools.monthIndex || 0n),
-      amount: pools.topTenClosed ? (pools.topTenClaimableUSDT || 0n) : 0n,
-      poolInfo: (pools.topTenClosed ? 'Total pool: ' : 'Mes abierto · total pool: ') + fmt18(pools.topTenPoolTotalUSDT || 0n) + ' USDT',
+      amount: (pools.topTenClosed ? (pools.topTenClaimableUSDT || 0n) : 0n),
+      poolInfo: 'Total pool: ' + fmt18(pools.topTenPoolTotalUSDT || 0n) + ' USDT' + (pools.topTenClosed ? '' : ' · Pendiente de cierre'),
       canClaim: walletAddress && currentUser === walletAddress && !!pools.topTenClosed,
       onClaim: () => claimTopTen(pools.monthIndex)
     },
@@ -2414,8 +2416,12 @@ function renderCashback(cb, lotsPage) {
 }
 
 function renderBinary(leftBV, rightBV, leg) {
-  document.getElementById('left-bv').textContent = fmtIntPoints(leftBV || 0n);
-  document.getElementById('right-bv').textContent = fmtIntPoints(rightBV || 0n);
+  const fmtBV = (v) => {
+    try { return Math.floor(Number(ethers.formatUnits(v || 0n, 18))).toLocaleString('es-CO'); }
+    catch { return '0'; }
+  };
+  document.getElementById('left-bv').textContent = fmtBV(leftBV);
+  document.getElementById('right-bv').textContent = fmtBV(rightBV);
   document.getElementById('user-leg').textContent = LEG_NAMES[Number(leg)] || 'No definida';
 }
 
@@ -2776,6 +2782,7 @@ function updateContractsTab() {
     {name: 'YieldProgramModule', key: 'yield'},
     {name: 'RoleResolver', key: 'roleResolver'},
     {name: 'EcosystemAdminModule',    key: 'admin'},
+    {name: 'EcosystemConfigModule',   key: 'config'},
     {name: '- Marketplace -',          key: null},
     {name: 'MarketplaceRegistry',      key: 'mktRegistry'},
     {name: 'MarketplaceCatalog',       key: 'mktCatalog'},
@@ -3237,7 +3244,7 @@ async function loadYieldPackages() {
   const grid = document.getElementById('yield-packages-grid');
   if (!grid || !contracts.yield) return;
 
-  const KNOWN_AMOUNTS = [50, 100, 250, 500, 1000, 2000, 5000, 10000, 20000, 50000];
+  const KNOWN_AMOUNTS = [150, 300, 600, 1200, 2500, 5000, 10000, 25000, 50000, 100000];
   const allowed = [];
   for (const amt of KNOWN_AMOUNTS) {
     try {
@@ -4616,6 +4623,7 @@ async function bootstrapLoginMode() {
       yield: TESTNET_ADDRESSES.yield,
       roleResolver: TESTNET_ADDRESSES.roleResolver,
       admin: TESTNET_ADDRESSES.admin,
+      config: TESTNET_ADDRESSES.config,
       registry: TESTNET_ADDRESSES.registry,
       mktRegistry: TESTNET_ADDRESSES.mktRegistry,
       mktCatalog: TESTNET_ADDRESSES.mktCatalog,
