@@ -1404,7 +1404,6 @@ const PACKAGE_COLORS = {1:'var(--blue)', 2:'var(--purple)', 3:'var(--gold)', 4:'
 const LEG_NAMES = {0:'No definida', 1:'Izquierda', 2:'Derecha'};
 const MONTH_NAMES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 function monthNameFromIndex(mi){ const n = Number(mi ?? 0); return MONTH_NAMES[((n % 12) + 12) % 12] || `Mes ${n}`; }
-const MONTH_NAMES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 
 // ─── UTILS ───
 function fmt18(n) {
