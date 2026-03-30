@@ -1394,7 +1394,9 @@ let currentUserPackageId = 0;
 let currentUserPackagePrice = 0n;
 
 const PACKAGE_NAMES = {1:'Trader', 2:'Network Builder', 3:'Network Leader', 4:'Ecosystem Partner'};
+const PACKAGE_COLORS = {1:'var(--blue)', 2:'var(--purple)', 3:'var(--gold)', 4:'var(--green)'};
 const LEG_NAMES = {0:'No definida', 1:'Izquierda', 2:'Derecha'};
+const MONTH_NAMES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 
 // ─── UTILS ───
 function fmt18(n) {
@@ -1415,6 +1417,15 @@ function fmtIntPoints(n) {
 function shortAddr(addr) {
   if (!addr || addr === ethers.ZeroAddress) return '-';
   return addr.slice(0,6) + '...' + addr.slice(-4);
+}
+
+function getPackageColor(packageId) {
+  return PACKAGE_COLORS[Number(packageId || 0)] || 'var(--gray-300)';
+}
+
+function monthNameFromIndex(idx) {
+  const n = Number(idx ?? 0);
+  return MONTH_NAMES[(n >= 0 && n < 12) ? n : 0];
 }
 
 function isZero(addr) {
@@ -1955,7 +1966,7 @@ async function loadUserFromCore(addr) {
   const directs = directCountRes.status === 'fulfilled' ? Number(directCountRes.value) : 0;
 
   let ranksData = {pendingUserUSDT: 0n, poolAvailableUSDT: 0n};
-  let poolsData = {leadershipClaimableUSDT:0n, topTenClaimableUSDT:0n, leadershipPoolTotalUSDT:0n, topTenPoolTotalUSDT:0n, monthIndex:0n, leadershipClosed:false, topTenClosed:false};
+  let poolsData = {leadershipClaimableUSDT:0n, topTenClaimableUSDT:0n, leadershipPoolTotalUSDT:0n, leadershipAccruedUSDT:0n, topTenPoolTotalUSDT:0n, monthIndex:0n, leadershipClosed:false, topTenClosed:false};
   let cashbackData = {balanceUSDT:0n, nextExpiryAt:0n, nextExpiryAmountUSDT:0n, expiringSoonAmountUSDT:0n};
 
   if (contracts.ranks) {
@@ -1977,7 +1988,18 @@ async function loadUserFromCore(addr) {
         contracts.pools.leadershipPoolTotal(mi),
         contracts.pools.topTenAccruedByMonth(mi)
       ]);
-      poolsData = {leadershipClaimableUSDT:l, topTenClaimableUSDT:t, leadershipPoolTotalUSDT:lTotal, topTenPoolTotalUSDT:tTotal, monthIndex:mi};
+      poolsData = {leadershipClaimableUSDT:l, topTenClaimableUSDT:t, leadershipPoolTotalUSDT:lTotal, leadershipAccruedUSDT:lTotal, topTenPoolTotalUSDT:tTotal, monthIndex:mi};
+    } catch {}
+  }
+
+  if (contracts.adminLens) {
+    try {
+      const adminOv = await contracts.adminLens.getAdminOverview(poolsData.monthIndex || 0n).catch(() => null);
+      if (adminOv?.pools?.totalLeadershipAccrued !== undefined) {
+        poolsData.leadershipAccruedUSDT = adminOv.pools.totalLeadershipAccrued || poolsData.leadershipAccruedUSDT || 0n;
+      } else if (adminOv?.month?.leadershipAccrued !== undefined) {
+        poolsData.leadershipAccruedUSDT = adminOv.month.leadershipAccrued || poolsData.leadershipAccruedUSDT || 0n;
+      }
     } catch {}
   }
 
@@ -2052,6 +2074,7 @@ async function renderUserFromUserLens(addr, out) {
     leadershipClosed: out.pools.leadershipMonthClosed || false,
     topTenClosed: out.pools.topTenMonthClosed || false,
     leadershipPoolTotalUSDT: 0n,
+    leadershipAccruedUSDT: 0n,
     topTenPoolTotalUSDT: 0n,
     userTopTenPosition: out.pools.topTenPosition || 0
   };
@@ -2067,6 +2090,20 @@ async function renderUserFromUserLens(addr, out) {
       pools.topTenPoolTotalUSDT = topTotal || 0n;
     } catch {}
   }
+  if (contracts.adminLens) {
+    try {
+      const adminOv = await contracts.adminLens.getAdminOverview(pools.monthIndex || 0n).catch(() => null);
+      if (adminOv?.pools?.totalLeadershipAccrued !== undefined) {
+        pools.leadershipAccruedUSDT = adminOv.pools.totalLeadershipAccrued || 0n;
+      } else if (adminOv?.month?.leadershipAccrued !== undefined) {
+        pools.leadershipAccruedUSDT = adminOv.month.leadershipAccrued || 0n;
+      } else {
+        pools.leadershipAccruedUSDT = pools.leadershipPoolTotalUSDT || 0n;
+      }
+    } catch {
+      pools.leadershipAccruedUSDT = pools.leadershipPoolTotalUSDT || 0n;
+    }
+  }
   renderUserCard({ addr, exists:u.exists, frozen:u.frozen, upline:u.upline, highestPackage:u.packageId, validUntil:u.validUntil, monthlyIncludedUntil:u.monthlyIncludedUntil, isActive:u.activeNow, inactiveSecs:0n, directs:directsCount });
   renderStatsFromCore({ highestPackage:u.packageId, validUntil:u.validUntil, isActive:u.activeNow, frozen:u.frozen }, { balanceUSDT:cb.balance||0n, nextExpiryAt:cb.nextExpiryAt||0n, nextExpiryAmountUSDT:cb.nextExpiryAmount||0n, expiringSoonAmountUSDT:cb.expiringIn30d||0n }, directsCount, u.upline);
   renderMembership(u.validUntil, u.monthlyIncludedUntil, u.activeNow, u.frozen);
@@ -2074,7 +2111,7 @@ async function renderUserFromUserLens(addr, out) {
   renderCashback({ balanceUSDT:cb.balance||0n, nextExpiryAt:cb.nextExpiryAt||0n, nextExpiryAmountUSDT:cb.nextExpiryAmount||0n, expiringSoonAmountUSDT:cb.expiringIn30d||0n }, null);
   renderPools(pools);
   document.getElementById('stat-rank').textContent = out.ranks.currentRank > 0 ? 'Rango ' + out.ranks.currentRank : 'Sin rango';
-  document.getElementById('pool-leadership-total').textContent = fmt18(pools.leadershipPoolTotalUSDT || 0n) + ' USDT';
+  document.getElementById('pool-leadership-total').textContent = fmt18((pools.leadershipAccruedUSDT ?? pools.leadershipPoolTotalUSDT ?? 0n)) + ' USDT';
   document.getElementById('pool-topten-total').textContent = fmt18(pools.topTenPoolTotalUSDT || 0n) + ' USDT';
   await loadPackages(null, u.packageId);
   await loadYieldData(addr);
@@ -2108,8 +2145,9 @@ function renderUserCard(u) {
   const initials = u.addr.slice(2,4).toUpperCase();
   const section = document.getElementById('user-card-section');
   const explorerBase = activeNetwork ? activeNetwork.explorer : 'https://bscscan.com';
+  const pkgColor = getPackageColor(u.highestPackage);
   section.innerHTML = `
-    <div class="user-card">
+    <div class="user-card" style="border:2px solid ${pkgColor}; box-shadow:0 0 0 3px color-mix(in srgb, ${pkgColor} 10%, white);">
       <div class="user-avatar">${initials}</div>
       <div class="user-info">
         <div class="user-addr">
@@ -2295,7 +2333,7 @@ function renderPools(pools) {
     <div class="pool-row">
       <div>
         <div class="pool-name">Pool Liderazgo ${pools.leadershipClosed ? '<span class="badge badge-green">Cerrado</span>' : '<span class="badge badge-amber">Abierto</span>'}</div>
-        <div class="pool-info">Total: ${fmt18(pools.leadershipPoolTotalUSDT||0n)} USDT</div>
+        <div class="pool-info">Total: ${fmt18((pools.leadershipAccruedUSDT ?? pools.leadershipPoolTotalUSDT ?? 0n))} USDT</div>
       </div>
       <div>
         <div class="pool-amount">${fmt18(leadershipShown)} USDT</div>
@@ -2330,7 +2368,7 @@ function renderEarnings(ranks, pools, cb) {
       name: '🌟 Pool Liderazgo',
       desc: 'Mes ' + Number(pools.monthIndex || 0n),
       amount: (pools.leadershipClosed ? (pools.leadershipClaimableUSDT || 0n) : 0n),
-      poolInfo: 'Total pool: ' + fmt18(pools.leadershipPoolTotalUSDT || 0n) + ' USDT' + (pools.leadershipClosed ? '' : ' · Pendiente de cierre'),
+      poolInfo: 'Total acumulado: ' + fmt18((pools.leadershipAccruedUSDT ?? pools.leadershipPoolTotalUSDT ?? 0n)) + ' USDT' + (pools.leadershipClosed ? '' : ' · Pendiente de cierre'),
       canClaim: walletAddress && currentUser === walletAddress && !!pools.leadershipClosed,
       onClaim: () => claimLeadership(pools.monthIndex)
     },
