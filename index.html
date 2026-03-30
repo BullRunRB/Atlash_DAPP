@@ -1226,7 +1226,7 @@ async function createProvider(network) {
   for (const rpc of rpcs) {
     try {
       const p = new ethers.JsonRpcProvider(rpc, { name: network.label, chainId: network.chainId }, { staticNetwork: true });
-      p.pollingInterval = 15000;
+      p.pollingInterval = 60000;
       // Quick test with 5s timeout
       const networkInfo = await Promise.race([
         p.getNetwork(),
@@ -1243,7 +1243,7 @@ async function createProvider(network) {
   // If all fail, return provider with first RPC anyway (reads might still work)
   console.warn('All RPCs failed, using first as fallback');
   const fallback = new ethers.JsonRpcProvider(rpcs[0], { name: network.label, chainId: network.chainId }, { staticNetwork: true });
-  fallback.pollingInterval = 15000;
+  fallback.pollingInterval = 60000;
   return fallback;
 }
 
@@ -4909,7 +4909,11 @@ if (window.ethereum) {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-  bootstrapLoginMode();
+  // Init ligera para GitHub Pages: no auto-conecta ni precarga módulos pesados
+  activeNetwork = NETWORKS.testnet;
+  updateNavBadge();
+  const app = document.getElementById('app'); if (app) app.classList.add('visible');
+  showLoginGate('Conecta tu wallet o usa configuración manual. La carga pesada queda bajo demanda.');
 });
 
 </script>
