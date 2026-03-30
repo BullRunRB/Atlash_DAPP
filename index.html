@@ -555,11 +555,14 @@ body {
 }
 .pkg-card:hover { border-color: var(--gray-300); box-shadow: var(--shadow); }
 .pkg-card.mine { border-color: var(--gray-900); }
-.pkg-card.active { box-shadow: var(--shadow); }
-.pkg-card.pkg-1.active { border-color:#6b7280; box-shadow:0 0 0 1px rgba(107,114,128,.15), var(--shadow); }
-.pkg-card.pkg-2.active { border-color:var(--blue); box-shadow:0 0 0 1px rgba(37,99,235,.15), var(--shadow); }
-.pkg-card.pkg-3.active { border-color:var(--purple); box-shadow:0 0 0 1px rgba(124,58,237,.15), var(--shadow); }
-.pkg-card.pkg-4.active { border-color:var(--gold); box-shadow:0 0 0 1px rgba(184,134,11,.18), var(--shadow); }
+.pkg-card.active { box-shadow: var(--shadow-md); border-width:2px; transform:translateY(-1px); }
+.pkg-card.active .pkg-name { color: var(--gray-900); }
+.pkg-card.active .pkg-price { color: var(--gray-900); }
+.pkg-card.active .pkg-feats { opacity: 1; }
+.pkg-card.pkg-1.active { border-color:#6b7280; background:linear-gradient(180deg,#ffffff 0%, #f9fafb 100%); box-shadow:0 0 0 3px rgba(107,114,128,.12), var(--shadow-md); }
+.pkg-card.pkg-2.active { border-color:var(--blue); background:linear-gradient(180deg,#ffffff 0%, #eff6ff 100%); box-shadow:0 0 0 3px rgba(37,99,235,.14), var(--shadow-md); }
+.pkg-card.pkg-3.active { border-color:var(--purple); background:linear-gradient(180deg,#ffffff 0%, #f5f3ff 100%); box-shadow:0 0 0 3px rgba(124,58,237,.14), var(--shadow-md); }
+.pkg-card.pkg-4.active { border-color:var(--gold); background:linear-gradient(180deg,#ffffff 0%, #fffbeb 100%); box-shadow:0 0 0 3px rgba(184,134,11,.16), var(--shadow-md); }
 
 .pkg-num { position: absolute; top: 14px; right: 16px; font-size: 40px; font-weight: 900; color: var(--gray-100); line-height: 1; letter-spacing: -3px; }
 .pkg-name { font-size: 14px; font-weight: 700; color: var(--gray-900); margin-bottom: 2px; }
@@ -2156,7 +2159,7 @@ function renderUserCard(u) {
   const explorerBase = activeNetwork ? activeNetwork.explorer : 'https://bscscan.com';
   const pkgColor = getPackageColor(u.highestPackage);
   section.innerHTML = `
-    <div class="user-card" style="border:2px solid ${pkgColor}; box-shadow:0 0 0 3px color-mix(in srgb, ${pkgColor} 10%, white);">
+    <div class="user-card">
       <div class="user-avatar">${initials}</div>
       <div class="user-info">
         <div class="user-addr">
