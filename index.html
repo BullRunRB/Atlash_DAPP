@@ -1245,20 +1245,18 @@ async function createProvider(network) {
 }
 
 const TESTNET_ADDRESSES = {
-  registry:'0x82F1f26468d7191969cDaADC1bE2Ac361F148B50',
-  roleResolver:'0x5900026E4D818dEe319Da6e72e323e03642261eF',
-  cashback:'0x2A2e99BC50B8DD8607649854C17798b085687e57',
   core:'0x4f762Fe9a9B269B42809E3ce90182f38C91A7f42',
-  ranks:'0x2f3e62d04fA08967DC8c0bD4E3EF4Ed6a300254A',
+  userLens:'0x35a71a9963827d49E96a10De414aca93041Fee8E', adminLens:'0xE938C57EF63959578D5cbdF084bB75da96d15e30', ranks:'0x2f3e62d04fA08967DC8c0bD4E3EF4Ed6a300254A',
   pools:'0x95aafb5E0C6109F1e9B234219cc62Bc754ff47c3',
   binary:'0x07aFF6fD65CF4378863577C178336727C74e70d6',
+  cashback:'0x2A2e99BC50B8DD8607649854C17798b085687e57',
   yield:'0x1a3EAA87FD754A876f5857f4458De098960e4a9f',
+  roleResolver:'0x5900026E4D818dEe319Da6e72e323e03642261eF',
   admin:'0x3F6B565F06507999099e1d75263Dca7360FC2C45',
   config:'0x08AF17c59dbf091a3A2799E402D2fB5DFf316C18',
-  userLens:'0x35a71a9963827d49E96a10De414aca93041Fee8E',
-  adminLens:'0xE938C57EF63959578D5cbdF084bB75da96d15e30',
-  mktRegistry:'', mktCatalog:'', mktCheckout:'',
-  mktTreasury:'', mktAccess:'', mktRenewal:'', mktViews:''
+  registry:'0x82F1f26468d7191969cDaADC1bE2Ac361F148B50',
+  mktRegistry:'0xf9541311E9556ab59406cd318d2fA5f1C3dE418f', mktCatalog:'0xf484ba0088623346aAF54c31Bc271f8A47176ACE', mktCheckout:'0x119bf8d51667160CbA1F3e12e3639A4932DD3269',
+  mktTreasury:'0x11eE7bC91DC7cc8A50A8c7308E5e2cbb56319F36', mktAccess:'0xd251D6eE26AECFD1eeA45763Fc4e7e087F912B71', mktRenewal:'0x406B5bAeb4Df8c02DF8cd5c132BD15DD0DD78DEd', mktViews:'0x877670cd7c69426419A2607822e9e22C7a81D5FA'
 };
 
 
@@ -1376,12 +1374,6 @@ const YIELD_ABI = [
   "function buyYield(uint256 amount, bool startCompound) returns (uint256 positionId)",
   "function sync(uint256 positionId) returns ()",
   "function setCompound(uint256 positionId, bool compound) returns ()",
-  "function MIN_YIELD_BUY() view returns (uint256)",
-  "function VOUCHER_MIN_DIRECTS() view returns (uint16)",
-  "function claimVoucherAccrued(uint256 positionId) returns ()",
-  "function setVoucherDesiredMode(uint256 positionId, bool desiredCompound) returns ()",
-  "function setVoucherSide(uint256 positionId, uint8 side) returns ()",
-  "function cancelExpiredVoucher(uint256 positionId) returns ()",
   "event PositionOpened(uint256 indexed positionId, address indexed user, uint256 amount, bool compound)",
   "event YieldSettled(uint256 indexed positionId, address indexed user, uint256 day, uint256 amount, bool compounded)"
 ];
@@ -1407,43 +1399,12 @@ let signer = null;
 let walletAddress = null;
 let currentUser = null;
 let authState = { owner:null, guardian:null, isOwner:false, isGuardian:false, isAdmin:false };
-let currentUserFrontendCache = null;
 let currentUserPackageId = 0;
 let currentUserPackagePrice = 0n;
 
 const PACKAGE_NAMES = {1:'Trader', 2:'Network Builder', 3:'Network Leader', 4:'Ecosystem Partner'};
 const PACKAGE_COLORS = {1:'var(--blue)', 2:'var(--purple)', 3:'var(--gold)', 4:'var(--green)'};
 const LEG_NAMES = {0:'No definida', 1:'Izquierda', 2:'Derecha'};
-function tupleVal(obj, key, idx, fallback = null) {
-  try {
-    if (obj == null) return fallback;
-    if (key && obj[key] !== undefined) return obj[key];
-    if (typeof idx === 'number' && obj[idx] !== undefined) return obj[idx];
-    return fallback;
-  } catch { return fallback; }
-}
-function normalizeYieldPosition(p) {
-  if (!p) return null;
-  return {
-    positionId: tupleVal(p, 'positionId', 0, 0),
-    user: tupleVal(p, 'user', 1, tupleVal(p, 'user', 0, ethers.ZeroAddress)),
-    basePrincipal: tupleVal(p, 'basePrincipal', 1, 0n),
-    principal: tupleVal(p, 'principal', 2, 0n),
-    paidOut: tupleVal(p, 'paidOut', 3, 0n),
-    pendingAccrued: tupleVal(p, 'pendingAccrued', 4, 0n),
-    accruedTotal: tupleVal(p, 'accruedTotal', 5, 0n),
-    lastDay: tupleVal(p, 'lastDay', 6, 0),
-    grantedDay: tupleVal(p, 'grantedDay', 7, 0),
-    deadlineDay: tupleVal(p, 'deadlineDay', 8, 0),
-    compoundLockUntilDay: tupleVal(p, 'compoundLockUntilDay', 9, 0),
-    compound: tupleVal(p, 'compound', 10, false),
-    completed: tupleVal(p, 'completed', 11, false),
-    voucherStatus: tupleVal(p, 'voucherStatus', 12, 0),
-    voucherDirects: tupleVal(p, 'voucherDirects', 13, 0n),
-    voucherTotalVolume: tupleVal(p, 'voucherTotalVolume', 14, 0n),
-    voucherSide: tupleVal(p, 'voucherSide', 15, 0),
-  };
-}
 const MONTH_NAMES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 function monthNameFromIndex(mi){ const n = Number(mi ?? 0); return MONTH_NAMES[((n % 12) + 12) % 12] || `Mes ${n}`; }
 
@@ -2001,7 +1962,6 @@ async function detectUserYieldPositionIds(userAddr) {
 }
 
 async function loadUserFromCore(addr) {
-  currentUserFrontendCache = null;
   const [userData, directCountRes] = await Promise.allSettled([
     contracts.core.users(addr),
     contracts.core.directCount(addr)
@@ -2044,13 +2004,11 @@ async function loadUserFromCore(addr) {
 
   if (contracts.adminLens) {
     try {
-      const adminOv = await contracts.adminLens.getAdminOverview(poolsData.monthIndex || 0n).catch(() => null);
-      const leadAdmin = tupleVal(tupleVal(adminOv,'pools',5,{}),'totalLeadershipAccrued',11,null);
-      const leadMonth = tupleVal(tupleVal(adminOv,'month',8,{}),'leadershipAccrued',3,null);
-      if (leadAdmin !== null && leadAdmin !== undefined) {
-        poolsData.leadershipAccruedUSDT = leadAdmin || poolsData.leadershipAccruedUSDT || 0n;
-      } else if (leadMonth !== null && leadMonth !== undefined) {
-        poolsData.leadershipAccruedUSDT = leadMonth || poolsData.leadershipAccruedUSDT || 0n;
+      const adminOv = await loadAdminLensOverview().catch(() => null);
+      if (adminOv?.pools?.totalLeadershipAccrued !== undefined) {
+        poolsData.leadershipAccruedUSDT = adminOv.pools.totalLeadershipAccrued || poolsData.leadershipAccruedUSDT || 0n;
+      } else if (adminOv?.month?.leadershipAccrued !== undefined) {
+        poolsData.leadershipAccruedUSDT = adminOv.month.leadershipAccrued || poolsData.leadershipAccruedUSDT || 0n;
       }
     } catch {}
   }
@@ -2109,7 +2067,6 @@ async function loadUserFromCore(addr) {
 }
 
 async function renderUserFromUserLens(addr, out) {
-  currentUserFrontendCache = out;
   const u = out.coreUser;
   const cb = out.cashback;
   let directsCount = Number(u.directCount || 0n);
@@ -2146,13 +2103,11 @@ async function renderUserFromUserLens(addr, out) {
   }
   if (contracts.adminLens) {
     try {
-      const adminOv = await contracts.adminLens.getAdminOverview(pools.monthIndex || 0n).catch(() => null);
-      const leadAdmin = tupleVal(tupleVal(adminOv,'pools',5,{}),'totalLeadershipAccrued',11,null);
-      const leadMonth = tupleVal(tupleVal(adminOv,'month',8,{}),'leadershipAccrued',3,null);
-      if (leadAdmin !== null && leadAdmin !== undefined) {
-        pools.leadershipAccruedUSDT = leadAdmin || 0n;
-      } else if (leadMonth !== null && leadMonth !== undefined) {
-        pools.leadershipAccruedUSDT = leadMonth || 0n;
+      const adminOv = await loadAdminLensOverview().catch(() => null);
+      if (adminOv?.pools?.totalLeadershipAccrued !== undefined) {
+        pools.leadershipAccruedUSDT = adminOv.pools.totalLeadershipAccrued || 0n;
+      } else if (adminOv?.month?.leadershipAccrued !== undefined) {
+        pools.leadershipAccruedUSDT = adminOv.month.leadershipAccrued || 0n;
       } else {
         pools.leadershipAccruedUSDT = pools.leadershipPoolTotalUSDT || 0n;
       }
@@ -2301,66 +2256,12 @@ async function getUpgradeOptions() {
     .map(p => ({ ...p, diff: p.price > currentPrice ? p.price - currentPrice : 0n }));
 }
 
-let upgradeCashbackState = { balance: 0n, spendable: 0n };
-
-async function getUpgradeCashbackInfo() {
-  let balance = 0n;
-  let spendable = 0n;
-  try {
-    if (contracts.userLens && currentUser) {
-      const monthIndex = contracts.pools ? await contracts.pools.currentMonthIndex().catch(()=>0n) : 0n;
-      const out = await contracts.userLens.getUserFrontend(currentUser, monthIndex, []).catch(() => null);
-      if (out?.cashback) {
-        balance = BigInt(out.cashback.balance || 0n);
-        spendable = BigInt(out.cashback.spendableForUpgrade || 0n);
-      }
-    }
-  } catch {}
-  if (balance === 0n && contracts.cashback && currentUser) {
-    try { balance = BigInt(await contracts.cashback.balanceOf(currentUser)); } catch {}
-  }
-  if (spendable === 0n) spendable = balance;
-  return { balance, spendable };
-}
-
-function getUpgradeCashbackInputValue(packageId) {
-  const inp = document.getElementById(`upgrade-cb-input-${packageId}`);
-  if (!inp) return 0n;
-  const raw = String(inp.value || '').replace(',', '.').trim();
-  if (!raw) return 0n;
-  try {
-    const parsed = ethers.parseUnits(raw, 18);
-    return parsed < 0n ? 0n : parsed;
-  } catch {
-    return 0n;
-  }
-}
-
-function updateUpgradeCashbackCard(packageId, diffWei, maxUsableWei) {
-  const inputWei = getUpgradeCashbackInputValue(packageId);
-  const useWei = inputWei > maxUsableWei ? maxUsableWei : inputWei;
-  const appliedEl = document.getElementById(`upgrade-cb-applied-${packageId}`);
-  const payableEl = document.getElementById(`upgrade-usdt-pay-${packageId}`);
-  const hintEl = document.getElementById(`upgrade-cb-hint-${packageId}`);
-  const inputEl = document.getElementById(`upgrade-cb-input-${packageId}`);
-  if (inputEl && inputWei !== useWei) inputEl.value = fmt18(useWei);
-  if (appliedEl) appliedEl.textContent = fmt18(useWei) + ' USDT';
-  if (payableEl) payableEl.textContent = fmt18(diffWei > useWei ? (diffWei - useWei) : 0n) + ' USDT';
-  if (hintEl) hintEl.textContent = maxUsableWei > 0n ? `Máximo usable en este upgrade: ${fmt18(maxUsableWei)} USDT` : 'No hay cashback usable para este upgrade';
-}
-
-function setMaxUpgradeCashback(packageId, maxUsableWei) {
-  const inputEl = document.getElementById(`upgrade-cb-input-${packageId}`);
-  if (inputEl) inputEl.value = fmt18(maxUsableWei);
-}
-
 async function openUpgradeModal() {
   if (!walletAddress || !currentUser || walletAddress.toLowerCase() !== currentUser.toLowerCase()) {
     toast('Conecta y busca tu misma wallet para hacer upgrade', 'error');
     return;
   }
   const options = await getUpgradeOptions();
-  upgradeCashbackState = await getUpgradeCashbackInfo();
   const existing = document.getElementById('upgrade-modal-bg');
   if (existing) existing.remove();
   const bg = document.createElement('div');
@@ -2368,45 +2269,20 @@ async function openUpgradeModal() {
   bg.className = 'modal-bg';
   const currentName = PACKAGE_NAMES[currentUserPackageId] || ('Paquete ' + currentUserPackageId);
   bg.innerHTML = `
-    <div class="modal" style="max-width:960px;">
+    <div class="modal" style="max-width:760px;">
       <div class="modal-title">Upgrade de paquete ATLASH</div>
       <div class="modal-sub">Paquete actual: <strong>${currentName}</strong> · Precio base: <strong>${fmt18(currentUserPackagePrice)} USDT</strong></div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;">
-        <div class="dist-box" style="margin-bottom:0;">
-          <div class="dist-title">Cashback disponible</div>
-          <div style="font-size:22px;font-weight:700;color:var(--green);font-family:var(--mono);">${fmt18(upgradeCashbackState.balance)} USDT</div>
-        </div>
-        <div class="dist-box" style="margin-bottom:0;">
-          <div class="dist-title">Cashback gastable en upgrade</div>
-          <div style="font-size:22px;font-weight:700;color:var(--blue);font-family:var(--mono);">${fmt18(upgradeCashbackState.spendable)} USDT</div>
-        </div>
-      </div>
-      ${options.length ? `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px;">${options.map(op => {
-        const maxUsable = op.diff < upgradeCashbackState.spendable ? op.diff : upgradeCashbackState.spendable;
-        return `
+      ${options.length ? `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;">${options.map(op => `
         <div class="pkg-card" style="padding:16px;">
           <div class="pkg-name">${PACKAGE_NAMES[op.packageId] || ('Paquete '+op.packageId)}</div>
           <div class="pkg-role">Paquete ${op.packageId}</div>
           <div class="pkg-price">${fmt18(op.price)} USDT</div>
-          <div class="mem-row"><span class="mem-label">Diferencia upgrade</span><span class="mem-val" style="color:var(--green);">${fmt18(op.diff)} USDT</span></div>
-          <div class="mem-row"><span class="mem-label">Cashback disponible</span><span class="mem-val">${fmt18(upgradeCashbackState.balance)} USDT</span></div>
-          <div class="mem-row"><span class="mem-label">Máximo usable</span><span class="mem-val" style="color:var(--blue);">${fmt18(maxUsable)} USDT</span></div>
-          <div style="margin-top:10px;">
-            <label class="field-label">Cashback a usar</label>
-            <div style="display:flex;gap:8px;align-items:center;">
-              <input id="upgrade-cb-input-${op.packageId}" class="addr-inp" type="number" min="0" step="0.01" value="0" oninput="updateUpgradeCashbackCard(${op.packageId}, ${op.diff}n, ${maxUsable}n)" style="font-family:var(--font);" />
-              <button class="btn btn-outline" type="button" onclick="setMaxUpgradeCashback(${op.packageId}, ${maxUsable}n); updateUpgradeCashbackCard(${op.packageId}, ${op.diff}n, ${maxUsable}n)">Usar máximo</button>
-            </div>
-            <div id="upgrade-cb-hint-${op.packageId}" class="field-hint">Máximo usable en este upgrade: ${fmt18(maxUsable)} USDT</div>
-          </div>
-          <div class="mem-row"><span class="mem-label">Cashback aplicado</span><span class="mem-val" id="upgrade-cb-applied-${op.packageId}">0.00 USDT</span></div>
-          <div class="mem-row"><span class="mem-label">USDT a pagar hoy</span><span class="mem-val" id="upgrade-usdt-pay-${op.packageId}" style="color:var(--gold);">${fmt18(op.diff)} USDT</span></div>
+          <div class="mem-row"><span class="mem-label">Pagas hoy</span><span class="mem-val" style="color:var(--green);">${fmt18(op.diff)} USDT</span></div>
           <div style="display:flex;gap:8px;margin-top:12px;">
-            <button class="btn btn-dark" style="flex:1;" onclick="executeUpgrade(${op.packageId}, false)">Upgrade normal</button>
+            <button class="btn btn-dark" style="flex:1;" onclick="executeUpgrade(${op.packageId})">Upgrade</button>
             <button class="btn btn-outline" style="flex:1;" onclick="executeUpgrade(${op.packageId}, true)">Con cashback</button>
           </div>
-        </div>`;
-      }).join('')}</div>` : `<div class="empty"><div class="empty-icon">✅</div><div class="empty-title">No hay upgrades disponibles</div></div>`}
+        </div>`).join('')}</div>` : `<div class="empty"><div class="empty-icon">✅</div><div class="empty-title">No hay upgrades disponibles</div></div>`}
       <div style="display:flex;justify-content:flex-end;margin-top:16px;"><button class="btn btn-outline" onclick="closeUpgradeModal()">Cerrar</button></div>
     </div>`;
   document.body.appendChild(bg);
@@ -2438,11 +2314,8 @@ async function executeUpgrade(targetPackageId, useCashback = false) {
       const tx = await coreWithSigner.upgradePackage(option.packageId);
       await tx.wait();
     } else {
-      const maxUsable = option.diff < upgradeCashbackState.spendable ? option.diff : upgradeCashbackState.spendable;
-      const cashbackToUse = getUpgradeCashbackInputValue(option.packageId);
-      const cashbackFinal = cashbackToUse > maxUsable ? maxUsable : cashbackToUse;
       toast('Ejecutando upgrade con cashback...', 'info');
-      const tx = await coreWithSigner.upgradePackageWithCashback(option.packageId, cashbackFinal);
+      const tx = await coreWithSigner.upgradePackageWithCashback(option.packageId, 0);
       await tx.wait();
     }
     toast('✅ Upgrade completado', 'success');
@@ -2462,7 +2335,7 @@ function renderPools(pools) {
   const leadershipShown = pools.leadershipClosed ? (pools.leadershipClaimableUSDT || 0n) : 0n;
   const topTenShown = pools.topTenClosed ? (pools.topTenClaimableUSDT || 0n) : 0n;
 
-  document.getElementById('pool-leadership-total').textContent = fmt18(pools.leadershipPoolTotalUSDT||0n) + ' USDT';
+  document.getElementById('pool-leadership-total').textContent = fmt18((pools.leadershipAccruedUSDT ?? pools.leadershipPoolTotalUSDT ?? 0n)) + ' USDT';
   document.getElementById('pool-topten-total').textContent = fmt18(pools.topTenPoolTotalUSDT||0n) + ' USDT';
 
   const pos = pools.userTopTenPosition;
@@ -2551,19 +2424,18 @@ function renderEarnings(ranks, pools, cb) {
 async function loadCashbackLots(addr) {
   if (!contracts.cashback || !addr) return null;
   try {
-    let res = await contracts.cashback.cashbackLotsSummary(addr, 100).catch(() => null);
-    if (!res) res = await contracts.cashback.cashbackLotsSummary(addr, 50).catch(() => null);
+    const res = await contracts.cashback.cashbackLotsSummary(addr, 0).catch(() => null);
     if (!res) return null;
-    const lotIndexes = Array.from(tupleVal(res, 'lotIndexes', 0, []) || []);
-    const amounts = Array.from(tupleVal(res, 'amounts', 1, []) || []);
-    const expiresAts = Array.from(tupleVal(res, 'expiresAts', 2, []) || []);
+    const lotIndexes = Array.from(res.lotIndexes || []);
+    const amounts = Array.from(res.amounts || []);
+    const expiresAts = Array.from(res.expiresAts || []);
     const now = BigInt(Math.floor(Date.now()/1000));
     return {
       lotIndexes,
       amountsUSDT: amounts,
       expiresAt: expiresAts,
       expired: expiresAts.map(ts => BigInt(ts || 0) <= now),
-      totalLotsReturned: Number(tupleVal(res, 'totalLotsReturned', 3, lotIndexes.length || 0))
+      totalLotsReturned: Number(res.totalLotsReturned || lotIndexes.length || 0)
     };
   } catch (e) {
     console.warn('loadCashbackLots', e);
@@ -2906,41 +2778,23 @@ async function loadPackages(activeIds, userPkg) {
   if (!contracts.core) return;
 
   try {
-    let pkgDefs = [];
-    if (contracts.userLens && typeof contracts.userLens.getPackages === 'function') {
-      try {
-        const all = await contracts.userLens.getPackages();
-        pkgDefs = (Array.isArray(all) ? all : []).map(p => ({
-          id: Number(tupleVal(p, 'packageId', 0, 0)),
-          price: tupleVal(p, 'price', 1, 0n),
-          brokerFee: tupleVal(p, 'brokerFee', 2, 0n),
-          includedMonths: tupleVal(p, 'includedMonths', 3, 0),
-          enabled: !!tupleVal(p, 'enabled', 4, true),
-          exists: !!tupleVal(p, 'exists', 5, true)
-        })).filter(p => p.id > 0 && p.exists);
-      } catch (e) {
-        console.warn('getPackages lens fallback to core', e);
+    const pkgDefs = [];
+    if (contracts.userLens) {
+      const all = await contracts.userLens.getPackages().catch(()=>[]);
+      for (const p of all) {
+        const id = Number(p.packageId || 0);
+        if (!id) continue;
+        if (activeIds && !activeIds.map(Number).includes(id)) continue;
+        if (p.exists) pkgDefs.push({id, price:p.price, brokerFee:p.brokerFee, includedMonths:p.includedMonths, enabled:p.enabled});
       }
-    }
-    if (!pkgDefs.length) {
-      const maxId = activeIds ? Math.max(...activeIds.map(Number)) : Number(await contracts.core.maxPackageId().catch(() => 4n));
+    } else {
+      const maxId = activeIds ? Math.max(...activeIds.map(Number)) : Number(await contracts.core.maxPackageId());
       for (let i = 1; i <= maxId; i++) {
         if (activeIds && !activeIds.map(Number).includes(i)) continue;
         try {
-          const p = await contracts.core.packages(i);
-          const exists = !!tupleVal(p, null, 4, true);
-          if (!exists) continue;
-          pkgDefs.push({
-            id: i,
-            price: tupleVal(p, null, 0, 0n),
-            brokerFee: tupleVal(p, null, 1, 0n),
-            includedMonths: tupleVal(p, null, 2, 0),
-            enabled: !!tupleVal(p, null, 3, true),
-            exists: true
-          });
-        } catch (e) {
-          console.warn('packages core read failed', i, e);
-        }
+          const [price, brokerFee, includedMonths, enabled, exists] = await contracts.core.packages(i);
+          if (exists) pkgDefs.push({id:i, price, brokerFee, includedMonths, enabled});
+        } catch {}
       }
     }
 
@@ -2973,12 +2827,11 @@ async function loadPackages(activeIds, userPkg) {
             ${b.hasPools ? '<li>Acceso a pools globales</li>' : ''}
             ${!p.enabled ? '<li style="color:var(--red)">Deshabilitado</li>' : ''}
           </ul>
-          ${isUserPkg ? '<div style="margin-top:12px;text-align:center;font-size:10px;font-family:&quot;DM Mono&quot;,monospace;color:var(--gold);letter-spacing:1px;">★ TU PAQUETE</div>' : ''}
+          ${isUserPkg ? '<div style="margin-top:12px;text-align:center;font-size:10px;font-family:\'DM Mono\',monospace;color:var(--gold);letter-spacing:1px;">★ TU PAQUETE</div>' : ''}
         </div>
       `;
     }).join('');
   } catch(e) {
-    console.error('loadPackages error', e);
     el.innerHTML = `<div class="empty" style="grid-column:1/-1;"><div class="empty-icon">⚠️</div><div class="empty-title">Error al cargar paquetes</div><div class="empty-desc">${e.message}</div></div>`;
   }
 }
@@ -3247,15 +3100,14 @@ async function loadYieldData(addr) {
   if (!el) return;
 
   try {
-    const [poolBal, totalPrincipal, nextId, minRate, maxRate, buyFeeVal, minBuyRes, voucherMinRes] = await Promise.allSettled([
+    // Load global stats
+    const [poolBal, totalPrincipal, nextId, minRate, maxRate, buyFeeVal] = await Promise.allSettled([
       contracts.yield.yieldPoolBalance(),
       contracts.yield.totalActivePrincipal(),
       contracts.yield.nextPositionId(),
       contracts.yield.minDailyRateBP(),
       contracts.yield.maxDailyRateBP(),
-      contracts.yield.buyFee(),
-      contracts.yield.MIN_YIELD_BUY ? contracts.yield.MIN_YIELD_BUY() : Promise.resolve(null),
-      contracts.yield.VOUCHER_MIN_DIRECTS ? contracts.yield.VOUCHER_MIN_DIRECTS() : Promise.resolve(null)
+      contracts.yield.buyFee()
     ]);
 
     const g = r => r.status === 'fulfilled' ? r.value : null;
@@ -3272,52 +3124,18 @@ async function loadYieldData(addr) {
       if (feeEl) feeEl.textContent = fmt18(g(buyFeeVal));
     }
 
-    const buyPanel = document.getElementById('buy-yield-panel');
-    let metaEl = document.getElementById('yield-meta-box');
-    if (!metaEl && buyPanel) {
-      metaEl = document.createElement('div');
-      metaEl.id = 'yield-meta-box';
-      metaEl.style.marginBottom = '14px';
-      buyPanel.querySelector('.panel-body')?.prepend(metaEl);
-    }
-    if (metaEl) {
-      let todayRateText = '';
-      if (contracts.adminLens && contracts.pools) {
-        try {
-          const mi = await contracts.pools.currentMonthIndex().catch(()=>0n);
-          const adminOv = await contracts.adminLens.getAdminOverview(mi).catch(()=>null);
-          const todayRateBP = adminOv?.yield?.todayRateBP ?? null;
-          if (todayRateBP !== null && todayRateBP !== undefined) todayRateText = (Number(todayRateBP)/100).toFixed(2) + '% hoy';
-        } catch {}
-      }
-      metaEl.innerHTML = `<div class="dist-box">
-        <div class="dist-title">Yield · Parámetros actuales</div>
-        <div class="dist-grid" style="grid-template-columns:repeat(4,1fr);gap:10px;">
-          <div class="dist-item"><span class="dist-dot"></span>Fee buy: ${g(buyFeeVal) !== null ? fmt18(g(buyFeeVal)) + ' USDT' : '-'}</div>
-          <div class="dist-item"><span class="dist-dot"></span>Mínimo: ${g(minBuyRes) !== null ? fmt18(g(minBuyRes)) + ' USDT' : '-'}</div>
-          <div class="dist-item"><span class="dist-dot"></span>Voucher directos: ${g(voucherMinRes) !== null ? Number(g(voucherMinRes)) : '-'}</div>
-          <div class="dist-item"><span class="dist-dot"></span>Tasa actual: ${todayRateText || (g(minRate) !== null && g(maxRate) !== null ? (Number(g(minRate))/100).toFixed(2)+'% - '+(Number(g(maxRate))/100).toFixed(2)+'%' : '-')}</div>
-        </div>
-      </div>`;
-    }
-
-    if (currentUserFrontendCache && String(currentUserFrontendCache.coreUser?.user || '').toLowerCase() === String(addr).toLowerCase() && Array.isArray(currentUserFrontendCache.yieldPositions)) {
-      const lensPositions = currentUserFrontendCache.yieldPositions.map(normalizeYieldPosition).filter(p => Number(p?.positionId || 0) > 0);
-      if (lensPositions.length) {
-        renderPositionsData(addr, lensPositions, el, true);
-      } else {
-        el.innerHTML = '<div class="empty"><div class="empty-icon">📭</div><div class="empty-title">Sin posiciones</div><div class="empty-desc">Este usuario no tiene posiciones de yield aún</div></div>';
-      }
+    // Load user positions by scanning events
+    const totalPositions = g(nextId) ? Number(g(nextId)) - 1 : 0;
+    if (totalPositions === 0) {
+      el.innerHTML = '<div class="empty"><div class="empty-icon">📭</div><div class="empty-title">Sin posiciones</div><div class="empty-desc">Este usuario no tiene posiciones de yield aun</div></div>';
     } else {
-      const totalPositions = g(nextId) ? Number(g(nextId)) - 1 : 0;
-      if (totalPositions === 0) {
-        el.innerHTML = '<div class="empty"><div class="empty-icon">📭</div><div class="empty-title">Sin posiciones</div><div class="empty-desc">Este usuario no tiene posiciones de yield aun</div></div>';
-      } else {
-        await loadUserPositions(addr, totalPositions, el);
-      }
+      await loadUserPositions(addr, totalPositions, el);
     }
 
+    // Load allowed packages for buy form
     await loadYieldPackages();
+
+    // Update buy button state
     updateBuyYieldBtn();
 
   } catch(e) {
@@ -3410,7 +3228,7 @@ async function renderPositions(userAddr, positionIds, el) {
   for (const id of positionIds) {
     try {
       const p = await contracts.yield.positions(id);
-      posData.push(normalizeYieldPosition({ positionId:id, ...p }));
+      posData.push({ id, ...p });
     } catch(e) { /* skip */ }
   }
 
@@ -3419,73 +3237,44 @@ async function renderPositions(userAddr, positionIds, el) {
     return;
   }
 
-  renderPositionsData(userAddr, posData, el, false);
-}
-
-function renderPositionsData(userAddr, positions, el, fromLens = false) {
   const VOUCHER_STATUS = ['Normal', 'Pending', 'Activo', 'Cancelado'];
-  const SIDE_NAMES = ['No definida', 'Izquierda', 'Derecha'];
-  const canManage = walletAddress && walletAddress.toLowerCase() === userAddr.toLowerCase();
+  const canSync = walletAddress && walletAddress.toLowerCase() === userAddr.toLowerCase();
 
   let html = `<div style="display:flex;flex-direction:column;gap:12px;">`;
-  for (const p of positions) {
-    const posId = Number(p.positionId || p.id || 0);
-    const basePrincipal = BigInt(p.basePrincipal || 0n);
-    const principal = BigInt(p.principal || 0n);
-    const paidOut = BigInt(p.paidOut || 0n);
-    const pendingAccrued = BigInt(p.pendingAccrued || 0n);
-    const accruedTotal = BigInt(p.accruedTotal || 0n);
-    const compound = !!p.compound;
-    const completed = !!p.completed || (basePrincipal > 0n && accruedTotal >= (basePrincipal * 2n));
-    const vStatus = Number(p.voucherStatus || 0);
-    const pct = basePrincipal > 0n ? Math.min(100, Math.round(Number(accruedTotal * 10000n / (basePrincipal * 2n)) / 100)) : 0;
-    const remaining = basePrincipal > 0n ? ((basePrincipal * 2n) - accruedTotal > 0n ? (basePrincipal * 2n) - accruedTotal : 0n) : 0n;
-    const grantedDay = Number(p.grantedDay || 0);
-    const deadlineDay = Number(p.deadlineDay || 0);
-    const lockDay = Number(p.compoundLockUntilDay || 0);
-    const voucherDirects = BigInt(p.voucherDirects || 0n);
-    const voucherTotalVolume = BigInt(p.voucherTotalVolume || 0n);
-    const voucherSide = Number(p.voucherSide || 0);
+  for (const p of posData) {
+    const pct = p.accruedTotal > 0n ? Math.min(100, Math.round(Number(p.accruedTotal) * 100 / Number(p.basePrincipal))) : 0;
+    const remaining = p.basePrincipal > 0n ? (200n * p.basePrincipal / 100n) - p.accruedTotal : 0n;
+    const isCompound = p.compound;
+    const vStatus = Number(p.voucherStatus);
+    const isCompleted = p.accruedTotal >= (p.basePrincipal * 2n);
 
     html += `
     <div class="pos-card">
       <div class="pos-head">
         <div class="pos-title">
-          ${compound ? '📊' : '💸'} Posición #${posId}
-          <span class="badge ${compound ? 'badge-gold' : 'badge-green'}">${compound ? 'Compound' : 'Withdraw'}</span>
+          ${isCompound ? '📊' : '💸'} Posicion #${p.id}
+          <span class="badge ${isCompound ? 'badge-gold' : 'badge-green'}">${isCompound ? 'Compound' : 'Withdraw'}</span>
           ${vStatus > 0 ? `<span class="badge badge-purple">Voucher: ${VOUCHER_STATUS[vStatus]||vStatus}</span>` : ''}
-          ${completed ? '<span class="badge badge-green">✓ Completada</span>' : ''}
-          ${fromLens ? '<span class="badge badge-blue">Lens</span>' : ''}
+          ${isCompleted ? '<span class="badge badge-green">✓ Completada</span>' : ''}
         </div>
-        ${canManage && !completed ? `<button class="btn btn-outline" onclick="syncPosition(${posId})" style="padding:5px 14px;font-size:11px;">Sync ↻</button>` : ''}
+        ${canSync && !isCompleted ? `<button class="btn btn-outline" onclick="syncPosition(${p.id})" style="padding:5px 14px;font-size:11px;">Sync ↻</button>` : ''}
       </div>
       <div class="pos-body">
         <div class="pos-grid">
-          <div><div class="pos-stat-label">Principal base</div><div class="pos-stat-val" style="color:var(--gold);">${fmt18(basePrincipal)} USDT</div></div>
-          <div><div class="pos-stat-label">Principal actual</div><div class="pos-stat-val">${fmt18(principal)} USDT</div></div>
-          <div><div class="pos-stat-label">Pagado</div><div class="pos-stat-val" style="color:var(--green);">${fmt18(paidOut)} USDT</div></div>
-          <div><div class="pos-stat-label">Acumulado</div><div class="pos-stat-val" style="color:var(--blue);">${fmt18(accruedTotal)} USDT</div></div>
+          <div><div class="pos-stat-label">Principal base</div><div class="pos-stat-val" style="color:var(--gold);">${fmt18(p.basePrincipal)} USDT</div></div>
+          <div><div class="pos-stat-label">Principal actual</div><div class="pos-stat-val">${fmt18(p.principal)} USDT</div></div>
+          <div><div class="pos-stat-label">Pagado a wallet</div><div class="pos-stat-val" style="color:var(--green);">${fmt18(p.paidOut)} USDT</div></div>
+          <div><div class="pos-stat-label">Total acumulado</div><div class="pos-stat-val" style="color:var(--blue);">${fmt18(p.accruedTotal)} USDT</div></div>
         </div>
         <div>
-          <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--gray-400);margin-bottom:4px;"><span>Progreso hacia 200%</span><span style="color:var(--gold);">${pct}% · resta ${fmt18(remaining)} USDT</span></div>
+          <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--gray-400);margin-bottom:4px;"><span>Progreso hacia 200%</span><span style="color:var(--gold);">${pct}% - resta ${fmt18(remaining)} USDT</span></div>
           <div class="prog"><div class="prog-fill" style="width:${pct}%;"></div></div>
         </div>
-        <div class="dist-box" style="margin-top:12px;">
-          <div class="dist-title">Detalle de posición</div>
-          <div class="dist-grid" style="grid-template-columns:repeat(3,1fr);gap:8px;">
-            <div class="dist-item"><span class="dist-dot"></span>Pending accrued: ${fmt18(pendingAccrued)} USDT</div>
-            <div class="dist-item"><span class="dist-dot"></span>Granted day: ${grantedDay || '-'}</div>
-            <div class="dist-item"><span class="dist-dot"></span>Deadline day: ${deadlineDay || '-'}</div>
-            <div class="dist-item"><span class="dist-dot"></span>Compound lock: ${lockDay || '-'}</div>
-            <div class="dist-item"><span class="dist-dot"></span>Voucher directos: ${voucherDirects ? voucherDirects.toString() : '0'}</div>
-            <div class="dist-item"><span class="dist-dot"></span>Voucher volumen: ${fmt18(voucherTotalVolume)} USDT</div>
-            <div class="dist-item"><span class="dist-dot"></span>Voucher lado: ${SIDE_NAMES[voucherSide] || 'No definida'}</div>
-          </div>
-        </div>
-        ${canManage && !completed ? `<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;">
-          <button onclick="togglePositionMode(${posId}, ${!compound})" class="btn btn-outline" style="font-size:11px;padding:6px 14px;">Cambiar a ${compound ? 'Withdraw' : 'Compound'}</button>
-          ${vStatus > 0 && pendingAccrued > 0n ? `<button onclick="claimVoucherAccrued(${posId})" class="btn btn-green" style="font-size:11px;padding:6px 14px;">Cobrar voucher</button>` : ''}
-          ${vStatus === 1 ? `<button onclick="setVoucherDesiredMode(${posId}, ${!compound})" class="btn btn-outline" style="font-size:11px;padding:6px 14px;">Definir modo voucher</button>` : ''}
+        ${p.pendingAccrued > 0n ? `<div style="margin-top:10px;font-family:var(--mono);font-size:11px;color:var(--amber);">⏳ Pendiente bloqueado: ${fmt18(p.pendingAccrued)} USDT</div>` : ''}
+        ${canSync && !isCompleted ? `<div style="margin-top:12px;">
+          <button onclick="togglePositionMode(${p.id}, ${!isCompound})" class="btn btn-outline" style="font-size:11px;padding:6px 14px;">
+            Cambiar a ${isCompound ? 'Withdraw' : 'Compound'}
+          </button>
         </div>` : ''}
       </div>
     </div>`;
@@ -3518,36 +3307,6 @@ async function togglePositionMode(posId, newCompound) {
     const tx = await c.setCompound(posId, newCompound);
     await tx.wait();
     toast(`✅ Modo cambiado a ${newCompound ? 'Compound' : 'Withdraw'}`, 'success');
-    if (currentUser) await loadYieldData(currentUser);
-  } catch(e) {
-    toast('Error: ' + (e.reason || e.message || e), 'error');
-  }
-}
-
-async function claimVoucherAccrued(posId) {
-  if (!await ensureSigner()) return;
-  if (!contracts.yield?.claimVoucherAccrued) { toast('Función de voucher no disponible', 'error'); return; }
-  try {
-    const c = contracts.yield.connect(signer);
-    toast(`Cobrando voucher de la posición #${posId}...`, 'info');
-    const tx = await c.claimVoucherAccrued(posId);
-    await tx.wait();
-    toast('✅ Voucher cobrado', 'success');
-    if (currentUser) await loadYieldData(currentUser);
-  } catch(e) {
-    toast('Error: ' + (e.reason || e.message || e), 'error');
-  }
-}
-
-async function setVoucherDesiredMode(posId, desiredCompound) {
-  if (!await ensureSigner()) return;
-  if (!contracts.yield?.setVoucherDesiredMode) { toast('Función de voucher no disponible', 'error'); return; }
-  try {
-    const c = contracts.yield.connect(signer);
-    toast(`Actualizando preferencia de voucher #${posId}...`, 'info');
-    const tx = await c.setVoucherDesiredMode(posId, desiredCompound);
-    await tx.wait();
-    toast('✅ Preferencia de voucher actualizada', 'success');
     if (currentUser) await loadYieldData(currentUser);
   } catch(e) {
     toast('Error: ' + (e.reason || e.message || e), 'error');
@@ -3778,36 +3537,90 @@ async function toggleWallet() {
   }
 }
 
+async function getEffectiveMonthIndex() {
+  try {
+    if (contracts.pools && typeof contracts.pools.currentMonthIndex === 'function') {
+      const mi = await contracts.pools.currentMonthIndex().catch(() => null);
+      if (mi !== null && mi !== undefined) return mi;
+    }
+  } catch {}
+  return 0n;
+}
+
 async function loadAdminDashboard() {
   if (!authState.isAdmin) return;
-  const ov = await loadAdminLensOverview();
-  if (!ov) return;
   const role = authState.isOwner ? 'Owner' : (authState.isGuardian ? 'Guardian' : 'Usuario');
   document.getElementById('admin-role').textContent = role;
   document.getElementById('admin-role-sub').textContent = walletAddress ? shortAddr(walletAddress) : 'Wallet actual';
-  const core = tupleVal(ov, 'core', 2, {}) || {};
-  const wiring = tupleVal(ov, 'wiring', 1, {}) || {};
-  const poolsAdmin = tupleVal(ov, 'pools', 5, {}) || {};
-  const month = tupleVal(ov, 'month', 8, {}) || {};
-  document.getElementById('admin-core-usdt').textContent = fmt18(tupleVal(core, 'usdtBalance', 23, 0n)) + ' USDT';
-  document.getElementById('admin-core-reserved').textContent = fmt18(tupleVal(core, 'reservedUSDT', 11, 0n)) + ' USDT';
-  document.getElementById('admin-core-free').textContent = fmt18(tupleVal(core, 'freeUSDT', 12, 0n)) + ' USDT';
-  document.getElementById('admin-pending-ranks').textContent = fmt18(tupleVal(core, 'pendingRanksAmount', 13, 0n)) + ' USDT';
-  document.getElementById('admin-pending-leadership').textContent = fmt18(tupleVal(core, 'pendingLeadershipAmount', 14, 0n)) + ' USDT';
-  document.getElementById('admin-pending-topten').textContent = fmt18(tupleVal(core, 'pendingTopTenAmount', 15, 0n)) + ' USDT';
+
+  const ov = await loadAdminLensOverview();
   const box = document.getElementById('admin-overview-box');
-  if (box) box.innerHTML = `
-    <div class="mem-row"><span class="mem-label">Owner</span><span class="mem-val">${shortAddr(tupleVal(core, 'owner', 0, null))}</span></div>
-    <div class="mem-row"><span class="mem-label">Guardian</span><span class="mem-val">${shortAddr(tupleVal(core, 'guardian', 1, null))}</span></div>
-    <div class="mem-row"><span class="mem-label">Usuarios</span><span class="mem-val">${fmtIntPoints(tupleVal(core, 'totalUsers', 9, 0n))}</span></div>
-    <div class="mem-row"><span class="mem-label">Month index</span><span class="mem-val">${fmtIntPoints(tupleVal(core, 'currentMonthIndex', 10, tupleVal(month, 'monthIndex', 0, 0n)))}</span></div>
-    <div class="mem-row"><span class="mem-label">Leadership accrued</span><span class="mem-val">${fmt18(tupleVal(poolsAdmin, 'totalLeadershipAccrued', 11, tupleVal(month, 'leadershipAccrued', 3, 0n)))} USDT</span></div>
-    <div class="mem-row" style="border:none;"><span class="mem-label">Top 10 accrued</span><span class="mem-val">${fmt18(tupleVal(poolsAdmin, 'totalTopTenAccrued', 13, tupleVal(month, 'topTenAccrued', 4, 0n)))} USDT</span></div>`;
   const wbox = document.getElementById('admin-wiring-box');
-  if (wbox) {
-    const entries = wiring && typeof wiring === 'object' ? Object.entries(wiring).filter(([k]) => isNaN(Number(k))) : [];
-    const rows = entries.map(([k,v]) => `<div class="ctr-row"><span class="ctr-name">${k}</span><span class="ctr-chip ${v?'chip-ok':'chip-no'}">${v?'OK':'FAIL'}</span></div>`).join('');
-    wbox.innerHTML = rows || '<div class="empty"><div class="empty-icon">○</div><div class="empty-title">Sin checks</div></div>';
+
+  if (ov) {
+    const core = ov.core || {};
+    const wiring = ov.wiring || {};
+    const month = ov.month || {};
+    const pools = ov.pools || {};
+    const leadershipAccrued = pools.totalLeadershipAccrued ?? month.leadershipAccrued ?? 0n;
+    const topTenAccrued = pools.totalTopTenAccrued ?? month.topTenAccrued ?? 0n;
+    const ownerAddr = core.owner || authState.owner || null;
+    const guardianAddr = core.guardian || authState.guardian || null;
+
+    document.getElementById('admin-core-usdt').textContent = fmt18(core.usdtBalance || 0n) + ' USDT';
+    document.getElementById('admin-core-reserved').textContent = fmt18(core.reservedUSDT || 0n) + ' USDT';
+    document.getElementById('admin-core-free').textContent = fmt18(core.freeUSDT || 0n) + ' USDT';
+    document.getElementById('admin-pending-ranks').textContent = fmt18(core.pendingRanksAmount || 0n) + ' USDT';
+    document.getElementById('admin-pending-leadership').textContent = fmt18(core.pendingLeadershipAmount || 0n) + ' USDT';
+    document.getElementById('admin-pending-topten').textContent = fmt18(core.pendingTopTenAmount || 0n) + ' USDT';
+
+    if (box) box.innerHTML = `
+      <div class="mem-row"><span class="mem-label">Owner</span><span class="mem-val">${shortAddr(ownerAddr)}</span></div>
+      <div class="mem-row"><span class="mem-label">Guardian</span><span class="mem-val">${shortAddr(guardianAddr)}</span></div>
+      <div class="mem-row"><span class="mem-label">Usuarios</span><span class="mem-val">${fmtIntPoints(core.totalUsers || 0n)}</span></div>
+      <div class="mem-row"><span class="mem-label">Month index</span><span class="mem-val">${fmtIntPoints(core.currentMonthIndex || month.monthIndex || 0n)}</span></div>
+      <div class="mem-row"><span class="mem-label">Leadership accrued</span><span class="mem-val">${fmt18(leadershipAccrued)} USDT</span></div>
+      <div class="mem-row" style="border:none;"><span class="mem-label">Top 10 accrued</span><span class="mem-val">${fmt18(topTenAccrued)} USDT</span></div>`;
+    if (wbox) {
+      const rows = Object.entries(wiring).map(([k,v]) => `<div class="ctr-row"><span class="ctr-name">${k}</span><span class="ctr-chip ${v?'chip-ok':'chip-no'}">${v?'OK':'FAIL'}</span></div>`).join('');
+      wbox.innerHTML = rows || '<div class="empty"><div class="empty-icon">○</div><div class="empty-title">Sin checks</div></div>';
+    }
+    return;
+  }
+
+  try {
+    const [owner, guardian, totalUsers, pendingRanks, pendingLeadership, pendingTopten, usdtAddr] = await Promise.all([
+      contracts.core.owner().catch(() => null),
+      contracts.core.guardian().catch(() => null),
+      contracts.core.totalUsers().catch(() => 0n),
+      contracts.core.pendingRanksAmount().catch(() => 0n),
+      contracts.core.pendingLeadershipAmount().catch(() => 0n),
+      contracts.core.pendingTopTenAmount().catch(() => 0n),
+      contracts.core.usdt().catch(() => null)
+    ]);
+    let usdtBalance = 0n;
+    if (usdtAddr && !isZero(usdtAddr)) {
+      try {
+        const usdt = new ethers.Contract(usdtAddr, USDT_ABI, provider);
+        usdtBalance = await usdt.balanceOf(addresses.core).catch(() => 0n);
+      } catch {}
+    }
+    document.getElementById('admin-core-usdt').textContent = fmt18(usdtBalance) + ' USDT';
+    document.getElementById('admin-core-reserved').textContent = '—';
+    document.getElementById('admin-core-free').textContent = '—';
+    document.getElementById('admin-pending-ranks').textContent = fmt18(pendingRanks || 0n) + ' USDT';
+    document.getElementById('admin-pending-leadership').textContent = fmt18(pendingLeadership || 0n) + ' USDT';
+    document.getElementById('admin-pending-topten').textContent = fmt18(pendingTopten || 0n) + ' USDT';
+    if (box) box.innerHTML = `
+      <div class="mem-row"><span class="mem-label">Owner</span><span class="mem-val">${shortAddr(owner)}</span></div>
+      <div class="mem-row"><span class="mem-label">Guardian</span><span class="mem-val">${shortAddr(guardian)}</span></div>
+      <div class="mem-row"><span class="mem-label">Usuarios</span><span class="mem-val">${fmtIntPoints(totalUsers || 0n)}</span></div>
+      <div class="mem-row" style="border:none;"><span class="mem-label">Estado</span><span class="mem-val">Fallback Core</span></div>`;
+    if (wbox) wbox.innerHTML = '<div class="empty"><div class="empty-icon">ℹ</div><div class="empty-title">Admin Lens no disponible</div><div class="empty-desc">Se muestran datos base desde Core.</div></div>';
+  } catch (e) {
+    const msg = escapeHtml(String(e?.shortMessage || e?.message || e));
+    if (box) box.innerHTML = `<div class="empty"><div class="empty-icon">⚠</div><div class="empty-title">Error cargando Admin</div><div class="empty-desc">${msg.slice(0,180)}</div></div>`;
+    if (wbox) wbox.innerHTML = `<div class="empty"><div class="empty-icon">⚠</div><div class="empty-title">Sin wiring</div><div class="empty-desc">${msg.slice(0,180)}</div></div>`;
   }
 }
 
@@ -3817,18 +3630,24 @@ async function loadAdminLensOverview() {
   try {
     const [owner, guardian] = await Promise.all([contracts.core.owner().catch(()=>null), contracts.core.guardian().catch(()=>null)]);
     const mine = String(walletAddress).toLowerCase();
-    if (owner && String(owner).toLowerCase() !== mine && guardian && String(guardian).toLowerCase() !== mine) return null;
-    let monthIndex = 0n;
-    if (contracts.pools?.currentMonthIndex) monthIndex = await contracts.pools.currentMonthIndex().catch(()=>0n);
-    else if (contracts.core?.currentMonthIndex) monthIndex = await contracts.core.currentMonthIndex().catch(()=>0n);
-    return await contracts.adminLens.getAdminOverview(monthIndex);
+    if ((owner && String(owner).toLowerCase() === mine) || (guardian && String(guardian).toLowerCase() === mine)) {
+      const tryIndexes = [];
+      const mi = await getEffectiveMonthIndex().catch(() => 0n);
+      tryIndexes.push(mi);
+      if (String(mi) !== '0') tryIndexes.push(0n);
+      for (const idx of tryIndexes) {
+        try {
+          const ov = await contracts.adminLens.getAdminOverview(idx);
+          if (ov) return ov;
+        } catch (inner) {
+          console.warn('admin lens getAdminOverview failed for month', String(idx), inner);
+        }
+      }
+      throw new Error('AdminLens no respondió para los monthIndex probados');
+    }
+    return null;
   } catch(e) {
     console.warn('admin lens overview', e);
-    const box = document.getElementById('admin-overview-box');
-    const wbox = document.getElementById('admin-wiring-box');
-    const msg = escapeHtml(String(e?.shortMessage || e?.message || e));
-    if (box) box.innerHTML = `<div class="empty"><div class="empty-icon">⚠</div><div class="empty-title">Error cargando Admin Lens</div><div class="empty-desc">${msg.slice(0,180)}</div></div>`;
-    if (wbox) wbox.innerHTML = `<div class="empty"><div class="empty-icon">⚠</div><div class="empty-title">Sin wiring</div><div class="empty-desc">${msg.slice(0,180)}</div></div>`;
     return null;
   }
 }
@@ -4980,6 +4799,7 @@ async function bootstrapLoginMode() {
     loadCoreStatus();
     loadPackages();
     loadYieldPackages();
+    loadMarketplace().catch(()=>{});
     setDashboardAccess(false);
     showLoginGate('Conecta tu wallet para habilitar el dashboard.');
     updateAdminVisibility();
