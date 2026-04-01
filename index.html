@@ -2462,7 +2462,7 @@ function renderPools(pools) {
   const leadershipShown = pools.leadershipClosed ? (pools.leadershipClaimableUSDT || 0n) : 0n;
   const topTenShown = pools.topTenClosed ? (pools.topTenClaimableUSDT || 0n) : 0n;
 
-  document.getElementById('pool-leadership-total').textContent = fmt18(pools.leadershipPoolTotalUSDT||0n) + ' USDT';
+  document.getElementById('pool-leadership-total').textContent = fmt18((pools.leadershipAccruedUSDT ?? pools.leadershipPoolTotalUSDT ?? 0n)) + ' USDT';
   document.getElementById('pool-topten-total').textContent = fmt18(pools.topTenPoolTotalUSDT||0n) + ' USDT';
 
   const pos = pools.userTopTenPosition;
@@ -3780,34 +3780,91 @@ async function toggleWallet() {
 
 async function loadAdminDashboard() {
   if (!authState.isAdmin) return;
-  const ov = await loadAdminLensOverview();
-  if (!ov) return;
   const role = authState.isOwner ? 'Owner' : (authState.isGuardian ? 'Guardian' : 'Usuario');
   document.getElementById('admin-role').textContent = role;
   document.getElementById('admin-role-sub').textContent = walletAddress ? shortAddr(walletAddress) : 'Wallet actual';
-  const core = tupleVal(ov, 'core', 2, {}) || {};
-  const wiring = tupleVal(ov, 'wiring', 1, {}) || {};
-  const poolsAdmin = tupleVal(ov, 'pools', 5, {}) || {};
-  const month = tupleVal(ov, 'month', 8, {}) || {};
-  document.getElementById('admin-core-usdt').textContent = fmt18(tupleVal(core, 'usdtBalance', 23, 0n)) + ' USDT';
-  document.getElementById('admin-core-reserved').textContent = fmt18(tupleVal(core, 'reservedUSDT', 11, 0n)) + ' USDT';
-  document.getElementById('admin-core-free').textContent = fmt18(tupleVal(core, 'freeUSDT', 12, 0n)) + ' USDT';
-  document.getElementById('admin-pending-ranks').textContent = fmt18(tupleVal(core, 'pendingRanksAmount', 13, 0n)) + ' USDT';
-  document.getElementById('admin-pending-leadership').textContent = fmt18(tupleVal(core, 'pendingLeadershipAmount', 14, 0n)) + ' USDT';
-  document.getElementById('admin-pending-topten').textContent = fmt18(tupleVal(core, 'pendingTopTenAmount', 15, 0n)) + ' USDT';
-  const box = document.getElementById('admin-overview-box');
-  if (box) box.innerHTML = `
-    <div class="mem-row"><span class="mem-label">Owner</span><span class="mem-val">${shortAddr(tupleVal(core, 'owner', 0, null))}</span></div>
-    <div class="mem-row"><span class="mem-label">Guardian</span><span class="mem-val">${shortAddr(tupleVal(core, 'guardian', 1, null))}</span></div>
-    <div class="mem-row"><span class="mem-label">Usuarios</span><span class="mem-val">${fmtIntPoints(tupleVal(core, 'totalUsers', 9, 0n))}</span></div>
-    <div class="mem-row"><span class="mem-label">Month index</span><span class="mem-val">${fmtIntPoints(tupleVal(core, 'currentMonthIndex', 10, tupleVal(month, 'monthIndex', 0, 0n)))}</span></div>
-    <div class="mem-row"><span class="mem-label">Leadership accrued</span><span class="mem-val">${fmt18(tupleVal(poolsAdmin, 'totalLeadershipAccrued', 11, tupleVal(month, 'leadershipAccrued', 3, 0n)))} USDT</span></div>
-    <div class="mem-row" style="border:none;"><span class="mem-label">Top 10 accrued</span><span class="mem-val">${fmt18(tupleVal(poolsAdmin, 'totalTopTenAccrued', 13, tupleVal(month, 'topTenAccrued', 4, 0n)))} USDT</span></div>`;
-  const wbox = document.getElementById('admin-wiring-box');
-  if (wbox) {
-    const entries = wiring && typeof wiring === 'object' ? Object.entries(wiring).filter(([k]) => isNaN(Number(k))) : [];
-    const rows = entries.map(([k,v]) => `<div class="ctr-row"><span class="ctr-name">${k}</span><span class="ctr-chip ${v?'chip-ok':'chip-no'}">${v?'OK':'FAIL'}</span></div>`).join('');
-    wbox.innerHTML = rows || '<div class="empty"><div class="empty-icon">○</div><div class="empty-title">Sin checks</div></div>';
+
+  const ov = await loadAdminLensOverview();
+
+  if (ov) {
+    const core = tupleVal(ov, 'core', 2, {}) || {};
+    const wiring = tupleVal(ov, 'wiring', 1, {}) || {};
+    const poolsAdmin = tupleVal(ov, 'pools', 5, {}) || {};
+    const month = tupleVal(ov, 'month', 8, {}) || {};
+    document.getElementById('admin-core-usdt').textContent = fmt18(tupleVal(core, 'usdtBalance', 23, 0n)) + ' USDT';
+    document.getElementById('admin-core-reserved').textContent = fmt18(tupleVal(core, 'reservedUSDT', 11, 0n)) + ' USDT';
+    document.getElementById('admin-core-free').textContent = fmt18(tupleVal(core, 'freeUSDT', 12, 0n)) + ' USDT';
+    document.getElementById('admin-pending-ranks').textContent = fmt18(tupleVal(core, 'pendingRanksAmount', 13, 0n)) + ' USDT';
+    document.getElementById('admin-pending-leadership').textContent = fmt18(tupleVal(core, 'pendingLeadershipAmount', 14, 0n)) + ' USDT';
+    document.getElementById('admin-pending-topten').textContent = fmt18(tupleVal(core, 'pendingTopTenAmount', 15, 0n)) + ' USDT';
+    const box = document.getElementById('admin-overview-box');
+    if (box) box.innerHTML = `
+      <div class="mem-row"><span class="mem-label">Owner</span><span class="mem-val">${shortAddr(tupleVal(core, 'owner', 0, null))}</span></div>
+      <div class="mem-row"><span class="mem-label">Guardian</span><span class="mem-val">${shortAddr(tupleVal(core, 'guardian', 1, null))}</span></div>
+      <div class="mem-row"><span class="mem-label">Usuarios</span><span class="mem-val">${fmtIntPoints(tupleVal(core, 'totalUsers', 9, 0n))}</span></div>
+      <div class="mem-row"><span class="mem-label">Month index</span><span class="mem-val">${fmtIntPoints(tupleVal(core, 'currentMonthIndex', 10, tupleVal(month, 'monthIndex', 0, 0n)))}</span></div>
+      <div class="mem-row"><span class="mem-label">Leadership accrued</span><span class="mem-val">${fmt18(tupleVal(poolsAdmin, 'totalLeadershipAccrued', 11, tupleVal(month, 'leadershipAccrued', 3, 0n)))} USDT</span></div>
+      <div class="mem-row" style="border:none;"><span class="mem-label">Top 10 accrued</span><span class="mem-val">${fmt18(tupleVal(poolsAdmin, 'totalTopTenAccrued', 13, tupleVal(month, 'topTenAccrued', 4, 0n)))} USDT</span></div>`;
+    const wbox = document.getElementById('admin-wiring-box');
+    if (wbox) {
+      const entries = wiring && typeof wiring === 'object' ? Object.entries(wiring).filter(([k]) => isNaN(Number(k))) : [];
+      const rows = entries.map(([k,v]) => `<div class="ctr-row"><span class="ctr-name">${k}</span><span class="ctr-chip ${v?'chip-ok':'chip-no'}">${v?'OK':'FAIL'}</span></div>`).join('');
+      wbox.innerHTML = rows || '<div class="empty"><div class="empty-icon">○</div><div class="empty-title">Sin checks</div></div>';
+    }
+    return;
+  }
+
+  try {
+    const [owner, guardian, totalUsers, pendingRanks, pendingLeadership, pendingTopTen] = await Promise.all([
+      contracts.core.owner().catch(()=>null),
+      contracts.core.guardian().catch(()=>null),
+      contracts.core.totalUsers().catch(()=>0n),
+      contracts.core.pendingRanksAmount().catch(()=>0n),
+      contracts.core.pendingLeadershipAmount().catch(()=>0n),
+      contracts.core.pendingTopTenAmount().catch(()=>0n)
+    ]);
+
+    let monthIndex = 0n;
+    let leadershipAccrued = 0n;
+    let topTenAccrued = 0n;
+
+    if (contracts.pools?.currentMonthIndex) {
+      monthIndex = await contracts.pools.currentMonthIndex().catch(()=>0n);
+      if (contracts.adminLens?.getAdminOverview) {
+        try {
+          const ov2 = await contracts.adminLens.getAdminOverview(monthIndex);
+          const poolsAdmin2 = tupleVal(ov2, 'pools', 5, {}) || {};
+          const month2 = tupleVal(ov2, 'month', 8, {}) || {};
+          leadershipAccrued = tupleVal(poolsAdmin2, 'totalLeadershipAccrued', 11, tupleVal(month2, 'leadershipAccrued', 3, 0n)) || 0n;
+          topTenAccrued = tupleVal(poolsAdmin2, 'totalTopTenAccrued', 13, tupleVal(month2, 'topTenAccrued', 4, 0n)) || 0n;
+        } catch {}
+      }
+    }
+
+    document.getElementById('admin-core-usdt').textContent = '—';
+    document.getElementById('admin-core-reserved').textContent = '—';
+    document.getElementById('admin-core-free').textContent = '—';
+    document.getElementById('admin-pending-ranks').textContent = fmt18(pendingRanks) + ' USDT';
+    document.getElementById('admin-pending-leadership').textContent = fmt18(pendingLeadership) + ' USDT';
+    document.getElementById('admin-pending-topten').textContent = fmt18(pendingTopTen) + ' USDT';
+
+    const box = document.getElementById('admin-overview-box');
+    if (box) box.innerHTML = `
+      <div class="mem-row"><span class="mem-label">Owner</span><span class="mem-val">${shortAddr(owner)}</span></div>
+      <div class="mem-row"><span class="mem-label">Guardian</span><span class="mem-val">${shortAddr(guardian)}</span></div>
+      <div class="mem-row"><span class="mem-label">Usuarios</span><span class="mem-val">${fmtIntPoints(totalUsers)}</span></div>
+      <div class="mem-row"><span class="mem-label">Month index</span><span class="mem-val">${fmtIntPoints(monthIndex)}</span></div>
+      <div class="mem-row"><span class="mem-label">Leadership accrued</span><span class="mem-val">${fmt18(leadershipAccrued)} USDT</span></div>
+      <div class="mem-row" style="border:none;"><span class="mem-label">Top 10 accrued</span><span class="mem-val">${fmt18(topTenAccrued)} USDT</span></div>`;
+
+    const wbox = document.getElementById('admin-wiring-box');
+    if (wbox) wbox.innerHTML = '<div class="empty"><div class="empty-icon">ℹ</div><div class="empty-title">Admin Lens sin respuesta</div><div class="empty-desc">Se muestran datos base desde Core/Pools.</div></div>';
+  } catch (e) {
+    const msg = escapeHtml(String(e?.shortMessage || e?.message || e));
+    const box = document.getElementById('admin-overview-box');
+    const wbox = document.getElementById('admin-wiring-box');
+    if (box) box.innerHTML = `<div class="empty"><div class="empty-icon">⚠</div><div class="empty-title">Error cargando Admin</div><div class="empty-desc">${msg.slice(0,180)}</div></div>`;
+    if (wbox) wbox.innerHTML = `<div class="empty"><div class="empty-icon">⚠</div><div class="empty-title">Sin wiring</div><div class="empty-desc">${msg.slice(0,180)}</div></div>`;
   }
 }
 
@@ -3817,18 +3874,27 @@ async function loadAdminLensOverview() {
   try {
     const [owner, guardian] = await Promise.all([contracts.core.owner().catch(()=>null), contracts.core.guardian().catch(()=>null)]);
     const mine = String(walletAddress).toLowerCase();
-    if (owner && String(owner).toLowerCase() !== mine && guardian && String(guardian).toLowerCase() !== mine) return null;
-    let monthIndex = 0n;
-    if (contracts.pools?.currentMonthIndex) monthIndex = await contracts.pools.currentMonthIndex().catch(()=>0n);
-    else if (contracts.core?.currentMonthIndex) monthIndex = await contracts.core.currentMonthIndex().catch(()=>0n);
-    return await contracts.adminLens.getAdminOverview(monthIndex);
+    const isOwner = owner && String(owner).toLowerCase() === mine;
+    const isGuardian = guardian && String(guardian).toLowerCase() === mine;
+    if (!isOwner && !isGuardian) return null;
+
+    const candidates = [];
+    if (contracts.pools?.currentMonthIndex) {
+      try { candidates.push(await contracts.pools.currentMonthIndex()); } catch {}
+    }
+    candidates.push(0n);
+
+    let lastErr = null;
+    for (const monthIndex of candidates) {
+      try {
+        return await contracts.adminLens.getAdminOverview(monthIndex);
+      } catch (e) {
+        lastErr = e;
+      }
+    }
+    throw lastErr || new Error('AdminLens sin respuesta');
   } catch(e) {
     console.warn('admin lens overview', e);
-    const box = document.getElementById('admin-overview-box');
-    const wbox = document.getElementById('admin-wiring-box');
-    const msg = escapeHtml(String(e?.shortMessage || e?.message || e));
-    if (box) box.innerHTML = `<div class="empty"><div class="empty-icon">⚠</div><div class="empty-title">Error cargando Admin Lens</div><div class="empty-desc">${msg.slice(0,180)}</div></div>`;
-    if (wbox) wbox.innerHTML = `<div class="empty"><div class="empty-icon">⚠</div><div class="empty-title">Sin wiring</div><div class="empty-desc">${msg.slice(0,180)}</div></div>`;
     return null;
   }
 }
