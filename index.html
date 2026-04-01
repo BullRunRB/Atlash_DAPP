@@ -1245,18 +1245,20 @@ async function createProvider(network) {
 }
 
 const TESTNET_ADDRESSES = {
+  registry:'0x82F1f26468d7191969cDaADC1bE2Ac361F148B50',
+  roleResolver:'0x5900026E4D818dEe319Da6e72e323e03642261eF',
+  cashback:'0x2A2e99BC50B8DD8607649854C17798b085687e57',
   core:'0x4f762Fe9a9B269B42809E3ce90182f38C91A7f42',
-  userLens:'0x35a71a9963827d49E96a10De414aca93041Fee8E', adminLens:'0xE938C57EF63959578D5cbdF084bB75da96d15e30', ranks:'0x2f3e62d04fA08967DC8c0bD4E3EF4Ed6a300254A',
+  ranks:'0x2f3e62d04fA08967DC8c0bD4E3EF4Ed6a300254A',
   pools:'0x95aafb5E0C6109F1e9B234219cc62Bc754ff47c3',
   binary:'0x07aFF6fD65CF4378863577C178336727C74e70d6',
-  cashback:'0x2A2e99BC50B8DD8607649854C17798b085687e57',
   yield:'0x1a3EAA87FD754A876f5857f4458De098960e4a9f',
-  roleResolver:'0x5900026E4D818dEe319Da6e72e323e03642261eF',
   admin:'0x3F6B565F06507999099e1d75263Dca7360FC2C45',
   config:'0x08AF17c59dbf091a3A2799E402D2fB5DFf316C18',
-  registry:'0x82F1f26468d7191969cDaADC1bE2Ac361F148B50',
-  mktRegistry:'0xf9541311E9556ab59406cd318d2fA5f1C3dE418f', mktCatalog:'0xf484ba0088623346aAF54c31Bc271f8A47176ACE', mktCheckout:'0x119bf8d51667160CbA1F3e12e3639A4932DD3269',
-  mktTreasury:'0x11eE7bC91DC7cc8A50A8c7308E5e2cbb56319F36', mktAccess:'0xd251D6eE26AECFD1eeA45763Fc4e7e087F912B71', mktRenewal:'0x406B5bAeb4Df8c02DF8cd5c132BD15DD0DD78DEd', mktViews:'0x877670cd7c69426419A2607822e9e22C7a81D5FA'
+  userLens:'0x35a71a9963827d49E96a10De414aca93041Fee8E',
+  adminLens:'0xE938C57EF63959578D5cbdF084bB75da96d15e30',
+  mktRegistry:'', mktCatalog:'', mktCheckout:'',
+  mktTreasury:'', mktAccess:'', mktRenewal:'', mktViews:''
 };
 
 
@@ -1374,6 +1376,12 @@ const YIELD_ABI = [
   "function buyYield(uint256 amount, bool startCompound) returns (uint256 positionId)",
   "function sync(uint256 positionId) returns ()",
   "function setCompound(uint256 positionId, bool compound) returns ()",
+  "function MIN_YIELD_BUY() view returns (uint256)",
+  "function VOUCHER_MIN_DIRECTS() view returns (uint16)",
+  "function claimVoucherAccrued(uint256 positionId) returns ()",
+  "function setVoucherDesiredMode(uint256 positionId, bool desiredCompound) returns ()",
+  "function setVoucherSide(uint256 positionId, uint8 side) returns ()",
+  "function cancelExpiredVoucher(uint256 positionId) returns ()",
   "event PositionOpened(uint256 indexed positionId, address indexed user, uint256 amount, bool compound)",
   "event YieldSettled(uint256 indexed positionId, address indexed user, uint256 day, uint256 amount, bool compounded)"
 ];
@@ -1399,6 +1407,7 @@ let signer = null;
 let walletAddress = null;
 let currentUser = null;
 let authState = { owner:null, guardian:null, isOwner:false, isGuardian:false, isAdmin:false };
+let currentUserFrontendCache = null;
 let currentUserPackageId = 0;
 let currentUserPackagePrice = 0n;
 
@@ -1962,6 +1971,7 @@ async function detectUserYieldPositionIds(userAddr) {
 }
 
 async function loadUserFromCore(addr) {
+  currentUserFrontendCache = null;
   const [userData, directCountRes] = await Promise.allSettled([
     contracts.core.users(addr),
     contracts.core.directCount(addr)
@@ -2067,6 +2077,7 @@ async function loadUserFromCore(addr) {
 }
 
 async function renderUserFromUserLens(addr, out) {
+  currentUserFrontendCache = out;
   const u = out.coreUser;
   const cb = out.cashback;
   let directsCount = Number(u.directCount || 0n);
@@ -3182,14 +3193,15 @@ async function loadYieldData(addr) {
   if (!el) return;
 
   try {
-    // Load global stats
-    const [poolBal, totalPrincipal, nextId, minRate, maxRate, buyFeeVal] = await Promise.allSettled([
+    const [poolBal, totalPrincipal, nextId, minRate, maxRate, buyFeeVal, minBuyRes, voucherMinRes] = await Promise.allSettled([
       contracts.yield.yieldPoolBalance(),
       contracts.yield.totalActivePrincipal(),
       contracts.yield.nextPositionId(),
       contracts.yield.minDailyRateBP(),
       contracts.yield.maxDailyRateBP(),
-      contracts.yield.buyFee()
+      contracts.yield.buyFee(),
+      contracts.yield.MIN_YIELD_BUY ? contracts.yield.MIN_YIELD_BUY() : Promise.resolve(null),
+      contracts.yield.VOUCHER_MIN_DIRECTS ? contracts.yield.VOUCHER_MIN_DIRECTS() : Promise.resolve(null)
     ]);
 
     const g = r => r.status === 'fulfilled' ? r.value : null;
@@ -3206,18 +3218,52 @@ async function loadYieldData(addr) {
       if (feeEl) feeEl.textContent = fmt18(g(buyFeeVal));
     }
 
-    // Load user positions by scanning events
-    const totalPositions = g(nextId) ? Number(g(nextId)) - 1 : 0;
-    if (totalPositions === 0) {
-      el.innerHTML = '<div class="empty"><div class="empty-icon">📭</div><div class="empty-title">Sin posiciones</div><div class="empty-desc">Este usuario no tiene posiciones de yield aun</div></div>';
-    } else {
-      await loadUserPositions(addr, totalPositions, el);
+    const buyPanel = document.getElementById('buy-yield-panel');
+    let metaEl = document.getElementById('yield-meta-box');
+    if (!metaEl && buyPanel) {
+      metaEl = document.createElement('div');
+      metaEl.id = 'yield-meta-box';
+      metaEl.style.marginBottom = '14px';
+      buyPanel.querySelector('.panel-body')?.prepend(metaEl);
+    }
+    if (metaEl) {
+      let todayRateText = '';
+      if (contracts.adminLens && contracts.pools) {
+        try {
+          const mi = await contracts.pools.currentMonthIndex().catch(()=>0n);
+          const adminOv = await contracts.adminLens.getAdminOverview(mi).catch(()=>null);
+          const todayRateBP = adminOv?.yield?.todayRateBP ?? null;
+          if (todayRateBP !== null && todayRateBP !== undefined) todayRateText = (Number(todayRateBP)/100).toFixed(2) + '% hoy';
+        } catch {}
+      }
+      metaEl.innerHTML = `<div class="dist-box">
+        <div class="dist-title">Yield · Parámetros actuales</div>
+        <div class="dist-grid" style="grid-template-columns:repeat(4,1fr);gap:10px;">
+          <div class="dist-item"><span class="dist-dot"></span>Fee buy: ${g(buyFeeVal) !== null ? fmt18(g(buyFeeVal)) + ' USDT' : '-'}</div>
+          <div class="dist-item"><span class="dist-dot"></span>Mínimo: ${g(minBuyRes) !== null ? fmt18(g(minBuyRes)) + ' USDT' : '-'}</div>
+          <div class="dist-item"><span class="dist-dot"></span>Voucher directos: ${g(voucherMinRes) !== null ? Number(g(voucherMinRes)) : '-'}</div>
+          <div class="dist-item"><span class="dist-dot"></span>Tasa actual: ${todayRateText || (g(minRate) !== null && g(maxRate) !== null ? (Number(g(minRate))/100).toFixed(2)+'% - '+(Number(g(maxRate))/100).toFixed(2)+'%' : '-')}</div>
+        </div>
+      </div>`;
     }
 
-    // Load allowed packages for buy form
-    await loadYieldPackages();
+    if (currentUserFrontendCache && String(currentUserFrontendCache.coreUser?.user || '').toLowerCase() === String(addr).toLowerCase() && Array.isArray(currentUserFrontendCache.yieldPositions)) {
+      const lensPositions = currentUserFrontendCache.yieldPositions.filter(p => Number(p.positionId || 0) > 0);
+      if (lensPositions.length) {
+        renderPositionsData(addr, lensPositions, el, true);
+      } else {
+        el.innerHTML = '<div class="empty"><div class="empty-icon">📭</div><div class="empty-title">Sin posiciones</div><div class="empty-desc">Este usuario no tiene posiciones de yield aún</div></div>';
+      }
+    } else {
+      const totalPositions = g(nextId) ? Number(g(nextId)) - 1 : 0;
+      if (totalPositions === 0) {
+        el.innerHTML = '<div class="empty"><div class="empty-icon">📭</div><div class="empty-title">Sin posiciones</div><div class="empty-desc">Este usuario no tiene posiciones de yield aun</div></div>';
+      } else {
+        await loadUserPositions(addr, totalPositions, el);
+      }
+    }
 
-    // Update buy button state
+    await loadYieldPackages();
     updateBuyYieldBtn();
 
   } catch(e) {
@@ -3310,7 +3356,7 @@ async function renderPositions(userAddr, positionIds, el) {
   for (const id of positionIds) {
     try {
       const p = await contracts.yield.positions(id);
-      posData.push({ id, ...p });
+      posData.push({ id, positionId:id, ...p });
     } catch(e) { /* skip */ }
   }
 
@@ -3319,44 +3365,73 @@ async function renderPositions(userAddr, positionIds, el) {
     return;
   }
 
+  renderPositionsData(userAddr, posData, el, false);
+}
+
+function renderPositionsData(userAddr, positions, el, fromLens = false) {
   const VOUCHER_STATUS = ['Normal', 'Pending', 'Activo', 'Cancelado'];
-  const canSync = walletAddress && walletAddress.toLowerCase() === userAddr.toLowerCase();
+  const SIDE_NAMES = ['No definida', 'Izquierda', 'Derecha'];
+  const canManage = walletAddress && walletAddress.toLowerCase() === userAddr.toLowerCase();
 
   let html = `<div style="display:flex;flex-direction:column;gap:12px;">`;
-  for (const p of posData) {
-    const pct = p.accruedTotal > 0n ? Math.min(100, Math.round(Number(p.accruedTotal) * 100 / Number(p.basePrincipal))) : 0;
-    const remaining = p.basePrincipal > 0n ? (200n * p.basePrincipal / 100n) - p.accruedTotal : 0n;
-    const isCompound = p.compound;
-    const vStatus = Number(p.voucherStatus);
-    const isCompleted = p.accruedTotal >= (p.basePrincipal * 2n);
+  for (const p of positions) {
+    const posId = Number(p.positionId || p.id || 0);
+    const basePrincipal = BigInt(p.basePrincipal || 0n);
+    const principal = BigInt(p.principal || 0n);
+    const paidOut = BigInt(p.paidOut || 0n);
+    const pendingAccrued = BigInt(p.pendingAccrued || 0n);
+    const accruedTotal = BigInt(p.accruedTotal || 0n);
+    const compound = !!p.compound;
+    const completed = !!p.completed || (basePrincipal > 0n && accruedTotal >= (basePrincipal * 2n));
+    const vStatus = Number(p.voucherStatus || 0);
+    const pct = basePrincipal > 0n ? Math.min(100, Math.round(Number(accruedTotal * 10000n / (basePrincipal * 2n)) / 100)) : 0;
+    const remaining = basePrincipal > 0n ? ((basePrincipal * 2n) - accruedTotal > 0n ? (basePrincipal * 2n) - accruedTotal : 0n) : 0n;
+    const grantedDay = Number(p.grantedDay || 0);
+    const deadlineDay = Number(p.deadlineDay || 0);
+    const lockDay = Number(p.compoundLockUntilDay || 0);
+    const voucherDirects = BigInt(p.voucherDirects || 0n);
+    const voucherTotalVolume = BigInt(p.voucherTotalVolume || 0n);
+    const voucherSide = Number(p.voucherSide || 0);
 
     html += `
     <div class="pos-card">
       <div class="pos-head">
         <div class="pos-title">
-          ${isCompound ? '📊' : '💸'} Posicion #${p.id}
-          <span class="badge ${isCompound ? 'badge-gold' : 'badge-green'}">${isCompound ? 'Compound' : 'Withdraw'}</span>
+          ${compound ? '📊' : '💸'} Posición #${posId}
+          <span class="badge ${compound ? 'badge-gold' : 'badge-green'}">${compound ? 'Compound' : 'Withdraw'}</span>
           ${vStatus > 0 ? `<span class="badge badge-purple">Voucher: ${VOUCHER_STATUS[vStatus]||vStatus}</span>` : ''}
-          ${isCompleted ? '<span class="badge badge-green">✓ Completada</span>' : ''}
+          ${completed ? '<span class="badge badge-green">✓ Completada</span>' : ''}
+          ${fromLens ? '<span class="badge badge-blue">Lens</span>' : ''}
         </div>
-        ${canSync && !isCompleted ? `<button class="btn btn-outline" onclick="syncPosition(${p.id})" style="padding:5px 14px;font-size:11px;">Sync ↻</button>` : ''}
+        ${canManage && !completed ? `<button class="btn btn-outline" onclick="syncPosition(${posId})" style="padding:5px 14px;font-size:11px;">Sync ↻</button>` : ''}
       </div>
       <div class="pos-body">
         <div class="pos-grid">
-          <div><div class="pos-stat-label">Principal base</div><div class="pos-stat-val" style="color:var(--gold);">${fmt18(p.basePrincipal)} USDT</div></div>
-          <div><div class="pos-stat-label">Principal actual</div><div class="pos-stat-val">${fmt18(p.principal)} USDT</div></div>
-          <div><div class="pos-stat-label">Pagado a wallet</div><div class="pos-stat-val" style="color:var(--green);">${fmt18(p.paidOut)} USDT</div></div>
-          <div><div class="pos-stat-label">Total acumulado</div><div class="pos-stat-val" style="color:var(--blue);">${fmt18(p.accruedTotal)} USDT</div></div>
+          <div><div class="pos-stat-label">Principal base</div><div class="pos-stat-val" style="color:var(--gold);">${fmt18(basePrincipal)} USDT</div></div>
+          <div><div class="pos-stat-label">Principal actual</div><div class="pos-stat-val">${fmt18(principal)} USDT</div></div>
+          <div><div class="pos-stat-label">Pagado</div><div class="pos-stat-val" style="color:var(--green);">${fmt18(paidOut)} USDT</div></div>
+          <div><div class="pos-stat-label">Acumulado</div><div class="pos-stat-val" style="color:var(--blue);">${fmt18(accruedTotal)} USDT</div></div>
         </div>
         <div>
-          <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--gray-400);margin-bottom:4px;"><span>Progreso hacia 200%</span><span style="color:var(--gold);">${pct}% - resta ${fmt18(remaining)} USDT</span></div>
+          <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--gray-400);margin-bottom:4px;"><span>Progreso hacia 200%</span><span style="color:var(--gold);">${pct}% · resta ${fmt18(remaining)} USDT</span></div>
           <div class="prog"><div class="prog-fill" style="width:${pct}%;"></div></div>
         </div>
-        ${p.pendingAccrued > 0n ? `<div style="margin-top:10px;font-family:var(--mono);font-size:11px;color:var(--amber);">⏳ Pendiente bloqueado: ${fmt18(p.pendingAccrued)} USDT</div>` : ''}
-        ${canSync && !isCompleted ? `<div style="margin-top:12px;">
-          <button onclick="togglePositionMode(${p.id}, ${!isCompound})" class="btn btn-outline" style="font-size:11px;padding:6px 14px;">
-            Cambiar a ${isCompound ? 'Withdraw' : 'Compound'}
-          </button>
+        <div class="dist-box" style="margin-top:12px;">
+          <div class="dist-title">Detalle de posición</div>
+          <div class="dist-grid" style="grid-template-columns:repeat(3,1fr);gap:8px;">
+            <div class="dist-item"><span class="dist-dot"></span>Pending accrued: ${fmt18(pendingAccrued)} USDT</div>
+            <div class="dist-item"><span class="dist-dot"></span>Granted day: ${grantedDay || '-'}</div>
+            <div class="dist-item"><span class="dist-dot"></span>Deadline day: ${deadlineDay || '-'}</div>
+            <div class="dist-item"><span class="dist-dot"></span>Compound lock: ${lockDay || '-'}</div>
+            <div class="dist-item"><span class="dist-dot"></span>Voucher directos: ${voucherDirects ? voucherDirects.toString() : '0'}</div>
+            <div class="dist-item"><span class="dist-dot"></span>Voucher volumen: ${fmt18(voucherTotalVolume)} USDT</div>
+            <div class="dist-item"><span class="dist-dot"></span>Voucher lado: ${SIDE_NAMES[voucherSide] || 'No definida'}</div>
+          </div>
+        </div>
+        ${canManage && !completed ? `<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;">
+          <button onclick="togglePositionMode(${posId}, ${!compound})" class="btn btn-outline" style="font-size:11px;padding:6px 14px;">Cambiar a ${compound ? 'Withdraw' : 'Compound'}</button>
+          ${vStatus > 0 && pendingAccrued > 0n ? `<button onclick="claimVoucherAccrued(${posId})" class="btn btn-green" style="font-size:11px;padding:6px 14px;">Cobrar voucher</button>` : ''}
+          ${vStatus === 1 ? `<button onclick="setVoucherDesiredMode(${posId}, ${!compound})" class="btn btn-outline" style="font-size:11px;padding:6px 14px;">Definir modo voucher</button>` : ''}
         </div>` : ''}
       </div>
     </div>`;
@@ -3389,6 +3464,36 @@ async function togglePositionMode(posId, newCompound) {
     const tx = await c.setCompound(posId, newCompound);
     await tx.wait();
     toast(`✅ Modo cambiado a ${newCompound ? 'Compound' : 'Withdraw'}`, 'success');
+    if (currentUser) await loadYieldData(currentUser);
+  } catch(e) {
+    toast('Error: ' + (e.reason || e.message || e), 'error');
+  }
+}
+
+async function claimVoucherAccrued(posId) {
+  if (!await ensureSigner()) return;
+  if (!contracts.yield?.claimVoucherAccrued) { toast('Función de voucher no disponible', 'error'); return; }
+  try {
+    const c = contracts.yield.connect(signer);
+    toast(`Cobrando voucher de la posición #${posId}...`, 'info');
+    const tx = await c.claimVoucherAccrued(posId);
+    await tx.wait();
+    toast('✅ Voucher cobrado', 'success');
+    if (currentUser) await loadYieldData(currentUser);
+  } catch(e) {
+    toast('Error: ' + (e.reason || e.message || e), 'error');
+  }
+}
+
+async function setVoucherDesiredMode(posId, desiredCompound) {
+  if (!await ensureSigner()) return;
+  if (!contracts.yield?.setVoucherDesiredMode) { toast('Función de voucher no disponible', 'error'); return; }
+  try {
+    const c = contracts.yield.connect(signer);
+    toast(`Actualizando preferencia de voucher #${posId}...`, 'info');
+    const tx = await c.setVoucherDesiredMode(posId, desiredCompound);
+    await tx.wait();
+    toast('✅ Preferencia de voucher actualizada', 'success');
     if (currentUser) await loadYieldData(currentUser);
   } catch(e) {
     toast('Error: ' + (e.reason || e.message || e), 'error');
@@ -4815,7 +4920,6 @@ async function bootstrapLoginMode() {
     loadCoreStatus();
     loadPackages();
     loadYieldPackages();
-    loadMarketplace().catch(()=>{});
     setDashboardAccess(false);
     showLoginGate('Conecta tu wallet para habilitar el dashboard.');
     updateAdminVisibility();
