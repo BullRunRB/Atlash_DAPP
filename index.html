@@ -2045,8 +2045,8 @@ async function loadUserFromCore(addr) {
   if (contracts.adminLens) {
     try {
       const adminOv = await contracts.adminLens.getAdminOverview(poolsData.monthIndex || 0n).catch(() => null);
-      const leadAdmin = tupleVal(tupleVal(adminOv,'pools',5,{}),'totalLeadershipAccrued',8,null);
-      const leadMonth = tupleVal(tupleVal(adminOv,'month',7,{}),'leadershipAccrued',3,null);
+      const leadAdmin = tupleVal(tupleVal(adminOv,'pools',5,{}),'totalLeadershipAccrued',11,null);
+      const leadMonth = tupleVal(tupleVal(adminOv,'month',8,{}),'leadershipAccrued',3,null);
       if (leadAdmin !== null && leadAdmin !== undefined) {
         poolsData.leadershipAccruedUSDT = leadAdmin || poolsData.leadershipAccruedUSDT || 0n;
       } else if (leadMonth !== null && leadMonth !== undefined) {
@@ -2147,8 +2147,8 @@ async function renderUserFromUserLens(addr, out) {
   if (contracts.adminLens) {
     try {
       const adminOv = await contracts.adminLens.getAdminOverview(pools.monthIndex || 0n).catch(() => null);
-      const leadAdmin = tupleVal(tupleVal(adminOv,'pools',5,{}),'totalLeadershipAccrued',8,null);
-      const leadMonth = tupleVal(tupleVal(adminOv,'month',7,{}),'leadershipAccrued',3,null);
+      const leadAdmin = tupleVal(tupleVal(adminOv,'pools',5,{}),'totalLeadershipAccrued',11,null);
+      const leadMonth = tupleVal(tupleVal(adminOv,'month',8,{}),'leadershipAccrued',3,null);
       if (leadAdmin !== null && leadAdmin !== undefined) {
         pools.leadershipAccruedUSDT = leadAdmin || 0n;
       } else if (leadMonth !== null && leadMonth !== undefined) {
@@ -3788,8 +3788,8 @@ async function loadAdminDashboard() {
   const core = tupleVal(ov, 'core', 2, {}) || {};
   const wiring = tupleVal(ov, 'wiring', 1, {}) || {};
   const poolsAdmin = tupleVal(ov, 'pools', 5, {}) || {};
-  const month = tupleVal(ov, 'month', 7, {}) || {};
-  document.getElementById('admin-core-usdt').textContent = fmt18(tupleVal(core, 'usdtBalance', 25, 0n)) + ' USDT';
+  const month = tupleVal(ov, 'month', 8, {}) || {};
+  document.getElementById('admin-core-usdt').textContent = fmt18(tupleVal(core, 'usdtBalance', 23, 0n)) + ' USDT';
   document.getElementById('admin-core-reserved').textContent = fmt18(tupleVal(core, 'reservedUSDT', 11, 0n)) + ' USDT';
   document.getElementById('admin-core-free').textContent = fmt18(tupleVal(core, 'freeUSDT', 12, 0n)) + ' USDT';
   document.getElementById('admin-pending-ranks').textContent = fmt18(tupleVal(core, 'pendingRanksAmount', 13, 0n)) + ' USDT';
@@ -3801,8 +3801,8 @@ async function loadAdminDashboard() {
     <div class="mem-row"><span class="mem-label">Guardian</span><span class="mem-val">${shortAddr(tupleVal(core, 'guardian', 1, null))}</span></div>
     <div class="mem-row"><span class="mem-label">Usuarios</span><span class="mem-val">${fmtIntPoints(tupleVal(core, 'totalUsers', 9, 0n))}</span></div>
     <div class="mem-row"><span class="mem-label">Month index</span><span class="mem-val">${fmtIntPoints(tupleVal(core, 'currentMonthIndex', 10, tupleVal(month, 'monthIndex', 0, 0n)))}</span></div>
-    <div class="mem-row"><span class="mem-label">Leadership accrued</span><span class="mem-val">${fmt18(tupleVal(poolsAdmin, 'totalLeadershipAccrued', 8, tupleVal(month, 'leadershipAccrued', 3, 0n)))} USDT</span></div>
-    <div class="mem-row" style="border:none;"><span class="mem-label">Top 10 accrued</span><span class="mem-val">${fmt18(tupleVal(poolsAdmin, 'totalTopTenAccrued', 10, tupleVal(month, 'topTenAccrued', 4, 0n)))} USDT</span></div>`;
+    <div class="mem-row"><span class="mem-label">Leadership accrued</span><span class="mem-val">${fmt18(tupleVal(poolsAdmin, 'totalLeadershipAccrued', 11, tupleVal(month, 'leadershipAccrued', 3, 0n)))} USDT</span></div>
+    <div class="mem-row" style="border:none;"><span class="mem-label">Top 10 accrued</span><span class="mem-val">${fmt18(tupleVal(poolsAdmin, 'totalTopTenAccrued', 13, tupleVal(month, 'topTenAccrued', 4, 0n)))} USDT</span></div>`;
   const wbox = document.getElementById('admin-wiring-box');
   if (wbox) {
     const entries = wiring && typeof wiring === 'object' ? Object.entries(wiring).filter(([k]) => isNaN(Number(k))) : [];
