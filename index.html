@@ -1414,6 +1414,36 @@ let currentUserPackagePrice = 0n;
 const PACKAGE_NAMES = {1:'Trader', 2:'Network Builder', 3:'Network Leader', 4:'Ecosystem Partner'};
 const PACKAGE_COLORS = {1:'var(--blue)', 2:'var(--purple)', 3:'var(--gold)', 4:'var(--green)'};
 const LEG_NAMES = {0:'No definida', 1:'Izquierda', 2:'Derecha'};
+function tupleVal(obj, key, idx, fallback = null) {
+  try {
+    if (obj == null) return fallback;
+    if (key && obj[key] !== undefined) return obj[key];
+    if (typeof idx === 'number' && obj[idx] !== undefined) return obj[idx];
+    return fallback;
+  } catch { return fallback; }
+}
+function normalizeYieldPosition(p) {
+  if (!p) return null;
+  return {
+    positionId: tupleVal(p, 'positionId', 0, 0),
+    user: tupleVal(p, 'user', 1, tupleVal(p, 'user', 0, ethers.ZeroAddress)),
+    basePrincipal: tupleVal(p, 'basePrincipal', 1, 0n),
+    principal: tupleVal(p, 'principal', 2, 0n),
+    paidOut: tupleVal(p, 'paidOut', 3, 0n),
+    pendingAccrued: tupleVal(p, 'pendingAccrued', 4, 0n),
+    accruedTotal: tupleVal(p, 'accruedTotal', 5, 0n),
+    lastDay: tupleVal(p, 'lastDay', 6, 0),
+    grantedDay: tupleVal(p, 'grantedDay', 7, 0),
+    deadlineDay: tupleVal(p, 'deadlineDay', 8, 0),
+    compoundLockUntilDay: tupleVal(p, 'compoundLockUntilDay', 9, 0),
+    compound: tupleVal(p, 'compound', 10, false),
+    completed: tupleVal(p, 'completed', 11, false),
+    voucherStatus: tupleVal(p, 'voucherStatus', 12, 0),
+    voucherDirects: tupleVal(p, 'voucherDirects', 13, 0n),
+    voucherTotalVolume: tupleVal(p, 'voucherTotalVolume', 14, 0n),
+    voucherSide: tupleVal(p, 'voucherSide', 15, 0),
+  };
+}
 const MONTH_NAMES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 function monthNameFromIndex(mi){ const n = Number(mi ?? 0); return MONTH_NAMES[((n % 12) + 12) % 12] || `Mes ${n}`; }
 
@@ -2015,10 +2045,12 @@ async function loadUserFromCore(addr) {
   if (contracts.adminLens) {
     try {
       const adminOv = await contracts.adminLens.getAdminOverview(poolsData.monthIndex || 0n).catch(() => null);
-      if (adminOv?.pools?.totalLeadershipAccrued !== undefined) {
-        poolsData.leadershipAccruedUSDT = adminOv.pools.totalLeadershipAccrued || poolsData.leadershipAccruedUSDT || 0n;
-      } else if (adminOv?.month?.leadershipAccrued !== undefined) {
-        poolsData.leadershipAccruedUSDT = adminOv.month.leadershipAccrued || poolsData.leadershipAccruedUSDT || 0n;
+      const leadAdmin = tupleVal(tupleVal(adminOv,'pools',5,{}),'totalLeadershipAccrued',8,null);
+      const leadMonth = tupleVal(tupleVal(adminOv,'month',7,{}),'leadershipAccrued',3,null);
+      if (leadAdmin !== null && leadAdmin !== undefined) {
+        poolsData.leadershipAccruedUSDT = leadAdmin || poolsData.leadershipAccruedUSDT || 0n;
+      } else if (leadMonth !== null && leadMonth !== undefined) {
+        poolsData.leadershipAccruedUSDT = leadMonth || poolsData.leadershipAccruedUSDT || 0n;
       }
     } catch {}
   }
@@ -2115,10 +2147,12 @@ async function renderUserFromUserLens(addr, out) {
   if (contracts.adminLens) {
     try {
       const adminOv = await contracts.adminLens.getAdminOverview(pools.monthIndex || 0n).catch(() => null);
-      if (adminOv?.pools?.totalLeadershipAccrued !== undefined) {
-        pools.leadershipAccruedUSDT = adminOv.pools.totalLeadershipAccrued || 0n;
-      } else if (adminOv?.month?.leadershipAccrued !== undefined) {
-        pools.leadershipAccruedUSDT = adminOv.month.leadershipAccrued || 0n;
+      const leadAdmin = tupleVal(tupleVal(adminOv,'pools',5,{}),'totalLeadershipAccrued',8,null);
+      const leadMonth = tupleVal(tupleVal(adminOv,'month',7,{}),'leadershipAccrued',3,null);
+      if (leadAdmin !== null && leadAdmin !== undefined) {
+        pools.leadershipAccruedUSDT = leadAdmin || 0n;
+      } else if (leadMonth !== null && leadMonth !== undefined) {
+        pools.leadershipAccruedUSDT = leadMonth || 0n;
       } else {
         pools.leadershipAccruedUSDT = pools.leadershipPoolTotalUSDT || 0n;
       }
@@ -2517,18 +2551,19 @@ function renderEarnings(ranks, pools, cb) {
 async function loadCashbackLots(addr) {
   if (!contracts.cashback || !addr) return null;
   try {
-    const res = await contracts.cashback.cashbackLotsSummary(addr, 0).catch(() => null);
+    let res = await contracts.cashback.cashbackLotsSummary(addr, 100).catch(() => null);
+    if (!res) res = await contracts.cashback.cashbackLotsSummary(addr, 50).catch(() => null);
     if (!res) return null;
-    const lotIndexes = Array.from(res.lotIndexes || []);
-    const amounts = Array.from(res.amounts || []);
-    const expiresAts = Array.from(res.expiresAts || []);
+    const lotIndexes = Array.from(tupleVal(res, 'lotIndexes', 0, []) || []);
+    const amounts = Array.from(tupleVal(res, 'amounts', 1, []) || []);
+    const expiresAts = Array.from(tupleVal(res, 'expiresAts', 2, []) || []);
     const now = BigInt(Math.floor(Date.now()/1000));
     return {
       lotIndexes,
       amountsUSDT: amounts,
       expiresAt: expiresAts,
       expired: expiresAts.map(ts => BigInt(ts || 0) <= now),
-      totalLotsReturned: Number(res.totalLotsReturned || lotIndexes.length || 0)
+      totalLotsReturned: Number(tupleVal(res, 'totalLotsReturned', 3, lotIndexes.length || 0))
     };
   } catch (e) {
     console.warn('loadCashbackLots', e);
@@ -2871,23 +2906,41 @@ async function loadPackages(activeIds, userPkg) {
   if (!contracts.core) return;
 
   try {
-    const pkgDefs = [];
-    if (contracts.userLens) {
-      const all = await contracts.userLens.getPackages().catch(()=>[]);
-      for (const p of all) {
-        const id = Number(p.packageId || 0);
-        if (!id) continue;
-        if (activeIds && !activeIds.map(Number).includes(id)) continue;
-        if (p.exists) pkgDefs.push({id, price:p.price, brokerFee:p.brokerFee, includedMonths:p.includedMonths, enabled:p.enabled});
+    let pkgDefs = [];
+    if (contracts.userLens && typeof contracts.userLens.getPackages === 'function') {
+      try {
+        const all = await contracts.userLens.getPackages();
+        pkgDefs = (Array.isArray(all) ? all : []).map(p => ({
+          id: Number(tupleVal(p, 'packageId', 0, 0)),
+          price: tupleVal(p, 'price', 1, 0n),
+          brokerFee: tupleVal(p, 'brokerFee', 2, 0n),
+          includedMonths: tupleVal(p, 'includedMonths', 3, 0),
+          enabled: !!tupleVal(p, 'enabled', 4, true),
+          exists: !!tupleVal(p, 'exists', 5, true)
+        })).filter(p => p.id > 0 && p.exists);
+      } catch (e) {
+        console.warn('getPackages lens fallback to core', e);
       }
-    } else {
-      const maxId = activeIds ? Math.max(...activeIds.map(Number)) : Number(await contracts.core.maxPackageId());
+    }
+    if (!pkgDefs.length) {
+      const maxId = activeIds ? Math.max(...activeIds.map(Number)) : Number(await contracts.core.maxPackageId().catch(() => 4n));
       for (let i = 1; i <= maxId; i++) {
         if (activeIds && !activeIds.map(Number).includes(i)) continue;
         try {
-          const [price, brokerFee, includedMonths, enabled, exists] = await contracts.core.packages(i);
-          if (exists) pkgDefs.push({id:i, price, brokerFee, includedMonths, enabled});
-        } catch {}
+          const p = await contracts.core.packages(i);
+          const exists = !!tupleVal(p, null, 4, true);
+          if (!exists) continue;
+          pkgDefs.push({
+            id: i,
+            price: tupleVal(p, null, 0, 0n),
+            brokerFee: tupleVal(p, null, 1, 0n),
+            includedMonths: tupleVal(p, null, 2, 0),
+            enabled: !!tupleVal(p, null, 3, true),
+            exists: true
+          });
+        } catch (e) {
+          console.warn('packages core read failed', i, e);
+        }
       }
     }
 
@@ -2920,11 +2973,12 @@ async function loadPackages(activeIds, userPkg) {
             ${b.hasPools ? '<li>Acceso a pools globales</li>' : ''}
             ${!p.enabled ? '<li style="color:var(--red)">Deshabilitado</li>' : ''}
           </ul>
-          ${isUserPkg ? '<div style="margin-top:12px;text-align:center;font-size:10px;font-family:\'DM Mono\',monospace;color:var(--gold);letter-spacing:1px;">★ TU PAQUETE</div>' : ''}
+          ${isUserPkg ? '<div style="margin-top:12px;text-align:center;font-size:10px;font-family:&quot;DM Mono&quot;,monospace;color:var(--gold);letter-spacing:1px;">★ TU PAQUETE</div>' : ''}
         </div>
       `;
     }).join('');
   } catch(e) {
+    console.error('loadPackages error', e);
     el.innerHTML = `<div class="empty" style="grid-column:1/-1;"><div class="empty-icon">⚠️</div><div class="empty-title">Error al cargar paquetes</div><div class="empty-desc">${e.message}</div></div>`;
   }
 }
@@ -3248,7 +3302,7 @@ async function loadYieldData(addr) {
     }
 
     if (currentUserFrontendCache && String(currentUserFrontendCache.coreUser?.user || '').toLowerCase() === String(addr).toLowerCase() && Array.isArray(currentUserFrontendCache.yieldPositions)) {
-      const lensPositions = currentUserFrontendCache.yieldPositions.filter(p => Number(p.positionId || 0) > 0);
+      const lensPositions = currentUserFrontendCache.yieldPositions.map(normalizeYieldPosition).filter(p => Number(p?.positionId || 0) > 0);
       if (lensPositions.length) {
         renderPositionsData(addr, lensPositions, el, true);
       } else {
@@ -3356,7 +3410,7 @@ async function renderPositions(userAddr, positionIds, el) {
   for (const id of positionIds) {
     try {
       const p = await contracts.yield.positions(id);
-      posData.push({ id, positionId:id, ...p });
+      posData.push(normalizeYieldPosition({ positionId:id, ...p }));
     } catch(e) { /* skip */ }
   }
 
@@ -3731,24 +3785,28 @@ async function loadAdminDashboard() {
   const role = authState.isOwner ? 'Owner' : (authState.isGuardian ? 'Guardian' : 'Usuario');
   document.getElementById('admin-role').textContent = role;
   document.getElementById('admin-role-sub').textContent = walletAddress ? shortAddr(walletAddress) : 'Wallet actual';
-  const core = ov.core || {}; const wiring = ov.wiring || {}; const month = ov.month || {};
-  document.getElementById('admin-core-usdt').textContent = fmt18(core.usdtBalance || 0n) + ' USDT';
-  document.getElementById('admin-core-reserved').textContent = fmt18(core.reservedUSDT || 0n) + ' USDT';
-  document.getElementById('admin-core-free').textContent = fmt18(core.freeUSDT || 0n) + ' USDT';
-  document.getElementById('admin-pending-ranks').textContent = fmt18(core.pendingRanksAmount || 0n) + ' USDT';
-  document.getElementById('admin-pending-leadership').textContent = fmt18(core.pendingLeadershipAmount || 0n) + ' USDT';
-  document.getElementById('admin-pending-topten').textContent = fmt18(core.pendingTopTenAmount || 0n) + ' USDT';
+  const core = tupleVal(ov, 'core', 2, {}) || {};
+  const wiring = tupleVal(ov, 'wiring', 1, {}) || {};
+  const poolsAdmin = tupleVal(ov, 'pools', 5, {}) || {};
+  const month = tupleVal(ov, 'month', 7, {}) || {};
+  document.getElementById('admin-core-usdt').textContent = fmt18(tupleVal(core, 'usdtBalance', 25, 0n)) + ' USDT';
+  document.getElementById('admin-core-reserved').textContent = fmt18(tupleVal(core, 'reservedUSDT', 11, 0n)) + ' USDT';
+  document.getElementById('admin-core-free').textContent = fmt18(tupleVal(core, 'freeUSDT', 12, 0n)) + ' USDT';
+  document.getElementById('admin-pending-ranks').textContent = fmt18(tupleVal(core, 'pendingRanksAmount', 13, 0n)) + ' USDT';
+  document.getElementById('admin-pending-leadership').textContent = fmt18(tupleVal(core, 'pendingLeadershipAmount', 14, 0n)) + ' USDT';
+  document.getElementById('admin-pending-topten').textContent = fmt18(tupleVal(core, 'pendingTopTenAmount', 15, 0n)) + ' USDT';
   const box = document.getElementById('admin-overview-box');
   if (box) box.innerHTML = `
-    <div class="mem-row"><span class="mem-label">Owner</span><span class="mem-val">${shortAddr(core.owner)}</span></div>
-    <div class="mem-row"><span class="mem-label">Guardian</span><span class="mem-val">${shortAddr(core.guardian)}</span></div>
-    <div class="mem-row"><span class="mem-label">Usuarios</span><span class="mem-val">${fmtIntPoints(core.totalUsers || 0n)}</span></div>
-    <div class="mem-row"><span class="mem-label">Month index</span><span class="mem-val">${fmtIntPoints(core.currentMonthIndex || month.monthIndex || 0n)}</span></div>
-    <div class="mem-row"><span class="mem-label">Leadership accrued</span><span class="mem-val">${fmt18(month.leadershipAccrued || 0n)} USDT</span></div>
-    <div class="mem-row" style="border:none;"><span class="mem-label">Top 10 accrued</span><span class="mem-val">${fmt18(month.topTenAccrued || 0n)} USDT</span></div>`;
+    <div class="mem-row"><span class="mem-label">Owner</span><span class="mem-val">${shortAddr(tupleVal(core, 'owner', 0, null))}</span></div>
+    <div class="mem-row"><span class="mem-label">Guardian</span><span class="mem-val">${shortAddr(tupleVal(core, 'guardian', 1, null))}</span></div>
+    <div class="mem-row"><span class="mem-label">Usuarios</span><span class="mem-val">${fmtIntPoints(tupleVal(core, 'totalUsers', 9, 0n))}</span></div>
+    <div class="mem-row"><span class="mem-label">Month index</span><span class="mem-val">${fmtIntPoints(tupleVal(core, 'currentMonthIndex', 10, tupleVal(month, 'monthIndex', 0, 0n)))}</span></div>
+    <div class="mem-row"><span class="mem-label">Leadership accrued</span><span class="mem-val">${fmt18(tupleVal(poolsAdmin, 'totalLeadershipAccrued', 8, tupleVal(month, 'leadershipAccrued', 3, 0n)))} USDT</span></div>
+    <div class="mem-row" style="border:none;"><span class="mem-label">Top 10 accrued</span><span class="mem-val">${fmt18(tupleVal(poolsAdmin, 'totalTopTenAccrued', 10, tupleVal(month, 'topTenAccrued', 4, 0n)))} USDT</span></div>`;
   const wbox = document.getElementById('admin-wiring-box');
   if (wbox) {
-    const rows = Object.entries(wiring).map(([k,v]) => `<div class="ctr-row"><span class="ctr-name">${k}</span><span class="ctr-chip ${v?'chip-ok':'chip-no'}">${v?'OK':'FAIL'}</span></div>`).join('');
+    const entries = wiring && typeof wiring === 'object' ? Object.entries(wiring).filter(([k]) => isNaN(Number(k))) : [];
+    const rows = entries.map(([k,v]) => `<div class="ctr-row"><span class="ctr-name">${k}</span><span class="ctr-chip ${v?'chip-ok':'chip-no'}">${v?'OK':'FAIL'}</span></div>`).join('');
     wbox.innerHTML = rows || '<div class="empty"><div class="empty-icon">○</div><div class="empty-title">Sin checks</div></div>';
   }
 }
@@ -3760,7 +3818,9 @@ async function loadAdminLensOverview() {
     const [owner, guardian] = await Promise.all([contracts.core.owner().catch(()=>null), contracts.core.guardian().catch(()=>null)]);
     const mine = String(walletAddress).toLowerCase();
     if (owner && String(owner).toLowerCase() !== mine && guardian && String(guardian).toLowerCase() !== mine) return null;
-    const monthIndex = contracts.core.currentMonthIndex ? await contracts.core.currentMonthIndex().catch(()=>0n) : 0n;
+    let monthIndex = 0n;
+    if (contracts.pools?.currentMonthIndex) monthIndex = await contracts.pools.currentMonthIndex().catch(()=>0n);
+    else if (contracts.core?.currentMonthIndex) monthIndex = await contracts.core.currentMonthIndex().catch(()=>0n);
     return await contracts.adminLens.getAdminOverview(monthIndex);
   } catch(e) {
     console.warn('admin lens overview', e);
