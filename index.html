@@ -424,6 +424,12 @@ body {
 .kpi-value.c-amber { color: var(--amber); }
 .kpi-sub { font-size: 11px; color: var(--gray-400); }
 
+.kpi.pkg-active-1 { border-color:#6b7280; box-shadow:0 0 0 3px rgba(107,114,128,.12), var(--shadow-md); background:linear-gradient(180deg,#ffffff 0%, #f9fafb 100%); }
+.kpi.pkg-active-2 { border-color:var(--blue); box-shadow:0 0 0 3px rgba(37,99,235,.14), var(--shadow-md); background:linear-gradient(180deg,#ffffff 0%, #eff6ff 100%); }
+.kpi.pkg-active-3 { border-color:var(--purple); box-shadow:0 0 0 3px rgba(124,58,237,.14), var(--shadow-md); background:linear-gradient(180deg,#ffffff 0%, #f5f3ff 100%); }
+.kpi.pkg-active-4 { border-color:var(--gold); box-shadow:0 0 0 3px rgba(184,134,11,.16), var(--shadow-md); background:linear-gradient(180deg,#ffffff 0%, #fffbeb 100%); }
+
+
 /* ── PANEL ── */
 .panel {
   background: var(--white);
@@ -941,7 +947,7 @@ body {
     <div class="tab-pane active" id="tab-overview">
       <div id="user-card-section"></div>
       <div class="grid g4">
-        <div class="kpi"><div class="kpi-label">Paquete activo</div><div class="kpi-value c-gold" id="stat-package">-</div><div class="kpi-sub" id="stat-package-name">Sin datos</div></div>
+        <div class="kpi" id="stat-package-card"><div class="kpi-label">Paquete activo</div><div class="kpi-value c-gold" id="stat-package">-</div><div class="kpi-sub" id="stat-package-name">Sin datos</div></div>
         <div class="kpi"><div class="kpi-label">Rango</div><div class="kpi-value" id="stat-rank">-</div><div class="kpi-sub" id="stat-rank-sub">Módulo de rangos</div></div>
         <div class="kpi"><div class="kpi-label">Cashback disponible</div><div class="kpi-value c-green" id="stat-cashback">-</div><div class="kpi-sub" id="stat-cashback-sub">Saldo activo</div></div>
         <div class="kpi"><div class="kpi-label">Referidos directos</div><div class="kpi-value c-blue" id="stat-directs">-</div><div class="kpi-sub" id="stat-upline">Upline: -</div></div>
@@ -1412,6 +1418,8 @@ let authState = { owner:null, guardian:null, isOwner:false, isGuardian:false, is
 let currentUserFrontendCache = null;
 let currentUserPackageId = 0;
 let currentUserPackagePrice = 0n;
+let lastAdminLensError = '';
+
 
 const PACKAGE_NAMES = {1:'Trader', 2:'Network Builder', 3:'Network Leader', 4:'Ecosystem Partner'};
 const PACKAGE_COLORS = {1:'var(--blue)', 2:'var(--purple)', 3:'var(--gold)', 4:'var(--green)'};
@@ -1528,7 +1536,7 @@ function switchTab(name) {
   if (name === 'marketplace' && (contracts.mktCatalog || contracts.mktRegistry)) loadMarketplace().catch(() => {});
   if (name === 'ranks') loadRanksTab(currentUser || null);
   if (name === 'network' && currentUser && currentNetTab === 'binary') loadBinaryTree(currentUser);
-  if (name === 'admin' && authState.isAdmin) loadAdminDashboard().catch(()=>{});
+  if (name === 'admin') loadAdminDashboard().catch(()=>{});
 }
 
 async function copyText(text) {
@@ -1646,6 +1654,10 @@ async function launchDapp() {
       contracts[key] = new ethers.Contract(addresses[key], abi, provider);
     }
   });
+  if (!contracts.adminLens && activeNetwork === NETWORKS.testnet && TESTNET_ADDRESSES.adminLens) {
+    addresses.adminLens = TESTNET_ADDRESSES.adminLens;
+    contracts.adminLens = new ethers.Contract(addresses.adminLens, ADMIN_LENS_V3_ABI, provider);
+  }
 
   // ── 6. Update contracts tab immediately (addresses are set)
   updateContractsTab();
@@ -2243,8 +2255,14 @@ function renderUserCard(u) {
 }
 
 function renderStatsFromCore(userData, cb, directs, upline) {
-  document.getElementById('stat-package').textContent = userData.highestPackage > 0 ? `#${userData.highestPackage}` : '-';
-  document.getElementById('stat-package-name').textContent = PACKAGE_NAMES[userData.highestPackage] || 'Sin paquete';
+  const pkgId = Number(userData.highestPackage || 0);
+  document.getElementById('stat-package').textContent = pkgId > 0 ? `#${pkgId}` : '-';
+  document.getElementById('stat-package-name').textContent = PACKAGE_NAMES[pkgId] || 'Sin paquete';
+  const pkgCard = document.getElementById('stat-package-card');
+  if (pkgCard) {
+    pkgCard.classList.remove('pkg-active-1','pkg-active-2','pkg-active-3','pkg-active-4');
+    if (pkgId > 0) pkgCard.classList.add(`pkg-active-${pkgId}`);
+  }
   document.getElementById('stat-rank').textContent = '-';
   document.getElementById('stat-rank-sub').textContent = 'Rank en modulo';
   document.getElementById('stat-cashback').textContent = fmt18(cb.balanceUSDT) + ' USDT';
@@ -3711,7 +3729,7 @@ function checkProtocol() {
 function showLoginGate(message) { const gate = document.getElementById('login-gate'); if (gate) gate.classList.add('show'); const line = document.getElementById('login-status-line'); if (line && message) line.textContent = message; }
 function hideLoginGate() { const gate = document.getElementById('login-gate'); if (gate) gate.classList.remove('show'); }
 function updateAdminVisibility() {
-  const tab = document.getElementById('nav-tab-admin'); if (tab) tab.style.display = authState.isAdmin ? '' : 'none';
+  const tab = document.getElementById('nav-tab-admin'); if (tab) tab.style.display = (authState.isAdmin || !!contracts.adminLens) ? '' : 'none';
   const badges = document.getElementById('login-role-badges');
   if (badges) { const arr=[]; if (walletAddress) arr.push(`<span class="badge badge-green">Wallet conectada</span>`); if (authState.isOwner) arr.push(`<span class="badge badge-gold">Owner</span>`); if (authState.isGuardian) arr.push(`<span class="badge badge-blue">Guardian</span>`); if (!authState.isAdmin && walletAddress) arr.push(`<span class="badge badge-gray">Acceso usuario</span>`); badges.innerHTML = arr.join(''); }
 }
@@ -3841,7 +3859,7 @@ async function loadAdminDashboard() {
   if (wbox) {
     const entries = wiring && typeof wiring === 'object' ? Object.entries(wiring).filter(([k]) => isNaN(Number(k))) : [];
     const rows = entries.map(([k,v]) => `<div class="ctr-row"><span class="ctr-name">${k}</span><span class="ctr-chip ${v?'chip-ok':'chip-no'}">${v?'OK':'FAIL'}</span></div>`).join('');
-    wbox.innerHTML = rows || `<div class="empty"><div class="empty-icon">ℹ</div><div class="empty-title">${ov ? 'Sin checks' : 'AdminLens no disponible'}</div><div class="empty-desc">${ov ? 'No se recibieron checks de wiring.' : 'Se cargaron datos directos desde Core y Pools.'}</div></div>`;
+    wbox.innerHTML = rows || `<div class="empty"><div class="empty-icon">ℹ</div><div class="empty-title">${ov ? 'Sin checks' : 'AdminLens no disponible'}</div><div class="empty-desc">${ov ? 'No se recibieron checks de wiring.' : ('Se cargaron datos directos desde Core y Pools.' + (lastAdminLensError ? '<br><br><strong>Detalle:</strong> ' + lastAdminLensError : ''))}</div></div>`;
   }
 }
 
@@ -3890,15 +3908,21 @@ async function loadAdminDirectSnapshot() {
 }
 
 async function loadAdminLensOverview() {
-  if (!contracts.adminLens || !walletAddress) return null;
+  lastAdminLensError = '';
   try {
-    const [owner, guardian] = await Promise.all([contracts.core.owner().catch(()=>null), contracts.core.guardian().catch(()=>null)]);
-    const mine = String(walletAddress).toLowerCase();
-    if (owner && String(owner).toLowerCase() !== mine && guardian && String(guardian).toLowerCase() !== mine) return null;
+    if (!contracts.adminLens && activeNetwork === NETWORKS.testnet && TESTNET_ADDRESSES.adminLens && provider) {
+      addresses.adminLens = addresses.adminLens || TESTNET_ADDRESSES.adminLens;
+      contracts.adminLens = new ethers.Contract(addresses.adminLens, ADMIN_LENS_V3_ABI, provider);
+    }
+    if (!contracts.adminLens) {
+      lastAdminLensError = 'No hay contrato AdminLens configurado.';
+      return null;
+    }
     const attempts = [];
     if (contracts.pools?.currentMonthIndex) {
       const mi = await contracts.pools.currentMonthIndex().catch(()=>0n);
       attempts.push(mi);
+      if (mi > 0n) attempts.push(mi - 1n);
     }
     attempts.push(0n);
     for (const monthIndex of attempts) {
@@ -3906,11 +3930,14 @@ async function loadAdminLensOverview() {
         const ov = await contracts.adminLens.getAdminOverview(monthIndex);
         if (ov) return ov;
       } catch (e) {
+        lastAdminLensError = String(e?.shortMessage || e?.reason || e?.message || e).slice(0, 300);
         console.warn('admin lens overview attempt failed', monthIndex?.toString?.() || monthIndex, e);
       }
     }
+    if (!lastAdminLensError) lastAdminLensError = 'AdminLens no devolvió datos.';
     return null;
   } catch(e) {
+    lastAdminLensError = String(e?.shortMessage || e?.reason || e?.message || e).slice(0, 300);
     console.warn('admin lens overview', e);
     return null;
   }
