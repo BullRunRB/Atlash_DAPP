@@ -1346,6 +1346,8 @@ const POOLS_ABI = [
   "function topTenClaimable(uint256, address) view returns (uint256)",
   "function leadershipPoolTotal(uint256) view returns (uint256)",
   "function topTenAccruedByMonth(uint256) view returns (uint256)",
+  "function totalLeadershipAccrued() view returns (uint256)",
+  "function totalTopTenAccrued() view returns (uint256)",
   "function claimLeadership(uint256, address) returns (uint256)",
   "function claimTopTen(uint256, address) returns (uint256)"
 ];
@@ -2032,13 +2034,22 @@ async function loadUserFromCore(addr) {
   if (contracts.pools) {
     try {
       const mi = await contracts.pools.currentMonthIndex();
-      const [l, t, lTotal, tTotal] = await Promise.all([
+      const [l, t, lTotal, tTotal, lAcc, tAcc] = await Promise.all([
         contracts.pools.leadershipClaimable(mi, addr),
         contracts.pools.topTenClaimable(mi, addr),
         contracts.pools.leadershipPoolTotal(mi),
-        contracts.pools.topTenAccruedByMonth(mi)
+        contracts.pools.topTenAccruedByMonth(mi),
+        contracts.pools.totalLeadershipAccrued ? contracts.pools.totalLeadershipAccrued().catch(() => null) : Promise.resolve(null),
+        contracts.pools.totalTopTenAccrued ? contracts.pools.totalTopTenAccrued().catch(() => null) : Promise.resolve(null)
       ]);
-      poolsData = {leadershipClaimableUSDT:l, topTenClaimableUSDT:t, leadershipPoolTotalUSDT:lTotal, leadershipAccruedUSDT:lTotal, topTenPoolTotalUSDT:tTotal, monthIndex:mi};
+      poolsData = {
+        leadershipClaimableUSDT:l,
+        topTenClaimableUSDT:t,
+        leadershipPoolTotalUSDT:lTotal,
+        leadershipAccruedUSDT:(lAcc ?? lTotal ?? 0n),
+        topTenPoolTotalUSDT:(tAcc ?? tTotal ?? 0n),
+        monthIndex:mi
+      };
     } catch {}
   }
 
@@ -2136,12 +2147,15 @@ async function renderUserFromUserLens(addr, out) {
     try {
       const mi = pools.monthIndex && pools.monthIndex > 0n ? pools.monthIndex : await contracts.pools.currentMonthIndex().catch(() => 0n);
       pools.monthIndex = mi;
-      const [leadTotal, topTotal] = await Promise.all([
+      const [leadTotal, topTotal, leadAcc, topAcc] = await Promise.all([
         contracts.pools.leadershipPoolTotal(mi).catch(() => 0n),
-        contracts.pools.topTenAccruedByMonth(mi).catch(() => 0n)
+        contracts.pools.topTenAccruedByMonth(mi).catch(() => 0n),
+        contracts.pools.totalLeadershipAccrued ? contracts.pools.totalLeadershipAccrued().catch(() => null) : Promise.resolve(null),
+        contracts.pools.totalTopTenAccrued ? contracts.pools.totalTopTenAccrued().catch(() => null) : Promise.resolve(null)
       ]);
       pools.leadershipPoolTotalUSDT = leadTotal || 0n;
-      pools.topTenPoolTotalUSDT = topTotal || 0n;
+      pools.topTenPoolTotalUSDT = topAcc ?? topTotal ?? 0n;
+      pools.leadershipAccruedUSDT = leadAcc ?? leadTotal ?? 0n;
     } catch {}
   }
   if (contracts.adminLens) {
@@ -2457,28 +2471,22 @@ function renderPools(pools) {
   const el = document.getElementById('pools-body');
   const badge = document.getElementById('pools-month-badge');
   const mi = pools.monthIndex || 0n;
-  if (badge) badge.innerHTML = `<span class="badge badge-blue">${monthNameFromIndex(mi)}</span>`;
+  badge.innerHTML = `<span class="badge badge-blue">${monthNameFromIndex(mi)}</span>`;
 
   const leadershipShown = pools.leadershipClosed ? (pools.leadershipClaimableUSDT || 0n) : 0n;
   const topTenShown = pools.topTenClosed ? (pools.topTenClaimableUSDT || 0n) : 0n;
-  const leadershipTotal = (pools.leadershipAccruedUSDT !== undefined && pools.leadershipAccruedUSDT !== null)
-    ? pools.leadershipAccruedUSDT
-    : (pools.leadershipPoolTotalUSDT || 0n);
 
-  const leadKpi = document.getElementById('pool-leadership-total');
-  const topKpi = document.getElementById('pool-topten-total');
-  if (leadKpi) leadKpi.textContent = fmt18(leadershipTotal) + ' USDT';
-  if (topKpi) topKpi.textContent = fmt18(pools.topTenPoolTotalUSDT||0n) + ' USDT';
+  document.getElementById('pool-leadership-total').textContent = fmt18((pools.leadershipAccruedUSDT ?? pools.leadershipPoolTotalUSDT ?? 0n)) + ' USDT';
+  document.getElementById('pool-topten-total').textContent = fmt18((pools.topTenPoolTotalUSDT ?? 0n)) + ' USDT';
 
   const pos = pools.userTopTenPosition;
   const inTopTen = pos > 0;
 
-  if (!el) return;
   el.innerHTML = `
     <div class="pool-row">
       <div>
         <div class="pool-name">Pool Liderazgo ${pools.leadershipClosed ? '<span class="badge badge-green">Cerrado</span>' : '<span class="badge badge-amber">Abierto</span>'}</div>
-        <div class="pool-info">Total: ${fmt18(leadershipTotal)} USDT</div>
+        <div class="pool-info">Total: ${fmt18((pools.leadershipAccruedUSDT ?? pools.leadershipPoolTotalUSDT ?? 0n))} USDT</div>
       </div>
       <div>
         <div class="pool-amount">${fmt18(leadershipShown)} USDT</div>
@@ -3786,133 +3794,119 @@ async function toggleWallet() {
 
 async function loadAdminDashboard() {
   if (!authState.isAdmin) return;
-
   const role = authState.isOwner ? 'Owner' : (authState.isGuardian ? 'Guardian' : 'Usuario');
   document.getElementById('admin-role').textContent = role;
   document.getElementById('admin-role-sub').textContent = walletAddress ? shortAddr(walletAddress) : 'Wallet actual';
 
+  const direct = await loadAdminDirectSnapshot();
+  const ov = await loadAdminLensOverview().catch(() => null);
+
+  const core = tupleVal(ov, 'core', 2, {}) || {};
+  const wiring = tupleVal(ov, 'wiring', 1, {}) || {};
+  const poolsAdmin = tupleVal(ov, 'pools', 5, {}) || {};
+  const month = tupleVal(ov, 'month', 8, {}) || {};
+
+  const ownerVal = tupleVal(core, 'owner', 0, direct.owner);
+  const guardianVal = tupleVal(core, 'guardian', 1, direct.guardian);
+  const totalUsersVal = tupleVal(core, 'totalUsers', 9, direct.totalUsers);
+  const monthIndexVal = tupleVal(core, 'currentMonthIndex', 10, tupleVal(month, 'monthIndex', 0, direct.monthIndex));
+  const usdtBalVal = tupleVal(core, 'usdtBalance', 23, direct.usdtBalance);
+  const reservedVal = tupleVal(core, 'reservedUSDT', 11, direct.reservedUSDT);
+  const freeVal = tupleVal(core, 'freeUSDT', 12, direct.freeUSDT);
+  const pendingRanksVal = tupleVal(core, 'pendingRanksAmount', 13, direct.pendingRanksAmount);
+  const pendingLeadershipVal = tupleVal(core, 'pendingLeadershipAmount', 14, direct.pendingLeadershipAmount);
+  const pendingTopTenVal = tupleVal(core, 'pendingTopTenAmount', 15, direct.pendingTopTenAmount);
+  const leadershipAccruedVal = tupleVal(poolsAdmin, 'totalLeadershipAccrued', 11, tupleVal(month, 'leadershipAccrued', 3, direct.leadershipAccrued));
+  const topTenAccruedVal = tupleVal(poolsAdmin, 'totalTopTenAccrued', 13, tupleVal(month, 'topTenAccrued', 4, direct.topTenAccrued));
+
+  document.getElementById('admin-core-usdt').textContent = fmt18(usdtBalVal || 0n) + ' USDT';
+  document.getElementById('admin-core-reserved').textContent = fmt18(reservedVal || 0n) + ' USDT';
+  document.getElementById('admin-core-free').textContent = fmt18(freeVal || 0n) + ' USDT';
+  document.getElementById('admin-pending-ranks').textContent = fmt18(pendingRanksVal || 0n) + ' USDT';
+  document.getElementById('admin-pending-leadership').textContent = fmt18(pendingLeadershipVal || 0n) + ' USDT';
+  document.getElementById('admin-pending-topten').textContent = fmt18(pendingTopTenVal || 0n) + ' USDT';
+
   const box = document.getElementById('admin-overview-box');
+  if (box) box.innerHTML = `
+    <div class="mem-row"><span class="mem-label">Owner</span><span class="mem-val">${shortAddr(ownerVal)}</span></div>
+    <div class="mem-row"><span class="mem-label">Guardian</span><span class="mem-val">${shortAddr(guardianVal)}</span></div>
+    <div class="mem-row"><span class="mem-label">Usuarios</span><span class="mem-val">${fmtIntPoints(totalUsersVal || 0n)}</span></div>
+    <div class="mem-row"><span class="mem-label">Month index</span><span class="mem-val">${fmtIntPoints(monthIndexVal || 0n)}</span></div>
+    <div class="mem-row"><span class="mem-label">Leadership accrued</span><span class="mem-val">${fmt18(leadershipAccruedVal || 0n)} USDT</span></div>
+    <div class="mem-row" style="border:none;"><span class="mem-label">Top 10 accrued</span><span class="mem-val">${fmt18(topTenAccruedVal || 0n)} USDT</span></div>
+    ${ov ? '' : '<div style="margin-top:12px;font-size:11px;color:var(--gray-400);">Mostrando lectura directa porque AdminLens no respondió.</div>'}
+  `;
+
   const wbox = document.getElementById('admin-wiring-box');
-
-  let ov = null;
-  try { ov = await loadAdminLensOverview(); } catch {}
-
-  const safeSet = (id, value) => {
-    const el = document.getElementById(id);
-    if (el) el.textContent = value;
-  };
-
-  if (ov) {
-    const core = tupleVal(ov, 'core', 2, {}) || {};
-    const wiring = tupleVal(ov, 'wiring', 1, {}) || {};
-    const poolsAdmin = tupleVal(ov, 'pools', 5, {}) || {};
-    const month = tupleVal(ov, 'month', 8, {}) || {};
-
-    safeSet('admin-core-usdt', fmt18(tupleVal(core, 'usdtBalance', 23, 0n)) + ' USDT');
-    safeSet('admin-core-reserved', fmt18(tupleVal(core, 'reservedUSDT', 11, 0n)) + ' USDT');
-    safeSet('admin-core-free', fmt18(tupleVal(core, 'freeUSDT', 12, 0n)) + ' USDT');
-    safeSet('admin-pending-ranks', fmt18(tupleVal(core, 'pendingRanksAmount', 13, 0n)) + ' USDT');
-    safeSet('admin-pending-leadership', fmt18(tupleVal(core, 'pendingLeadershipAmount', 14, 0n)) + ' USDT');
-    safeSet('admin-pending-topten', fmt18(tupleVal(core, 'pendingTopTenAmount', 15, 0n)) + ' USDT');
-
-    const leadershipAccrued = tupleVal(poolsAdmin, 'totalLeadershipAccrued', 11, tupleVal(month, 'leadershipAccrued', 3, 0n));
-    const topTenAccrued = tupleVal(poolsAdmin, 'totalTopTenAccrued', 13, tupleVal(month, 'topTenAccrued', 4, 0n));
-
-    if (box) box.innerHTML = `
-      <div class="mem-row"><span class="mem-label">Owner</span><span class="mem-val">${shortAddr(tupleVal(core, 'owner', 0, authState.owner))}</span></div>
-      <div class="mem-row"><span class="mem-label">Guardian</span><span class="mem-val">${shortAddr(tupleVal(core, 'guardian', 1, authState.guardian))}</span></div>
-      <div class="mem-row"><span class="mem-label">Usuarios</span><span class="mem-val">${fmtIntPoints(tupleVal(core, 'totalUsers', 9, 0n))}</span></div>
-      <div class="mem-row"><span class="mem-label">Month index</span><span class="mem-val">${fmtIntPoints(tupleVal(core, 'currentMonthIndex', 10, tupleVal(month, 'monthIndex', 0, 0n)))}</span></div>
-      <div class="mem-row"><span class="mem-label">Leadership accrued</span><span class="mem-val">${fmt18(leadershipAccrued)} USDT</span></div>
-      <div class="mem-row" style="border:none;"><span class="mem-label">Top 10 accrued</span><span class="mem-val">${fmt18(topTenAccrued)} USDT</span></div>`;
-
-    if (wbox) {
-      const entries = wiring && typeof wiring === 'object' ? Object.entries(wiring).filter(([k]) => isNaN(Number(k))) : [];
-      const rows = entries.map(([k,v]) => `<div class="ctr-row"><span class="ctr-name">${k}</span><span class="ctr-chip ${v?'chip-ok':'chip-no'}">${v?'OK':'FAIL'}</span></div>`).join('');
-      wbox.innerHTML = rows || '<div class="empty"><div class="empty-icon">○</div><div class="empty-title">Sin checks</div></div>';
-    }
-    return;
-  }
-
-  // Fallback directo si AdminLens no responde
-  try {
-    let monthIndex = 0n;
-    if (contracts.pools?.currentMonthIndex) monthIndex = await contracts.pools.currentMonthIndex().catch(() => 0n);
-
-    const reads = await Promise.allSettled([
-      contracts.core.owner().catch(() => authState.owner || null),
-      contracts.core.guardian().catch(() => authState.guardian || null),
-      contracts.core.totalUsers().catch(() => 0n),
-      contracts.core.pendingRanksAmount().catch(() => 0n),
-      contracts.core.pendingLeadershipAmount().catch(() => 0n),
-      contracts.core.pendingTopTenAmount().catch(() => 0n),
-      contracts.core.usdt().catch(() => null),
-      contracts.pools?.leadershipPoolTotal ? contracts.pools.leadershipPoolTotal(monthIndex).catch(() => 0n) : Promise.resolve(0n),
-      contracts.pools?.topTenAccruedByMonth ? contracts.pools.topTenAccruedByMonth(monthIndex).catch(() => 0n) : Promise.resolve(0n)
-    ]);
-
-    const [ownerRes, guardianRes, totalUsersRes, pendingRanksRes, pendingLeadRes, pendingTopRes, usdtAddrRes, leadershipTotalRes, topTenTotalRes] = reads.map(r => r.status === 'fulfilled' ? r.value : null);
-
-    let usdtBalance = 0n;
-    if (usdtAddrRes && !isZero(usdtAddrRes)) {
-      try {
-        const usdt = new ethers.Contract(usdtAddrRes, USDT_ABI, provider);
-        usdtBalance = await usdt.balanceOf(addresses.core).catch(() => 0n);
-      } catch {}
-    }
-
-    safeSet('admin-core-usdt', fmt18(usdtBalance) + ' USDT');
-    safeSet('admin-core-reserved', '—');
-    safeSet('admin-core-free', '—');
-    safeSet('admin-pending-ranks', fmt18(pendingRanksRes || 0n) + ' USDT');
-    safeSet('admin-pending-leadership', fmt18(pendingLeadRes || 0n) + ' USDT');
-    safeSet('admin-pending-topten', fmt18(pendingTopRes || 0n) + ' USDT');
-
-    if (box) box.innerHTML = `
-      <div class="mem-row"><span class="mem-label">Owner</span><span class="mem-val">${shortAddr(ownerRes || authState.owner)}</span></div>
-      <div class="mem-row"><span class="mem-label">Guardian</span><span class="mem-val">${shortAddr(guardianRes || authState.guardian)}</span></div>
-      <div class="mem-row"><span class="mem-label">Usuarios</span><span class="mem-val">${fmtIntPoints(totalUsersRes || 0n)}</span></div>
-      <div class="mem-row"><span class="mem-label">Month index</span><span class="mem-val">${fmtIntPoints(monthIndex || 0n)}</span></div>
-      <div class="mem-row"><span class="mem-label">Leadership accrued</span><span class="mem-val">${fmt18(leadershipTotalRes || 0n)} USDT</span></div>
-      <div class="mem-row" style="border:none;"><span class="mem-label">Top 10 accrued</span><span class="mem-val">${fmt18(topTenTotalRes || 0n)} USDT</span></div>`;
-
-    if (wbox) {
-      wbox.innerHTML = '<div class="empty"><div class="empty-icon">ℹ</div><div class="empty-title">Modo fallback</div><div class="empty-desc">AdminLens no respondió; se muestran lecturas directas de Core/Pools.</div></div>';
-    }
-  } catch (e) {
-    const msg = escapeHtml(String(e?.shortMessage || e?.message || e));
-    if (box) box.innerHTML = `<div class="empty"><div class="empty-icon">⚠</div><div class="empty-title">Error cargando Admin</div><div class="empty-desc">${msg.slice(0,180)}</div></div>`;
-    if (wbox) wbox.innerHTML = `<div class="empty"><div class="empty-icon">⚠</div><div class="empty-title">Sin datos</div><div class="empty-desc">${msg.slice(0,180)}</div></div>`;
+  if (wbox) {
+    const entries = wiring && typeof wiring === 'object' ? Object.entries(wiring).filter(([k]) => isNaN(Number(k))) : [];
+    const rows = entries.map(([k,v]) => `<div class="ctr-row"><span class="ctr-name">${k}</span><span class="ctr-chip ${v?'chip-ok':'chip-no'}">${v?'OK':'FAIL'}</span></div>`).join('');
+    wbox.innerHTML = rows || `<div class="empty"><div class="empty-icon">ℹ</div><div class="empty-title">${ov ? 'Sin checks' : 'AdminLens no disponible'}</div><div class="empty-desc">${ov ? 'No se recibieron checks de wiring.' : 'Se cargaron datos directos desde Core y Pools.'}</div></div>`;
   }
 }
 
+async function loadAdminDirectSnapshot() {
+  const snap = {
+    owner: null, guardian: null, totalUsers: 0n, monthIndex: 0n,
+    usdtBalance: 0n, reservedUSDT: 0n, freeUSDT: 0n,
+    pendingRanksAmount: 0n, pendingLeadershipAmount: 0n, pendingTopTenAmount: 0n,
+    leadershipAccrued: 0n, topTenAccrued: 0n
+  };
+  if (!contracts.core) return snap;
+  try {
+    const [owner, guardian, totalUsers, pendingRanks, pendingLeadership, pendingTopTen] = await Promise.all([
+      contracts.core.owner().catch(() => null),
+      contracts.core.guardian().catch(() => null),
+      contracts.core.totalUsers().catch(() => 0n),
+      contracts.core.pendingRanksAmount().catch(() => 0n),
+      contracts.core.pendingLeadershipAmount().catch(() => 0n),
+      contracts.core.pendingTopTenAmount().catch(() => 0n)
+    ]);
+    snap.owner = owner;
+    snap.guardian = guardian;
+    snap.totalUsers = totalUsers || 0n;
+    snap.pendingRanksAmount = pendingRanks || 0n;
+    snap.pendingLeadershipAmount = pendingLeadership || 0n;
+    snap.pendingTopTenAmount = pendingTopTen || 0n;
+  } catch {}
+
+  try {
+    if (contracts.pools?.currentMonthIndex) snap.monthIndex = await contracts.pools.currentMonthIndex().catch(() => 0n);
+    if (contracts.pools?.totalLeadershipAccrued) snap.leadershipAccrued = await contracts.pools.totalLeadershipAccrued().catch(() => 0n);
+    if (contracts.pools?.totalTopTenAccrued) snap.topTenAccrued = await contracts.pools.totalTopTenAccrued().catch(() => 0n);
+  } catch {}
+
+  try {
+    const usdtAddr = await contracts.core.usdt().catch(() => null);
+    if (usdtAddr && !isZero(usdtAddr)) {
+      const usdt = new ethers.Contract(usdtAddr, USDT_ABI, provider);
+      snap.usdtBalance = await usdt.balanceOf(addresses.core).catch(() => 0n);
+    }
+  } catch {}
+
+  snap.reservedUSDT = (snap.pendingRanksAmount || 0n) + (snap.pendingLeadershipAmount || 0n) + (snap.pendingTopTenAmount || 0n);
+  snap.freeUSDT = (snap.usdtBalance || 0n) > snap.reservedUSDT ? ((snap.usdtBalance || 0n) - snap.reservedUSDT) : 0n;
+  return snap;
+}
 
 async function loadAdminLensOverview() {
   if (!contracts.adminLens || !walletAddress) return null;
   try {
-    const [owner, guardian] = await Promise.all([
-      contracts.core.owner().catch(()=>null),
-      contracts.core.guardian().catch(()=>null)
-    ]);
+    const [owner, guardian] = await Promise.all([contracts.core.owner().catch(()=>null), contracts.core.guardian().catch(()=>null)]);
     const mine = String(walletAddress).toLowerCase();
-    const isOwner = !!owner && String(owner).toLowerCase() === mine;
-    const isGuardian = !!guardian && String(guardian).toLowerCase() === mine;
-    if (!isOwner && !isGuardian) return null;
-
-    const tries = [];
+    if (owner && String(owner).toLowerCase() !== mine && guardian && String(guardian).toLowerCase() !== mine) return null;
+    const attempts = [];
     if (contracts.pools?.currentMonthIndex) {
       const mi = await contracts.pools.currentMonthIndex().catch(()=>0n);
-      tries.push(mi);
+      attempts.push(mi);
     }
-    tries.push(0n);
-
-    const uniq = [...new Set(tries.map(x => String(x)))].map(x => BigInt(x));
-    for (const mi of uniq) {
+    attempts.push(0n);
+    for (const monthIndex of attempts) {
       try {
-        const ov = await contracts.adminLens.getAdminOverview(mi);
+        const ov = await contracts.adminLens.getAdminOverview(monthIndex);
         if (ov) return ov;
       } catch (e) {
-        console.warn('admin lens attempt failed', mi.toString(), e?.message || e);
+        console.warn('admin lens overview attempt failed', monthIndex?.toString?.() || monthIndex, e);
       }
     }
     return null;
