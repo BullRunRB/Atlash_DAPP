@@ -1159,6 +1159,10 @@ body {
     <!-- ADMIN -->
     <div class="tab-pane" id="tab-admin">
       <div class="callout callout-amber" style="margin-bottom:16px;"><span>⚠</span><span>Este panel solo se habilita para la wallet <strong>owner</strong> o <strong>guardian</strong>.</span></div>
+      <div class="panel" style="margin-bottom:12px;">
+        <div class="panel-head"><div class="panel-title">Debug Admin</div></div>
+        <div class="panel-body" id="admin-debug-box"><div class="empty"><div class="empty-icon">○</div><div class="empty-title">Sin diagnóstico</div></div></div>
+      </div>
       <div class="grid g4" style="margin-bottom:16px;">
         <div class="kpi"><div class="kpi-label">Role</div><div class="kpi-value" id="admin-role">—</div><div class="kpi-sub" id="admin-role-sub">Wallet actual</div></div>
         <div class="kpi"><div class="kpi-label">USDT Core</div><div class="kpi-value c-green" id="admin-core-usdt">—</div><div class="kpi-sub">Balance en core</div></div>
@@ -1528,7 +1532,7 @@ function switchTab(name) {
   if (name === 'marketplace' && (contracts.mktCatalog || contracts.mktRegistry)) loadMarketplace().catch(() => {});
   if (name === 'ranks') loadRanksTab(currentUser || null);
   if (name === 'network' && currentUser && currentNetTab === 'binary') loadBinaryTree(currentUser);
-  if (name === 'admin' && authState.isAdmin) loadAdminDashboard().catch(()=>{});
+  if (name === 'admin') loadAdminDashboard().catch((e)=>{ console.error('loadAdminDashboard switchTab', e); });
 }
 
 async function copyText(text) {
@@ -1712,6 +1716,7 @@ async function launchDapp() {
   }
 
   await refreshAuthState();
+  if (walletAddress) loadAdminDashboard().catch((e)=>console.error('loadAdminDashboard after launch', e));
   if (!walletAddress) showLoginGate('Conecta tu wallet para habilitar el dashboard.');
   toast('Conectado a ' + activeNetwork.label, 'success');
 
@@ -3711,17 +3716,48 @@ function checkProtocol() {
 function showLoginGate(message) { const gate = document.getElementById('login-gate'); if (gate) gate.classList.add('show'); const line = document.getElementById('login-status-line'); if (line && message) line.textContent = message; }
 function hideLoginGate() { const gate = document.getElementById('login-gate'); if (gate) gate.classList.remove('show'); }
 function updateAdminVisibility() {
-  const tab = document.getElementById('nav-tab-admin'); if (tab) tab.style.display = authState.isAdmin ? '' : 'none';
+  const tab = document.getElementById('nav-tab-admin');
+  if (tab) tab.style.display = walletAddress ? '' : 'none';
   const badges = document.getElementById('login-role-badges');
-  if (badges) { const arr=[]; if (walletAddress) arr.push(`<span class="badge badge-green">Wallet conectada</span>`); if (authState.isOwner) arr.push(`<span class="badge badge-gold">Owner</span>`); if (authState.isGuardian) arr.push(`<span class="badge badge-blue">Guardian</span>`); if (!authState.isAdmin && walletAddress) arr.push(`<span class="badge badge-gray">Acceso usuario</span>`); badges.innerHTML = arr.join(''); }
+  if (badges) {
+    const arr = [];
+    if (walletAddress) arr.push(`<span class="badge badge-green">Wallet conectada</span>`);
+    if (authState.isOwner) arr.push(`<span class="badge badge-gold">Owner</span>`);
+    if (authState.isGuardian) arr.push(`<span class="badge badge-blue">Guardian</span>`);
+    if (!authState.isAdmin && walletAddress) arr.push(`<span class="badge badge-gray">Sin rol admin</span>`);
+    badges.innerHTML = arr.join('');
+  }
 }
 async function refreshAuthState() {
   authState = { owner:null, guardian:null, isOwner:false, isGuardian:false, isAdmin:false };
-  if (!contracts.core) return;
-  try { const [owner, guardian] = await Promise.all([contracts.core.owner().catch(()=>null), contracts.core.guardian().catch(()=>null)]); authState.owner=owner; authState.guardian=guardian; if (walletAddress) { authState.isOwner=!!owner && owner.toLowerCase()===walletAddress.toLowerCase(); authState.isGuardian=!!guardian && guardian.toLowerCase()===walletAddress.toLowerCase(); authState.isAdmin=authState.isOwner||authState.isGuardian; } } catch {}
+  if (!contracts.core) {
+    updateAdminVisibility();
+    return;
+  }
+  try {
+    const [owner, guardian] = await Promise.all([
+      contracts.core.owner().catch(()=>null),
+      contracts.core.guardian().catch(()=>null)
+    ]);
+    authState.owner = owner;
+    authState.guardian = guardian;
+    if (walletAddress) {
+      const mine = String(walletAddress || '').toLowerCase();
+      authState.isOwner = !!owner && String(owner).toLowerCase() === mine;
+      authState.isGuardian = !!guardian && String(guardian).toLowerCase() === mine;
+      authState.isAdmin = authState.isOwner || authState.isGuardian;
+    }
+  } catch (e) {
+    console.error('refreshAuthState error', e);
+  }
   updateAdminVisibility();
   const line = document.getElementById('login-status-line');
-  if (line) { if (!walletAddress) line.textContent='Conecta tu wallet para habilitar el dashboard.'; else if (authState.isOwner) line.textContent='Wallet validada como owner. Se habilitó la pestaña admin.'; else if (authState.isGuardian) line.textContent='Wallet validada como guardian. Se habilitó la pestaña admin.'; else line.textContent='Wallet conectada. Ya puedes usar el dashboard.'; }
+  if (line) {
+    if (!walletAddress) line.textContent = 'Conecta tu wallet para habilitar el dashboard.';
+    else if (authState.isOwner) line.textContent = 'Wallet validada como owner. Se habilitó la pestaña admin.';
+    else if (authState.isGuardian) line.textContent = 'Wallet validada como guardian. Se habilitó la pestaña admin.';
+    else line.textContent = 'Wallet conectada. La pestaña admin está visible para diagnóstico.';
+  }
 }
 function setDashboardAccess(enabled) { const app = document.getElementById('app'); if (app) app.classList.add('visible'); if (enabled) hideLoginGate(); else showLoginGate(); }
 
@@ -3780,7 +3816,7 @@ async function toggleWallet() {
     updateBuyYieldBtn(); loadSellerBalance().catch(()=>{});
     const search = document.getElementById('search-addr'); if (search) search.value = walletAddress;
     searchUser();
-    if (authState.isAdmin) loadAdminDashboard().catch(()=>{});
+    loadAdminDashboard().catch((e)=>{ console.error('loadAdminDashboard after connect', e); });
   } catch (e) {
     console.error('toggleWallet error', e);
     const msg = e?.message || '';
@@ -3793,31 +3829,72 @@ async function toggleWallet() {
 }
 
 async function loadAdminDashboard() {
-  if (!authState.isAdmin) return;
+  const debugEl = document.getElementById('admin-debug-box');
   const role = authState.isOwner ? 'Owner' : (authState.isGuardian ? 'Guardian' : 'Usuario');
   document.getElementById('admin-role').textContent = role;
   document.getElementById('admin-role-sub').textContent = walletAddress ? shortAddr(walletAddress) : 'Wallet actual';
 
-  const direct = await loadAdminDirectSnapshot();
-  const ov = await loadAdminLensOverview().catch(() => null);
+  const debug = {
+    wallet: walletAddress || null,
+    owner: authState.owner || null,
+    guardian: authState.guardian || null,
+    isOwner: !!authState.isOwner,
+    isGuardian: !!authState.isGuardian,
+    isAdmin: !!authState.isAdmin,
+    hasCore: !!contracts.core,
+    hasAdminLens: !!contracts.adminLens,
+    hasPools: !!contracts.pools,
+    monthIndexTried: [],
+    directError: null,
+    lensError: null
+  };
+
+  let direct = null;
+  try {
+    direct = await loadAdminDirectSnapshot();
+  } catch (e) {
+    debug.directError = String(e?.message || e);
+    console.error('loadAdminDirectSnapshot error', e);
+  }
+
+  let ov = null;
+  try {
+    ov = await loadAdminLensOverview(debug).catch((e) => {
+      debug.lensError = String(e?.message || e);
+      console.error('loadAdminLensOverview error', e);
+      return null;
+    });
+  } catch (e) {
+    debug.lensError = String(e?.message || e);
+    console.error('loadAdminDashboard lens wrapper error', e);
+  }
+
+  const safeDirect = direct || {
+    owner: authState.owner || null,
+    guardian: authState.guardian || null,
+    totalUsers: 0n, monthIndex: 0n,
+    usdtBalance: 0n, reservedUSDT: 0n, freeUSDT: 0n,
+    pendingRanksAmount: 0n, pendingLeadershipAmount: 0n, pendingTopTenAmount: 0n,
+    leadershipAccrued: 0n, topTenAccrued: 0n
+  };
 
   const core = tupleVal(ov, 'core', 2, {}) || {};
   const wiring = tupleVal(ov, 'wiring', 1, {}) || {};
   const poolsAdmin = tupleVal(ov, 'pools', 5, {}) || {};
   const month = tupleVal(ov, 'month', 8, {}) || {};
 
-  const ownerVal = tupleVal(core, 'owner', 0, direct.owner);
-  const guardianVal = tupleVal(core, 'guardian', 1, direct.guardian);
-  const totalUsersVal = tupleVal(core, 'totalUsers', 9, direct.totalUsers);
-  const monthIndexVal = tupleVal(core, 'currentMonthIndex', 10, tupleVal(month, 'monthIndex', 0, direct.monthIndex));
-  const usdtBalVal = tupleVal(core, 'usdtBalance', 23, direct.usdtBalance);
-  const reservedVal = tupleVal(core, 'reservedUSDT', 11, direct.reservedUSDT);
-  const freeVal = tupleVal(core, 'freeUSDT', 12, direct.freeUSDT);
-  const pendingRanksVal = tupleVal(core, 'pendingRanksAmount', 13, direct.pendingRanksAmount);
-  const pendingLeadershipVal = tupleVal(core, 'pendingLeadershipAmount', 14, direct.pendingLeadershipAmount);
-  const pendingTopTenVal = tupleVal(core, 'pendingTopTenAmount', 15, direct.pendingTopTenAmount);
-  const leadershipAccruedVal = tupleVal(poolsAdmin, 'totalLeadershipAccrued', 11, tupleVal(month, 'leadershipAccrued', 3, direct.leadershipAccrued));
-  const topTenAccruedVal = tupleVal(poolsAdmin, 'totalTopTenAccrued', 13, tupleVal(month, 'topTenAccrued', 4, direct.topTenAccrued));
+  const ownerVal = tupleVal(core, 'owner', 0, safeDirect.owner);
+  const guardianVal = tupleVal(core, 'guardian', 1, safeDirect.guardian);
+  const totalUsersVal = tupleVal(core, 'totalUsers', 9, safeDirect.totalUsers);
+  const monthIndexVal = tupleVal(core, 'currentMonthIndex', 10, tupleVal(month, 'monthIndex', 0, safeDirect.monthIndex));
+  const usdtBalVal = tupleVal(core, 'usdtBalance', 23, safeDirect.usdtBalance);
+  const reservedVal = tupleVal(core, 'reservedUSDT', 11, safeDirect.reservedUSDT);
+  const freeVal = tupleVal(core, 'freeUSDT', 12, safeDirect.freeUSDT);
+  const pendingRanksVal = tupleVal(core, 'pendingRanksAmount', 13, safeDirect.pendingRanksAmount);
+  const pendingLeadershipVal = tupleVal(core, 'pendingLeadershipAmount', 14, safeDirect.pendingLeadershipAmount);
+  const pendingTopTenVal = tupleVal(core, 'pendingTopTenAmount', 15, safeDirect.pendingTopTenAmount);
+  const leadershipAccruedVal = tupleVal(poolsAdmin, 'totalLeadershipAccrued', 11, tupleVal(month, 'leadershipAccrued', 3, safeDirect.leadershipAccrued));
+  const topTenAccruedVal = tupleVal(poolsAdmin, 'totalTopTenAccrued', 13, tupleVal(month, 'topTenAccrued', 4, safeDirect.topTenAccrued));
 
   document.getElementById('admin-core-usdt').textContent = fmt18(usdtBalVal || 0n) + ' USDT';
   document.getElementById('admin-core-reserved').textContent = fmt18(reservedVal || 0n) + ' USDT';
@@ -3835,6 +3912,7 @@ async function loadAdminDashboard() {
     <div class="mem-row"><span class="mem-label">Leadership accrued</span><span class="mem-val">${fmt18(leadershipAccruedVal || 0n)} USDT</span></div>
     <div class="mem-row" style="border:none;"><span class="mem-label">Top 10 accrued</span><span class="mem-val">${fmt18(topTenAccruedVal || 0n)} USDT</span></div>
     ${ov ? '' : '<div style="margin-top:12px;font-size:11px;color:var(--gray-400);">Mostrando lectura directa porque AdminLens no respondió.</div>'}
+    ${!authState.isAdmin ? '<div style="margin-top:12px;font-size:11px;color:var(--amber);">La wallet conectada no coincide con owner/guardian, pero se deja visible el panel para diagnóstico.</div>' : ''}
   `;
 
   const wbox = document.getElementById('admin-wiring-box');
@@ -3842,6 +3920,19 @@ async function loadAdminDashboard() {
     const entries = wiring && typeof wiring === 'object' ? Object.entries(wiring).filter(([k]) => isNaN(Number(k))) : [];
     const rows = entries.map(([k,v]) => `<div class="ctr-row"><span class="ctr-name">${k}</span><span class="ctr-chip ${v?'chip-ok':'chip-no'}">${v?'OK':'FAIL'}</span></div>`).join('');
     wbox.innerHTML = rows || `<div class="empty"><div class="empty-icon">ℹ</div><div class="empty-title">${ov ? 'Sin checks' : 'AdminLens no disponible'}</div><div class="empty-desc">${ov ? 'No se recibieron checks de wiring.' : 'Se cargaron datos directos desde Core y Pools.'}</div></div>`;
+  }
+
+  if (debugEl) {
+    debugEl.innerHTML = `
+      <div class="mem-row"><span class="mem-label">Wallet</span><span class="mem-val">${walletAddress ? shortAddr(walletAddress) : '-'}</span></div>
+      <div class="mem-row"><span class="mem-label">Owner detectado</span><span class="mem-val">${authState.owner ? shortAddr(authState.owner) : '-'}</span></div>
+      <div class="mem-row"><span class="mem-label">Guardian detectado</span><span class="mem-val">${authState.guardian ? shortAddr(authState.guardian) : '-'}</span></div>
+      <div class="mem-row"><span class="mem-label">isOwner / isGuardian / isAdmin</span><span class="mem-val">${String(!!authState.isOwner)} / ${String(!!authState.isGuardian)} / ${String(!!authState.isAdmin)}</span></div>
+      <div class="mem-row"><span class="mem-label">Month index probado</span><span class="mem-val">${(debug.monthIndexTried || []).join(', ') || '-'}</span></div>
+      <div class="mem-row"><span class="mem-label">AdminLens</span><span class="mem-val">${ov ? 'OK' : 'FALLBACK'}</span></div>
+      <div class="mem-row"><span class="mem-label">Error AdminLens</span><span class="mem-val">${debug.lensError || '-'}</span></div>
+      <div class="mem-row" style="border:none;"><span class="mem-label">Error lectura directa</span><span class="mem-val">${debug.directError || '-'}</span></div>
+    `;
   }
 }
 
@@ -3889,12 +3980,9 @@ async function loadAdminDirectSnapshot() {
   return snap;
 }
 
-async function loadAdminLensOverview() {
-  if (!contracts.adminLens || !walletAddress) return null;
+async function loadAdminLensOverview(debug = null) {
+  if (!contracts.adminLens) return null;
   try {
-    const [owner, guardian] = await Promise.all([contracts.core.owner().catch(()=>null), contracts.core.guardian().catch(()=>null)]);
-    const mine = String(walletAddress).toLowerCase();
-    if (owner && String(owner).toLowerCase() !== mine && guardian && String(guardian).toLowerCase() !== mine) return null;
     const attempts = [];
     if (contracts.pools?.currentMonthIndex) {
       const mi = await contracts.pools.currentMonthIndex().catch(()=>0n);
@@ -3903,15 +3991,18 @@ async function loadAdminLensOverview() {
     attempts.push(0n);
     for (const monthIndex of attempts) {
       try {
+        if (debug) debug.monthIndexTried.push(String(monthIndex));
         const ov = await contracts.adminLens.getAdminOverview(monthIndex);
         if (ov) return ov;
       } catch (e) {
         console.warn('admin lens overview attempt failed', monthIndex?.toString?.() || monthIndex, e);
+        if (debug) debug.lensError = String(e?.message || e);
       }
     }
     return null;
   } catch(e) {
     console.warn('admin lens overview', e);
+    if (debug) debug.lensError = String(e?.message || e);
     return null;
   }
 }
