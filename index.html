@@ -1051,7 +1051,7 @@ body {
           <div class="kpi"><div class="kpi-label">Referidos directos</div><div class="kpi-value c-blue" id="uni-directs-count">—</div><div class="kpi-sub">Nivel 1</div></div>
           <div class="kpi"><div class="kpi-label">Upline / Patrocinador</div><div class="kpi-value" id="uni-upline" style="font-size:13px;letter-spacing:0;">—</div><div class="kpi-sub">Dirección</div></div>
         </div>
-        <div class="sec"><span class="sec-label">Árbol unilevel (3 niveles)</span><span class="sec-line"></span></div>
+        <div class="sec"><span class="sec-label">Árbol unilevel (10 niveles)</span><span class="sec-line"></span></div>
         <div id="unilevel-tree-wrap"><div class="empty"><div class="empty-icon">○</div><div class="empty-title">Busca un usuario para ver el árbol</div></div></div>
         <div class="sec" style="margin-top:16px;"><span class="sec-label">Directos (lista rápida)</span><span class="sec-line"></span></div>
         <div id="directs-list"><div class="empty"><div class="empty-icon">○</div><div class="empty-title">Sin referidos</div><div class="empty-desc">Busca una dirección</div></div></div>
@@ -2714,9 +2714,30 @@ function renderBinary(leftBV, rightBV, leg) {
   document.getElementById('user-leg').textContent = LEG_NAMES[Number(leg)] || 'No definida';
 }
 
+
+const UNILEVEL_POINT_BP = [8000, 4000, 2000, 1500, 1000, 800, 600, 500, 400, 200];
+
+function getUnilevelBp(level) {
+  const idx = Number(level || 0) - 1;
+  return idx >= 0 && idx < UNILEVEL_POINT_BP.length ? UNILEVEL_POINT_BP[idx] : 0;
+}
+
+function pointsFromAmountWei(amountWei, level, isYield = false) {
+  try {
+    let basis = BigInt(amountWei || 0n);
+    if (basis <= 0n) return 0n;
+    if (isYield) basis = basis / 2n; // Yield aporta sobre el 50%
+    const bp = BigInt(getUnilevelBp(level));
+    if (bp <= 0n) return 0n;
+    return (basis * bp) / 10000n;
+  } catch {
+    return 0n;
+  }
+}
+
 function makeTreeNodeCard(node, label, compact = false) {
   if (!node) return `
-    <div style="border:1.5px dashed var(--gray-200);border-radius:var(--radius-lg);padding:${compact ? '10px' : '12px'};text-align:center;min-width:${compact ? '130px' : '152px'};">
+    <div style="border:1.5px dashed var(--gray-200);border-radius:var(--radius-lg);padding:${compact ? '10px' : '12px'};text-align:center;min-width:${compact ? '130px' : '168px'};">
       <div style="font-size:11px;color:var(--gray-300);font-family:var(--mono);">Vacío</div>
       <div style="font-size:10px;color:var(--gray-300);margin-top:2px;">${label}</div>
     </div>`;
@@ -2726,15 +2747,19 @@ function makeTreeNodeCard(node, label, compact = false) {
   const yieldColor = node.yieldActive ? 'var(--gold)' : (node.hasYield ? 'var(--blue)' : 'var(--gray-300)');
   const personalValue = wholeUnits18(node.personalPts || 0n);
   const totalValue = BigInt(node.totalPts || 0n);
+  const contributionTotal = wholeUnits18(node.contributionPts || 0n);
+  const contributionCore = wholeUnits18(node.coreContributionPts || 0n);
+  const contributionYield = wholeUnits18(node.yieldContributionPts || 0n);
 
   return `
-    <div style="border:1.5px solid ${color};border-radius:var(--radius-lg);padding:${compact ? '10px' : '12px'};text-align:center;min-width:${compact ? '130px' : '152px'};background:var(--white);position:relative;">
+    <div style="border:1.5px solid ${color};border-radius:var(--radius-lg);padding:${compact ? '10px' : '12px'};text-align:center;min-width:${compact ? '130px' : '168px'};background:var(--white);position:relative;">
       <div style="position:absolute;top:6px;right:8px;width:8px;height:8px;border-radius:50%;background:${color};"></div>
       <div style="font-family:var(--mono);font-size:10px;color:var(--gray-500);margin-bottom:4px;">${shortAddr(node.addr)}</div>
       <div style="font-size:${compact ? '10px' : '11px'};font-weight:700;color:var(--gray-800);margin-bottom:2px;">${pkgName}</div>
       <div style="font-size:10px;color:${yieldColor};font-weight:600;margin-bottom:4px;">${node.yieldActive ? '★ ' : (node.hasYield ? '◔ ' : '○ ')}${node.yieldLabel}</div>
       <div style="font-size:10px;color:var(--gray-500);font-family:var(--mono);">Vol. pers.: ${fmtIntPoints(personalValue)}</div>
-      <div style="font-size:9px;color:var(--gray-400);font-family:var(--mono);">Aporta al usuario: ${fmtIntPoints(node.contributionPts || 0n)}</div>
+      <div style="font-size:10px;color:var(--gray-800);font-family:var(--mono);font-weight:700;">Aporta: ${fmtIntPoints(contributionTotal)}</div>
+      <div style="font-size:9px;color:var(--gray-400);font-family:var(--mono);">Core: ${fmtIntPoints(contributionCore)} · Yield: ${fmtIntPoints(contributionYield)}</div>
       <div style="font-size:9px;color:var(--gray-400);font-family:var(--mono);">Pts red: ${fmtIntPoints(totalValue)}</div>
       <div style="font-size:9px;color:var(--gray-400);margin-top:3px;">${label}</div>
       <div style="margin-top:6px;"><button onclick="document.getElementById('search-addr').value='${node.addr}';searchUser();" class="btn btn-outline" style="padding:3px 10px;font-size:10px;">Ver</button></div>
@@ -2790,7 +2815,9 @@ async function getNetworkNodeInfo(nodeAddr, coreRead = contracts.core, ranksRead
       isActive: validUntil > nowTs,
       totalPts,
       personalPts,
-      contributionPts: personalPts,
+      contributionPts: 0n,
+      coreContributionPts: 0n,
+      yieldContributionPts: 0n,
       hasYield: yieldMeta.hasAny,
       yieldActive: yieldMeta.active,
       yieldLabel: yieldMeta.active ? 'Yield activo' : (yieldMeta.hasAny ? 'Yield registrado' : 'Sin yield'),
@@ -2804,6 +2831,8 @@ async function getNetworkNodeInfo(nodeAddr, coreRead = contracts.core, ranksRead
       totalPts: 0n,
       personalPts: 0n,
       contributionPts: 0n,
+      coreContributionPts: 0n,
+      yieldContributionPts: 0n,
       hasYield: false,
       yieldActive: false,
       yieldLabel: 'Sin yield'
@@ -2851,7 +2880,7 @@ async function renderUnilevelTree(addr, directAddresses) {
     }
 
     const root = (await getNetworkNodeInfo(addr, coreRead, ranksRead, yieldRead, yieldStatusCache)) || {
-      addr, pkg: 0, exists: true, isActive: false, totalPts: 0n, personalPts: 0n, contributionPts: 0n, hasYield: false, yieldActive: false, yieldLabel: 'Sin yield'
+      addr, pkg: 0, exists: true, isActive: false, totalPts: 0n, personalPts: 0n, contributionPts: 0n, coreContributionPts: 0n, yieldContributionPts: 0n, hasYield: false, yieldActive: false, yieldLabel: 'Sin yield'
     };
 
     const nodeMap = new Map();
@@ -2871,7 +2900,7 @@ async function renderUnilevelTree(addr, directAddresses) {
         const infos = (await Promise.all(childAddrs.map(a => getNetworkNodeInfo(a, coreRead, ranksRead, yieldRead, yieldStatusCache)))).filter(Boolean);
         const children = infos.map(info => {
           const key = String(info.addr).toLowerCase();
-          const node = { ...info, level, parent, children: [], contributionPts: 0n };
+          const node = { ...info, level, parent, children: [], contributionPts: 0n, coreContributionPts: 0n, yieldContributionPts: 0n };
           nodeMap.set(key, node);
           const parentNode = nodeMap.get(String(parent).toLowerCase());
           if (parentNode) parentNode.children.push(info.addr);
@@ -2884,48 +2913,47 @@ async function renderUnilevelTree(addr, directAddresses) {
       currentParents = nextParents;
     }
 
-    // Descomponer puntos del árbol sin duplicar: puntos propios = totalPts del nodo - totalPts de sus hijos directos.
-    const allNodesDesc = Array.from(nodeMap.values()).filter(n => n.level > 0);
-    for (const node of Array.from(nodeMap.values()).sort((a,b) => b.level - a.level)) {
-      const childTotal = (node.children || []).reduce((acc, childAddr) => {
-        const childNode = nodeMap.get(String(childAddr).toLowerCase());
-        return acc + BigInt(childNode?.totalPts || 0n);
-      }, 0n);
-      let ownPts = BigInt(node.totalPts || 0n) - childTotal;
-      if (ownPts < 0n) ownPts = 0n;
-      node.rawContributionPts = ownPts;
+    const nodesByAddr = new Map(Array.from(nodeMap.values()).map(n => [String(n.addr).toLowerCase(), n]));
+    const downlineAddrs = Array.from(nodesByAddr.values()).filter(n => n.level > 0).map(n => n.addr);
+    const currentBlock = await provider.getBlockNumber().catch(() => null);
+    const startBlock = currentBlock != null ? Math.max(0, currentBlock - 350000) : 0;
+
+    // Core purchases => Paid.baseAmount * level%
+    if (coreRead?.filters?.Paid && currentBlock != null) {
+      for (const node of Array.from(nodesByAddr.values()).filter(n => n.level > 0)) {
+        try {
+          const logs = await coreRead.queryFilter(coreRead.filters.Paid(node.addr), startBlock, currentBlock).catch(() => []);
+          let corePts = 0n;
+          for (const log of logs) {
+            const baseAmount = BigInt(log?.args?.baseAmount ?? 0n);
+            corePts += pointsFromAmountWei(baseAmount, node.level, false);
+          }
+          node.coreContributionPts = corePts;
+        } catch {}
+      }
     }
 
-    const rawTotal = allNodesDesc.reduce((acc, n) => acc + BigInt(n.rawContributionPts || 0n), 0n);
-    const targetTotal = BigInt(root.totalPts || 0n);
-    if (rawTotal > 0n && targetTotal >= 0n) {
-      let assigned = 0n;
-      const allocations = allNodesDesc.map((n, idx) => {
-        const raw = BigInt(n.rawContributionPts || 0n);
-        const scaled = (raw * targetTotal) / rawTotal;
-        const remainder = (raw * targetTotal) % rawTotal;
-        assigned += scaled;
-        return { idx, scaled, remainder };
-      });
-      let missing = targetTotal - assigned;
-      allocations.sort((a, b) => {
-        if (a.remainder === b.remainder) return a.idx - b.idx;
-        return a.remainder > b.remainder ? -1 : 1;
-      });
-      for (const item of allocations) {
-        const node = allNodesDesc[item.idx];
-        node.contributionPts = BigInt(item.scaled || 0n);
-        if (missing > 0n) {
-          node.contributionPts += 1n;
-          missing -= 1n;
-        }
+    // Yield purchases => PositionOpened.amount * 50% * level%
+    if (yieldRead?.filters?.PositionOpened && currentBlock != null) {
+      for (const node of Array.from(nodesByAddr.values()).filter(n => n.level > 0)) {
+        try {
+          const logs = await yieldRead.queryFilter(yieldRead.filters.PositionOpened(null, node.addr), startBlock, currentBlock).catch(() => []);
+          let yieldPts = 0n;
+          for (const log of logs) {
+            const amount = BigInt(log?.args?.amount ?? 0n);
+            yieldPts += pointsFromAmountWei(amount, node.level, true);
+          }
+          node.yieldContributionPts = yieldPts;
+        } catch {}
       }
-    } else {
-      for (const node of allNodesDesc) node.contributionPts = 0n;
+    }
+
+    for (const node of Array.from(nodesByAddr.values()).filter(n => n.level > 0)) {
+      node.contributionPts = BigInt(node.coreContributionPts || 0n) + BigInt(node.yieldContributionPts || 0n);
     }
 
     const summaryHtml = levels.map(lvl => {
-      const totalContribution = lvl.nodes.reduce((acc, n) => acc + BigInt(n.contributionPts || 0n), 0n);
+      const totalContribution = lvl.nodes.reduce((acc, n) => acc + wholeUnits18(n.contributionPts || 0n), 0n);
       return `<div class="kpi" style="padding:12px 14px;"><div class="kpi-label">Nivel ${lvl.level}</div><div class="kpi-value" style="font-size:18px;">${fmtIntPoints(totalContribution)}</div><div class="kpi-sub">${lvl.nodes.length} usuario(s)</div></div>`;
     }).join('');
 
@@ -2947,14 +2975,13 @@ async function renderUnilevelTree(addr, directAddresses) {
           <div style="display:flex;justify-content:center;margin-bottom:10px;">${makeTreeNodeCard(root, 'Raíz')}</div>
           <div class="grid g4" style="margin-bottom:4px;">${summaryHtml || '<div class="empty" style="grid-column:1/-1"><div class="empty-title">Sin niveles</div></div>'}</div>
           ${levelsHtml || '<div class="empty"><div class="empty-icon">👤</div><div class="empty-title">Sin red unilevel</div></div>'}
-          <div style="font-size:11px;color:var(--gray-400);font-family:var(--mono);text-align:center;">La suma de “Aporta al usuario” por niveles se ajusta al total real de puntos del usuario y se muestra en enteros, sin decimales.</div>
+          <div style="font-size:11px;color:var(--gray-400);font-family:var(--mono);text-align:center;">Puntos por nivel: 80%, 40%, 20%, 15%, 10%, 8%, 6%, 5%, 4%, 2%. Yield aporta sobre el 50% del monto. Valores mostrados en enteros.</div>
         </div>
       </div>`;
   } catch (e) {
     wrap.innerHTML = `<div class="callout callout-amber"><span>⚠</span><span>No se pudo cargar el árbol unilevel: ${String(e?.message || e)}</span></div>`;
   }
 }
-
 
 async function loadDirects(addr, count) {
   const el = document.getElementById('directs-list');
