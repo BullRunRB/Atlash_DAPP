@@ -754,45 +754,6 @@ body {
 /* ── PAGINATION ── */
 .pagination { display:flex; gap:6px; justify-content:center; margin-top:16px; }
 
-
-/* ── PACKAGE UI PRO ── */
-.kpi-package-card { position:relative; overflow:hidden; transition:all .18s ease; }
-.kpi-package-card::after {
-  content:''; position:absolute; inset:0; pointer-events:none;
-  background:linear-gradient(135deg, rgba(255,255,255,.00) 0%, rgba(255,255,255,.45) 100%);
-  opacity:.65;
-}
-.kpi-package-mark {
-  position:absolute; right:18px; top:16px;
-  font-size:28px; font-weight:700; opacity:.16;
-}
-.kpi-package-card.pkg-active-1 { border-color:#9ca3af; background:linear-gradient(180deg,#ffffff 0%, #f9fafb 100%); box-shadow:0 0 0 3px rgba(107,114,128,.10), var(--shadow-md); }
-.kpi-package-card.pkg-active-2 { border-color:var(--blue); background:linear-gradient(180deg,#ffffff 0%, #eff6ff 100%); box-shadow:0 0 0 3px rgba(37,99,235,.12), var(--shadow-md); }
-.kpi-package-card.pkg-active-3 { border-color:var(--purple); background:linear-gradient(180deg,#ffffff 0%, #f5f3ff 100%); box-shadow:0 0 0 3px rgba(124,58,237,.12), var(--shadow-md); }
-.kpi-package-card.pkg-active-4 { border-color:var(--gold); background:linear-gradient(180deg,#ffffff 0%, #fffbeb 100%); box-shadow:0 0 0 3px rgba(184,134,11,.16), var(--shadow-md); }
-.kpi-package-card.pkg-active-1 #stat-package, .kpi-package-card.pkg-active-1 #stat-package-name, .kpi-package-card.pkg-active-1 #stat-package-mark { color:#6b7280; }
-.kpi-package-card.pkg-active-2 #stat-package, .kpi-package-card.pkg-active-2 #stat-package-name, .kpi-package-card.pkg-active-2 #stat-package-mark { color:var(--blue); }
-.kpi-package-card.pkg-active-3 #stat-package, .kpi-package-card.pkg-active-3 #stat-package-name, .kpi-package-card.pkg-active-3 #stat-package-mark { color:var(--purple); }
-.kpi-package-card.pkg-active-4 #stat-package, .kpi-package-card.pkg-active-4 #stat-package-name, .kpi-package-card.pkg-active-4 #stat-package-mark { color:var(--gold); }
-.pkg-card { overflow:hidden; }
-.pkg-card::after {
-  content:''; position:absolute; inset:0; pointer-events:none;
-  background:linear-gradient(135deg, rgba(255,255,255,0) 35%, rgba(255,255,255,.28) 100%);
-  opacity:0; transition:opacity .18s ease;
-}
-.pkg-card.active::after { opacity:1; }
-.pkg-card .pkg-active-chip {
-  position:absolute; left:16px; top:14px; z-index:2;
-  padding:4px 9px; border-radius:999px;
-  font-size:10px; font-weight:700; letter-spacing:.7px; text-transform:uppercase;
-  background:rgba(255,255,255,.92); border:1px solid var(--gray-200); color:var(--gray-800);
-  box-shadow:var(--shadow-sm);
-}
-.pkg-card .pkg-num { transition:transform .18s ease, opacity .18s ease; }
-.pkg-card.active .pkg-num { transform:scale(1.05); opacity:.9; }
-.pkg-card.active .pkg-name { text-shadow:0 1px 0 rgba(255,255,255,.6); }
-.pkg-card.active .pkg-role { color:var(--gray-600); font-weight:600; }
-
 /* ── RESPONSIVE ── */
 @media(max-width:1100px) { .g4,.pkg-grid { grid-template-columns:repeat(2,1fr); } }
 @media(max-width:768px) {
@@ -980,7 +941,7 @@ body {
     <div class="tab-pane active" id="tab-overview">
       <div id="user-card-section"></div>
       <div class="grid g4">
-        <div class="kpi kpi-package-card" id="stat-package-card"><div class="kpi-label">Paquete activo</div><div class="kpi-value c-gold" id="stat-package">-</div><div class="kpi-sub" id="stat-package-name">Sin datos</div><div class="kpi-package-mark" id="stat-package-mark">✦</div></div>
+        <div class="kpi"><div class="kpi-label">Paquete activo</div><div class="kpi-value c-gold" id="stat-package">-</div><div class="kpi-sub" id="stat-package-name">Sin datos</div></div>
         <div class="kpi"><div class="kpi-label">Rango</div><div class="kpi-value" id="stat-rank">-</div><div class="kpi-sub" id="stat-rank-sub">Módulo de rangos</div></div>
         <div class="kpi"><div class="kpi-label">Cashback disponible</div><div class="kpi-value c-green" id="stat-cashback">-</div><div class="kpi-sub" id="stat-cashback-sub">Saldo activo</div></div>
         <div class="kpi"><div class="kpi-label">Referidos directos</div><div class="kpi-value c-blue" id="stat-directs">-</div><div class="kpi-sub" id="stat-upline">Upline: -</div></div>
@@ -1504,15 +1465,6 @@ function fmtIntPoints(n) {
   }
 }
 
-
-function wholeUnits18(n) {
-  try {
-    return BigInt(ethers.formatUnits(n || 0n, 18).split('.')[0] || '0');
-  } catch {
-    try { return BigInt(Math.floor(Number(n || 0))); } catch { return 0n; }
-  }
-}
-
 function shortAddr(addr) {
   if (!addr || addr === ethers.ZeroAddress) return '-';
   return addr.slice(0,6) + '...' + addr.slice(-4);
@@ -1576,7 +1528,7 @@ function switchTab(name) {
   if (name === 'marketplace' && (contracts.mktCatalog || contracts.mktRegistry)) loadMarketplace().catch(() => {});
   if (name === 'ranks') loadRanksTab(currentUser || null);
   if (name === 'network' && currentUser && currentNetTab === 'binary') loadBinaryTree(currentUser);
-  if (name === 'admin') loadAdminDashboard().catch(()=>{});
+  if (name === 'admin' && authState.isAdmin) loadAdminDashboard().catch(()=>{});
 }
 
 async function copyText(text) {
@@ -2071,22 +2023,11 @@ async function loadUserFromCore(addr) {
 
   if (contracts.ranks) {
     try {
-      let pen = 0n;
-      let pool = 0n;
-      try {
-        [pen, pool] = await Promise.all([
-          contracts.ranks.pendingTotal(addr).catch(() => 0n),
-          contracts.ranks.availablePool().catch(() => 0n)
-        ]);
-      } catch {}
-      if ((!pen || pen === 0n) && addresses.ranks) {
-        try {
-          const ranksExt = new ethers.Contract(addresses.ranks, RANKS_EXTENDED_ABI, provider);
-          const pendingRewards = await Promise.all(Array.from({ length: 10 }, (_, i) => ranksExt.pendingRankReward(addr, i + 1).catch(() => 0n)));
-          pen = pendingRewards.reduce((acc, v) => acc + BigInt(v || 0n), 0n);
-        } catch {}
-      }
-      ranksData = {pendingUserUSDT: pen || 0n, poolAvailableUSDT: pool || 0n};
+      const [pen, pool] = await Promise.all([
+        contracts.ranks.pendingTotal(addr),
+        contracts.ranks.availablePool()
+      ]);
+      ranksData = {pendingUserUSDT: pen, poolAvailableUSDT: pool};
     } catch {}
   }
 
@@ -2165,7 +2106,6 @@ async function loadUserFromCore(addr) {
 
   await loadDirects(addr, directs);
   await loadYieldData(addr);
-  await loadPackages(null, highestPackage);
   // Always load ranks data
   loadRanksTab(addr).catch(()=>{});
   // Update unilevel stats
@@ -2189,11 +2129,7 @@ async function renderUserFromUserLens(addr, out) {
   }
   currentUserPackageId = Number(u.packageId || 0);
   currentUserPackagePrice = BigInt(out.packageInfo?.price || 0n);
-  let rankPendingTotal = BigInt(out.ranks.pendingTotal || 0n);
-  if (rankPendingTotal === 0n && Array.isArray(out.ranks.pendingRankRewards)) {
-    try { rankPendingTotal = Array.from(out.ranks.pendingRankRewards).reduce((acc, v) => acc + BigInt(v || 0n), 0n); } catch {}
-  }
-  const ranks = { pendingUserUSDT: rankPendingTotal, poolAvailableUSDT: 0n };
+  const ranks = { pendingUserUSDT: out.ranks.pendingTotal || 0n, poolAvailableUSDT: 0n };
   const pools = {
     monthIndex: out.pools.monthIndex || 0n,
     monthStartAt: out.pools.monthStartAt || 0n,
@@ -2307,18 +2243,8 @@ function renderUserCard(u) {
 }
 
 function renderStatsFromCore(userData, cb, directs, upline) {
-  const packageId = Number(userData.highestPackage || 0);
-  const packageCard = document.getElementById('stat-package-card');
-  const packageMark = document.getElementById('stat-package-mark');
-  document.getElementById('stat-package').textContent = packageId > 0 ? `#${packageId}` : '-';
-  document.getElementById('stat-package-name').textContent = PACKAGE_NAMES[packageId] || 'Sin paquete';
-  if (packageCard) {
-    packageCard.className = 'kpi kpi-package-card' + (packageId > 0 ? ` pkg-active-${packageId}` : '');
-  }
-  if (packageMark) {
-    packageMark.textContent = packageId > 0 ? '✦' : '•';
-  }
-
+  document.getElementById('stat-package').textContent = userData.highestPackage > 0 ? `#${userData.highestPackage}` : '-';
+  document.getElementById('stat-package-name').textContent = PACKAGE_NAMES[userData.highestPackage] || 'Sin paquete';
   document.getElementById('stat-rank').textContent = '-';
   document.getElementById('stat-rank-sub').textContent = 'Rank en modulo';
   document.getElementById('stat-cashback').textContent = fmt18(cb.balanceUSDT) + ' USDT';
@@ -2724,7 +2650,7 @@ function makeTreeNodeCard(node, label, compact = false) {
   const color = node.isActive ? 'var(--green)' : 'var(--red)';
   const pkgName = PACKAGE_NAMES[node.pkg] || ('Paquete ' + node.pkg);
   const yieldColor = node.yieldActive ? 'var(--gold)' : (node.hasYield ? 'var(--blue)' : 'var(--gray-300)');
-  const personalValue = wholeUnits18(node.personalPts || 0n);
+  const personalValue = Number(BigInt(node.personalPts || 0n) / (10n ** 18n));
   const totalValue = BigInt(node.totalPts || 0n);
 
   return `
@@ -2733,8 +2659,7 @@ function makeTreeNodeCard(node, label, compact = false) {
       <div style="font-family:var(--mono);font-size:10px;color:var(--gray-500);margin-bottom:4px;">${shortAddr(node.addr)}</div>
       <div style="font-size:${compact ? '10px' : '11px'};font-weight:700;color:var(--gray-800);margin-bottom:2px;">${pkgName}</div>
       <div style="font-size:10px;color:${yieldColor};font-weight:600;margin-bottom:4px;">${node.yieldActive ? '★ ' : (node.hasYield ? '◔ ' : '○ ')}${node.yieldLabel}</div>
-      <div style="font-size:10px;color:var(--gray-500);font-family:var(--mono);">Vol. pers.: ${fmtIntPoints(personalValue)}</div>
-      <div style="font-size:9px;color:var(--gray-400);font-family:var(--mono);">Aporta al usuario: ${fmtIntPoints(node.contributionPts || 0n)}</div>
+      <div style="font-size:10px;color:var(--gray-500);font-family:var(--mono);">Pts pers.: ${personalValue.toLocaleString()}</div>
       <div style="font-size:9px;color:var(--gray-400);font-family:var(--mono);">Pts red: ${fmtIntPoints(totalValue)}</div>
       <div style="font-size:9px;color:var(--gray-400);margin-top:3px;">${label}</div>
       <div style="margin-top:6px;"><button onclick="document.getElementById('search-addr').value='${node.addr}';searchUser();" class="btn btn-outline" style="padding:3px 10px;font-size:10px;">Ver</button></div>
@@ -2790,7 +2715,6 @@ async function getNetworkNodeInfo(nodeAddr, coreRead = contracts.core, ranksRead
       isActive: validUntil > nowTs,
       totalPts,
       personalPts,
-      contributionPts: personalPts,
       hasYield: yieldMeta.hasAny,
       yieldActive: yieldMeta.active,
       yieldLabel: yieldMeta.active ? 'Yield activo' : (yieldMeta.hasAny ? 'Yield registrado' : 'Sin yield'),
@@ -2803,7 +2727,6 @@ async function getNetworkNodeInfo(nodeAddr, coreRead = contracts.core, ranksRead
       isActive: false,
       totalPts: 0n,
       personalPts: 0n,
-      contributionPts: 0n,
       hasYield: false,
       yieldActive: false,
       yieldLabel: 'Sin yield'
@@ -2818,8 +2741,7 @@ async function renderUnilevelTree(addr, directAddresses) {
     wrap.innerHTML = '<div class="callout callout-blue"><span>ℹ</span><span>Core no configurado</span></div>';
     return;
   }
-
-  wrap.innerHTML = '<div style="color:var(--gray-400);font-size:13px;padding:16px;font-family:var(--mono);">Cargando árbol unilevel (10 niveles)...</div>';
+  wrap.innerHTML = '<div style="color:var(--gray-400);font-size:13px;padding:16px;font-family:var(--mono);">Cargando árbol unilevel...</div>';
 
   try {
     const coreRead = contracts.core;
@@ -2834,16 +2756,16 @@ async function renderUnilevelTree(addr, directAddresses) {
         const scanCount = Math.min(total, 300);
         const startId = Math.max(1, total - scanCount + 1);
         for (let id = startId; id <= total; id++) {
-          const pos = await yieldRead.positions(id).catch(() => null);
-          if (!pos) continue;
-          const user = String(pos.user || '').toLowerCase();
+          const p = await yieldRead.positions(id).catch(() => null);
+          if (!p) continue;
+          const user = String(p.user || '').toLowerCase();
           if (!user) continue;
           const current = yieldStatusCache.get(user) || { hasAny: false, active: false, positions: 0, principal: 0n };
           current.hasAny = true;
           current.positions += 1;
-          current.principal += BigInt(pos.principal || 0n);
-          const completed = !!pos.completed;
-          const voucherStatus = Number(pos.voucherStatus || 0);
+          current.principal += BigInt(p.principal || 0n);
+          const completed = !!p.completed;
+          const voucherStatus = Number(p.voucherStatus || 0);
           if (!completed && (voucherStatus === 0 || voucherStatus === 1 || voucherStatus === 2)) current.active = true;
           yieldStatusCache.set(user, current);
         }
@@ -2851,110 +2773,71 @@ async function renderUnilevelTree(addr, directAddresses) {
     }
 
     const root = (await getNetworkNodeInfo(addr, coreRead, ranksRead, yieldRead, yieldStatusCache)) || {
-      addr, pkg: 0, exists: true, isActive: false, totalPts: 0n, personalPts: 0n, contributionPts: 0n, hasYield: false, yieldActive: false, yieldLabel: 'Sin yield'
+      addr, pkg: 0, exists: true, isActive: false, totalPts: 0n, personalPts: 0n, hasYield: false, yieldActive: false, yieldLabel: 'Sin yield'
     };
 
-    const nodeMap = new Map();
-    const levels = [];
-    const rootKey = String(addr).toLowerCase();
-    nodeMap.set(rootKey, { ...root, addr, level: 0, parent: null, children: [] });
-
-    let currentParents = [addr];
-    for (let level = 1; level <= 10; level++) {
-      if (!currentParents.length) break;
-      const nextParents = [];
+    async function fetchChildren(parents, perParentLimit) {
       const groups = [];
-      for (const parent of currentParents) {
+      for (const parent of parents) {
         const cntRaw = await coreRead.directCount(parent).catch(() => 0n);
         const total = Number(cntRaw || 0n);
-        const childAddrs = (await Promise.all(Array.from({ length: total }, (_, i) => coreRead.directAt(parent, i).catch(() => null)))).filter(Boolean);
-        const infos = (await Promise.all(childAddrs.map(a => getNetworkNodeInfo(a, coreRead, ranksRead, yieldRead, yieldStatusCache)))).filter(Boolean);
-        const children = infos.map(info => {
-          const key = String(info.addr).toLowerCase();
-          const node = { ...info, level, parent, children: [], contributionPts: 0n };
-          nodeMap.set(key, node);
-          const parentNode = nodeMap.get(String(parent).toLowerCase());
-          if (parentNode) parentNode.children.push(info.addr);
-          nextParents.push(info.addr);
-          return node;
-        });
-        groups.push({ parent, total, shown: children.length, extra: 0, children });
+        const cnt = Math.min(total, perParentLimit);
+        const children = (await Promise.all(Array.from({ length: cnt }, (_, i) => coreRead.directAt(parent, i).catch(() => null)))).filter(Boolean);
+        const infos = (await Promise.all(children.map(a => getNetworkNodeInfo(a, coreRead, ranksRead, yieldRead, yieldStatusCache)))).filter(Boolean);
+        groups.push({ parent, total, shown: infos.length, children: infos, extra: Math.max(0, total - infos.length) });
       }
-      levels.push({ level, groups, nodes: groups.flatMap(g => g.children) });
-      currentParents = nextParents;
+      return groups;
     }
 
-    // Descomponer puntos del árbol sin duplicar: puntos propios = totalPts del nodo - totalPts de sus hijos directos.
-    const allNodesDesc = Array.from(nodeMap.values()).filter(n => n.level > 0);
-    for (const node of Array.from(nodeMap.values()).sort((a,b) => b.level - a.level)) {
-      const childTotal = (node.children || []).reduce((acc, childAddr) => {
-        const childNode = nodeMap.get(String(childAddr).toLowerCase());
-        return acc + BigInt(childNode?.totalPts || 0n);
-      }, 0n);
-      let ownPts = BigInt(node.totalPts || 0n) - childTotal;
-      if (ownPts < 0n) ownPts = 0n;
-      node.rawContributionPts = ownPts;
-    }
+    const level1Addrs = directAddresses?.length ? directAddresses.slice(0, 12) : ((await fetchChildren([addr], 12))[0]?.children?.map(x => x.addr) || []);
+    const level1 = (await Promise.all(level1Addrs.map(a => getNetworkNodeInfo(a, coreRead, ranksRead, yieldRead, yieldStatusCache)))).filter(Boolean);
+    const safeLevel1 = level1Addrs.length ? level1 : [];
 
-    const rawTotal = allNodesDesc.reduce((acc, n) => acc + BigInt(n.rawContributionPts || 0n), 0n);
-    const targetTotal = BigInt(root.totalPts || 0n);
-    if (rawTotal > 0n && targetTotal >= 0n) {
-      let assigned = 0n;
-      const allocations = allNodesDesc.map((n, idx) => {
-        const raw = BigInt(n.rawContributionPts || 0n);
-        const scaled = (raw * targetTotal) / rawTotal;
-        const remainder = (raw * targetTotal) % rawTotal;
-        assigned += scaled;
-        return { idx, scaled, remainder };
-      });
-      let missing = targetTotal - assigned;
-      allocations.sort((a, b) => {
-        if (a.remainder === b.remainder) return a.idx - b.idx;
-        return a.remainder > b.remainder ? -1 : 1;
-      });
-      for (const item of allocations) {
-        const node = allNodesDesc[item.idx];
-        node.contributionPts = BigInt(item.scaled || 0n);
-        if (missing > 0n) {
-          node.contributionPts += 1n;
-          missing -= 1n;
-        }
-      }
-    } else {
-      for (const node of allNodesDesc) node.contributionPts = 0n;
-    }
-
-    const summaryHtml = levels.map(lvl => {
-      const totalContribution = lvl.nodes.reduce((acc, n) => acc + BigInt(n.contributionPts || 0n), 0n);
-      return `<div class="kpi" style="padding:12px 14px;"><div class="kpi-label">Nivel ${lvl.level}</div><div class="kpi-value" style="font-size:18px;">${fmtIntPoints(totalContribution)}</div><div class="kpi-sub">${lvl.nodes.length} usuario(s)</div></div>`;
-    }).join('');
-
-    const levelsHtml = levels.map(lvl => `
-      <div class="sec" style="margin:14px 0 8px;"><span class="sec-label">Nivel ${lvl.level}</span><span class="sec-line"></span></div>
-      <div style="display:flex;gap:14px;overflow-x:auto;padding-bottom:8px;align-items:flex-start;">
-        ${lvl.groups.length ? lvl.groups.map(g => `
-          <div style="min-width:220px;background:var(--gray-50);border:1px solid var(--gray-200);border-radius:14px;padding:10px;">
-            <div style="font-size:10px;color:var(--gray-400);font-family:var(--mono);margin-bottom:8px;">Bajo ${shortAddr(g.parent)}</div>
-            <div style="display:flex;flex-direction:column;gap:8px;align-items:center;">
-              ${g.children.length ? g.children.map(ch => makeTreeNodeCard(ch, 'Nivel ' + lvl.level, true)).join('') : '<div style="font-size:11px;color:var(--gray-400);">Sin descendientes</div>'}
-            </div>
-          </div>`).join('') : '<div class="empty"><div class="empty-icon">○</div><div class="empty-title">Sin usuarios</div></div>'}
-      </div>`).join('');
+    const level2Groups = await fetchChildren((safeLevel1.length ? safeLevel1 : level1).map(x => x.addr), 4);
+    const level2Nodes = level2Groups.flatMap(g => g.children);
+    const level3Groups = await fetchChildren(level2Nodes.map(x => x.addr), 3);
 
     wrap.innerHTML = `
       <div style="overflow-x:auto;padding-bottom:16px;">
-        <div style="min-width:960px;display:flex;flex-direction:column;gap:10px;">
-          <div style="display:flex;justify-content:center;margin-bottom:10px;">${makeTreeNodeCard(root, 'Raíz')}</div>
-          <div class="grid g4" style="margin-bottom:4px;">${summaryHtml || '<div class="empty" style="grid-column:1/-1"><div class="empty-title">Sin niveles</div></div>'}</div>
-          ${levelsHtml || '<div class="empty"><div class="empty-icon">👤</div><div class="empty-title">Sin red unilevel</div></div>'}
-          <div style="font-size:11px;color:var(--gray-400);font-family:var(--mono);text-align:center;">La suma de “Aporta al usuario” por niveles se ajusta al total real de puntos del usuario y se muestra en enteros, sin decimales.</div>
+        <div style="min-width:920px;display:flex;flex-direction:column;gap:16px;">
+          <div style="display:flex;justify-content:center;">${makeTreeNodeCard(root, 'Raíz')}</div>
+
+          <div class="sec" style="margin:0;"><span class="sec-label">Nivel 1</span><span class="sec-line"></span></div>
+          <div style="display:flex;justify-content:center;gap:18px;flex-wrap:wrap;align-items:flex-start;">
+            ${level1.length ? level1.map(node => `<div style="display:flex;flex-direction:column;align-items:center;gap:8px;min-width:152px;"><div style="width:1px;height:16px;background:var(--gray-300);"></div>${makeTreeNodeCard(node, 'Nivel 1', true)}</div>`).join('') : '<div class="empty" style="min-width:260px;"><div class="empty-icon">👤</div><div class="empty-title">Sin directos</div></div>'}
+          </div>
+
+          <div class="sec" style="margin:0;"><span class="sec-label">Nivel 2</span><span class="sec-line"></span></div>
+          <div style="display:flex;gap:16px;align-items:flex-start;overflow-x:auto;padding-bottom:8px;">
+            ${level2Groups.length ? level2Groups.map(g => `
+              <div style="min-width:220px;background:var(--gray-50);border:1px solid var(--gray-200);border-radius:14px;padding:10px;">
+                <div style="font-size:10px;color:var(--gray-400);font-family:var(--mono);margin-bottom:8px;">Bajo ${shortAddr(g.parent)}</div>
+                <div style="display:flex;flex-direction:column;gap:8px;align-items:center;">
+                  ${g.children.length ? g.children.map(ch => makeTreeNodeCard(ch, 'Nivel 2', true)).join('') : '<div style="font-size:11px;color:var(--gray-400);">Sin descendientes</div>'}
+                  ${g.extra > 0 ? `<div style="font-size:10px;color:var(--gray-400);">+ ${g.extra} más</div>` : ''}
+                </div>
+              </div>`).join('') : '<div class="empty"><div class="empty-icon">○</div><div class="empty-title">Sin nivel 2</div></div>'}
+          </div>
+
+          <div class="sec" style="margin:0;"><span class="sec-label">Nivel 3</span><span class="sec-line"></span></div>
+          <div style="display:flex;gap:16px;align-items:flex-start;overflow-x:auto;padding-bottom:8px;">
+            ${level3Groups.length ? level3Groups.map(g => `
+              <div style="min-width:220px;background:var(--gray-50);border:1px solid var(--gray-200);border-radius:14px;padding:10px;">
+                <div style="font-size:10px;color:var(--gray-400);font-family:var(--mono);margin-bottom:8px;">Bajo ${shortAddr(g.parent)}</div>
+                <div style="display:flex;flex-direction:column;gap:8px;align-items:center;">
+                  ${g.children.length ? g.children.map(ch => makeTreeNodeCard(ch, 'Nivel 3', true)).join('') : '<div style="font-size:11px;color:var(--gray-400);">Sin descendientes</div>'}
+                  ${g.extra > 0 ? `<div style="font-size:10px;color:var(--gray-400);">+ ${g.extra} más</div>` : ''}
+                </div>
+              </div>`).join('') : '<div class="empty"><div class="empty-icon">○</div><div class="empty-title">Sin nivel 3</div></div>'}
+          </div>
+
+          <div style="font-size:11px;color:var(--gray-400);font-family:var(--mono);text-align:center;">Vista unilevel hasta 3 niveles | Pts pers. = volumen personal | Pts red = puntos acumulados en rangos | Yield solo refleja posiciones detectadas</div>
         </div>
       </div>`;
   } catch (e) {
-    wrap.innerHTML = `<div class="callout callout-amber"><span>⚠</span><span>No se pudo cargar el árbol unilevel: ${String(e?.message || e)}</span></div>`;
+    wrap.innerHTML = `<div class="callout callout-red"><span>⚠</span><span>No se pudo cargar el árbol unilevel: ${escapeHtml(String(e?.message || e))}</span></div>`;
   }
 }
-
 
 async function loadDirects(addr, count) {
   const el = document.getElementById('directs-list');
@@ -3089,11 +2972,9 @@ async function loadPackages(activeIds, userPkg) {
 
     el.innerHTML = pkgDefs.map(p => {
       const b = benefits[p.id] || {};
-      const selectedPkg = Number((userPkg ?? currentUserPackageId) || 0);
-      const isUserPkg = selectedPkg === p.id;
+      const isUserPkg = Number(userPkg) === p.id;
       return `
-        <div class="pkg-card pkg-${p.id} ${isUserPkg?'active':''}" data-package="${p.id}">
-          ${isUserPkg ? '<div class="pkg-active-chip">Activo</div>' : ''}
+        <div class="pkg-card pkg-${p.id} ${isUserPkg?'active':''}">
           <div class="pkg-num">${p.id}</div>
           <div class="pkg-name">${PACKAGE_NAMES[p.id] || 'Paquete '+p.id}</div>
           ${b.role ? `<div style="font-size:11px;color:var(--text-muted);font-family:var(--mono),monospace;margin-bottom:10px;text-transform:uppercase;letter-spacing:1px;">${b.role}</div>` : ''}
@@ -3106,7 +2987,7 @@ async function loadPackages(activeIds, userPkg) {
             ${b.hasPools ? '<li>Acceso a pools globales</li>' : ''}
             ${!p.enabled ? '<li style="color:var(--red)">Deshabilitado</li>' : ''}
           </ul>
-          ${isUserPkg ? '<div style="margin-top:12px;display:flex;justify-content:center;"><span class="badge badge-gold">★ Paquete activo</span></div>' : ''}
+          ${isUserPkg ? '<div style="margin-top:12px;text-align:center;font-size:10px;font-family:&quot;DM Mono&quot;,monospace;color:var(--gold);letter-spacing:1px;">★ TU PAQUETE</div>' : ''}
         </div>
       `;
     }).join('');
@@ -3912,7 +3793,8 @@ async function toggleWallet() {
 }
 
 async function loadAdminDashboard() {
-  const role = authState.isOwner ? 'Owner' : (authState.isGuardian ? 'Guardian' : 'Lectura');
+  if (!authState.isAdmin) return;
+  const role = authState.isOwner ? 'Owner' : (authState.isGuardian ? 'Guardian' : 'Usuario');
   document.getElementById('admin-role').textContent = role;
   document.getElementById('admin-role-sub').textContent = walletAddress ? shortAddr(walletAddress) : 'Wallet actual';
 
@@ -3959,7 +3841,7 @@ async function loadAdminDashboard() {
   if (wbox) {
     const entries = wiring && typeof wiring === 'object' ? Object.entries(wiring).filter(([k]) => isNaN(Number(k))) : [];
     const rows = entries.map(([k,v]) => `<div class="ctr-row"><span class="ctr-name">${k}</span><span class="ctr-chip ${v?'chip-ok':'chip-no'}">${v?'OK':'FAIL'}</span></div>`).join('');
-    wbox.innerHTML = rows || `<div class="empty"><div class="empty-icon">ℹ</div><div class="empty-title">${ov ? 'Checks de wiring' : 'AdminLens no disponible'}</div><div class="empty-desc">${ov ? 'No se recibieron checks de wiring.' : 'Se cargaron datos directos desde Core y Pools.'}</div></div>`;
+    wbox.innerHTML = rows || `<div class="empty"><div class="empty-icon">ℹ</div><div class="empty-title">${ov ? 'Sin checks' : 'AdminLens no disponible'}</div><div class="empty-desc">${ov ? 'No se recibieron checks de wiring.' : 'Se cargaron datos directos desde Core y Pools.'}</div></div>`;
   }
 }
 
@@ -4008,12 +3890,6 @@ async function loadAdminDirectSnapshot() {
 }
 
 async function loadAdminLensOverview() {
-  if (!contracts.adminLens && activeNetwork === NETWORKS.testnet && TESTNET_ADDRESSES.adminLens) {
-    try {
-      addresses.adminLens = addresses.adminLens || TESTNET_ADDRESSES.adminLens;
-      contracts.adminLens = new ethers.Contract(addresses.adminLens, ADMIN_LENS_V3_ABI, provider);
-    } catch {}
-  }
   if (!contracts.adminLens || !walletAddress) return null;
   try {
     const [owner, guardian] = await Promise.all([contracts.core.owner().catch(()=>null), contracts.core.guardian().catch(()=>null)]);
@@ -4674,9 +4550,6 @@ async function loadRanksTab(addr) {
       for (let i = 1; i <= 10; i++) pendingCalls.push(ranksExt.pendingRankReward(addr, i).catch(()=>0n));
       const pResults = await Promise.all(pendingCalls);
       for (let i = 0; i < 10; i++) pendingPerRank[i+1] = pResults[i];
-      if (!pendTotal || pendTotal === 0n) {
-        pendTotal = pResults.reduce((acc, v) => acc + BigInt(v || 0n), 0n);
-      }
     } catch {}
 
     // Get directs count + their ranks
