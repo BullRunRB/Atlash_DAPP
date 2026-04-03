@@ -5105,5 +5105,224 @@ document.addEventListener('DOMContentLoaded', () => {
   bootstrapLoginMode();
 });
 
+
+// ===== ATLASH exact unilevel points override =====
+const LEVEL_POINT_BPS_EXACT = [8000n, 4000n, 2000n, 1500n, 1000n, 800n, 600n, 500n, 400n, 200n];
+const __corePaidEventsCache = new Map();
+const __yieldOpenedEventsCache = new Map();
+
+function formatPointsIntNoDecimals(n) {
+  try {
+    const val = typeof n === 'bigint' ? n : BigInt(n || 0);
+    return val.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  } catch {
+    return '0';
+  }
+}
+
+async function queryEventsChunked(contract, filter, fromBlock, toBlock, chunkSize = 8000) {
+  const out = [];
+  for (let from = Number(fromBlock); from <= Number(toBlock); from += chunkSize) {
+    const to = Math.min(Number(toBlock), from + chunkSize - 1);
+    try {
+      const part = await contract.queryFilter(filter, from, to);
+      out.push(...part);
+    } catch (e) {
+      console.warn('queryEventsChunked failed', from, to, e?.message || e);
+    }
+  }
+  return out;
+}
+
+async function getCorePaidEventsByUserExact(userAddr) {
+  const key = String(userAddr || '').toLowerCase();
+  if (!key || !contracts.core?.filters?.Paid) return [];
+  if (__corePaidEventsCache.has(key)) return __corePaidEventsCache.get(key);
+  let events = [];
+  try {
+    events = await contracts.core.queryFilter(contracts.core.filters.Paid(userAddr), 0, 'latest');
+  } catch (e) {
+    try {
+      const latest = await provider.getBlockNumber();
+      events = await queryEventsChunked(contracts.core, contracts.core.filters.Paid(userAddr), 0, latest, 8000);
+    } catch {}
+  }
+  __corePaidEventsCache.set(key, events || []);
+  return events || [];
+}
+
+async function getYieldOpenedEventsByUserExact(userAddr) {
+  const key = String(userAddr || '').toLowerCase();
+  if (!key || !contracts.yield?.filters?.PositionOpened) return [];
+  if (__yieldOpenedEventsCache.has(key)) return __yieldOpenedEventsCache.get(key);
+  let events = [];
+  try {
+    events = await contracts.yield.queryFilter(contracts.yield.filters.PositionOpened(null, userAddr), 0, 'latest');
+  } catch (e) {
+    try {
+      const latest = await provider.getBlockNumber();
+      events = await queryEventsChunked(contracts.yield, contracts.yield.filters.PositionOpened(null, userAddr), 0, latest, 8000);
+    } catch {}
+  }
+  __yieldOpenedEventsCache.set(key, events || []);
+  return events || [];
+}
+
+async function computeExactContributionForNode(nodeAddr, level) {
+  const idx = Number(level) - 1;
+  const bps = LEVEL_POINT_BPS_EXACT[idx] || 0n;
+  if (!bps) return { corePurchases: 0n, yieldPurchases: 0n, pointsFromCore: 0n, pointsFromYield: 0n, pointsTotal: 0n };
+
+  let coreBase = 0n;
+  let yieldAmount = 0n;
+
+  try {
+    const paidEvents = await getCorePaidEventsByUserExact(nodeAddr);
+    for (const ev of paidEvents) {
+      const baseAmount = ev?.args?.baseAmount ?? ev?.args?.[3] ?? 0n;
+      coreBase += BigInt(baseAmount || 0n);
+    }
+  } catch (e) {
+    console.warn('core contribution failed', nodeAddr, e?.message || e);
+  }
+
+  try {
+    const yieldEvents = await getYieldOpenedEventsByUserExact(nodeAddr);
+    for (const ev of yieldEvents) {
+      const amount = ev?.args?.amount ?? ev?.args?.[2] ?? 0n;
+      yieldAmount += BigInt(amount || 0n);
+    }
+  } catch (e) {
+    console.warn('yield contribution failed', nodeAddr, e?.message || e);
+  }
+
+  const pointsFromCore = (coreBase * bps) / 10000n;
+  const pointsFromYield = ((yieldAmount / 2n) * bps) / 10000n;
+  return {
+    corePurchases: coreBase,
+    yieldPurchases: yieldAmount,
+    pointsFromCore,
+    pointsFromYield,
+    pointsTotal: pointsFromCore + pointsFromYield
+  };
+}
+
+async function buildUnilevelLevelsExact(rootAddr, maxLevels = 10) {
+  const levels = [];
+  let parents = [rootAddr];
+  for (let level = 1; level <= maxLevels; level++) {
+    const next = [];
+    for (const parent of parents) {
+      const total = Number(await contracts.core.directCount(parent).catch(() => 0n));
+      if (!total) continue;
+      const children = await Promise.all(Array.from({ length: total }, (_, i) => contracts.core.directAt(parent, i).catch(() => null)));
+      next.push(...children.filter(Boolean));
+    }
+    levels.push(next);
+    parents = next;
+    if (!parents.length) break;
+  }
+  return levels;
+}
+
+async function buildNodeInfoExact(nodeAddr) {
+  const node = await getNetworkNodeInfo(nodeAddr, contracts.core, contracts.ranks, contracts.yield, null);
+  return node || { addr: nodeAddr, pkg: 0, exists: true, isActive: false, totalPts: 0n, personalPts: 0n, hasYield: false, yieldActive: false, yieldLabel: 'Sin yield' };
+}
+
+function makeExactContributionCard(node, level, contrib) {
+  return `
+    <div style="background:var(--white);border:1px solid var(--gray-200);border-radius:12px;padding:12px;">
+      <div style="display:flex;justify-content:space-between;gap:10px;align-items:center;margin-bottom:6px;">
+        <div style="font-family:var(--mono);font-size:11px;color:var(--gray-700);">${shortAddr(node.addr)}</div>
+        <button onclick="document.getElementById('search-addr').value='${node.addr}';searchUser();" class="btn btn-outline" style="padding:3px 10px;font-size:10px;">Ver</button>
+      </div>
+      <div style="font-size:11px;color:var(--gray-500);margin-bottom:4px;">Nivel ${level} · ${PACKAGE_NAMES[node.pkg] || ('Paquete ' + (node.pkg || 0))}</div>
+      <div style="font-size:16px;font-weight:700;color:var(--blue);font-family:var(--mono);margin-bottom:6px;">${formatPointsIntNoDecimals(contrib.pointsTotal)} pts</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:10px;color:var(--gray-500);">
+        <div>Core aporta: <strong style="color:var(--gray-800);">${formatPointsIntNoDecimals(contrib.pointsFromCore)}</strong></div>
+        <div>Yield aporta: <strong style="color:var(--gray-800);">${formatPointsIntNoDecimals(contrib.pointsFromYield)}</strong></div>
+      </div>
+    </div>
+  `;
+}
+
+async function renderUnilevelTree(addr, directAddresses) {
+  const wrap = document.getElementById('unilevel-tree-wrap');
+  if (!wrap) return;
+  if (!contracts.core) {
+    wrap.innerHTML = '<div class="callout callout-blue"><span>ℹ</span><span>Core no configurado</span></div>';
+    return;
+  }
+  wrap.innerHTML = '<div style="color:var(--gray-400);font-size:13px;padding:16px;font-family:var(--mono);">Calculando aportes exactos por nivel...</div>';
+
+  try {
+    const levels = await buildUnilevelLevelsExact(addr, 10);
+    const htmlBlocks = [];
+    let totalPoints = 0n;
+
+    for (let i = 0; i < levels.length; i++) {
+      const levelNum = i + 1;
+      const nodes = levels[i];
+      const infos = await Promise.all(nodes.map(async nodeAddr => {
+        const [node, contrib] = await Promise.all([
+          buildNodeInfoExact(nodeAddr),
+          computeExactContributionForNode(nodeAddr, levelNum)
+        ]);
+        return { node, contrib };
+      }));
+
+      const levelTotal = infos.reduce((acc, x) => acc + BigInt(x.contrib.pointsTotal || 0n), 0n);
+      totalPoints += levelTotal;
+
+      htmlBlocks.push(`
+        <div class="panel" style="margin-bottom:12px;">
+          <div class="panel-head">
+            <div class="panel-title">Nivel ${levelNum}</div>
+            <div style="font-size:12px;color:var(--gray-500);font-family:var(--mono);">${formatPointsIntNoDecimals(levelTotal)} pts</div>
+          </div>
+          <div class="panel-body">
+            ${infos.length ? `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;">${infos.map(x => makeExactContributionCard(x.node, levelNum, x.contrib)).join('')}</div>` : '<div class="empty"><div class="empty-icon">○</div><div class="empty-title">Sin usuarios en este nivel</div></div>'}
+          </div>
+        </div>
+      `);
+    }
+
+    const userTotalPts = contracts.ranks && currentUser ? await contracts.ranks.totalPoints(currentUser).catch(() => 0n) : 0n;
+
+    wrap.innerHTML = `
+      <div class="claim-hero" style="margin-bottom:14px;">
+        <div>
+          <div class="claim-hero-label">Aporte exacto por red unilevel</div>
+          <div class="claim-hero-amount">${formatPointsIntNoDecimals(totalPoints)} pts</div>
+        </div>
+        <div style="text-align:right;">
+          <div class="claim-hero-label">Puntos reales del usuario</div>
+          <div class="claim-hero-amount">${formatPointsIntNoDecimals(userTotalPts)} pts</div>
+        </div>
+      </div>
+      ${htmlBlocks.join('')}
+      <div style="font-size:11px;color:var(--gray-400);font-family:var(--mono);text-align:center;">
+        Cálculo exacto sobre eventos históricos Paid (Core) y PositionOpened (Yield). En Yield se toma el 50% del monto y luego el porcentaje del nivel. Sin decimales.
+      </div>
+    `;
+  } catch (e) {
+    console.error('renderUnilevelTree exact failed', e);
+    wrap.innerHTML = `<div class="callout callout-amber"><span>⚠</span><span>No se pudo calcular el aporte exacto por nivel: ${String(e?.message || e)}</span></div>`;
+  }
+}
+
+const __origLoadUserFromCore = loadUserFromCore;
+loadUserFromCore = async function(addr) {
+  await __origLoadUserFromCore(addr);
+  try { await loadPackages(null, currentUserPackageId); } catch {}
+};
+
+const __origRenderUserFromUserLens = renderUserFromUserLens;
+renderUserFromUserLens = async function(addr, out) {
+  await __origRenderUserFromUserLens(addr, out);
+  try { await loadPackages(null, Number(out?.coreUser?.packageId || 0)); } catch {}
+};
+
 </script>
 </html>
