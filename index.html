@@ -1427,6 +1427,7 @@ const BINARY_WEEKS_ABI = [
   "function weeklyBoostBP(address, uint32) view returns (uint16)",
   "function boostAppliedBP(address, uint32) view returns (uint16)",
   "function userWeeklyBoostBP(address, uint32) view returns (uint16)",
+  "function weekClose(uint32) view returns (bool started, bool finalized, uint32 batches, uint64 usersProcessed, uint256 matchedBV, uint256 rawPayoutUSDT, uint256 startedAt, uint256 finalizedAt)",
   "function claimBinary() returns (uint256)",
   "function claimCurrentWeekBinary() returns (uint256)",
   "function claimBinary(address) returns (uint256)",
@@ -2820,39 +2821,64 @@ async function loadBinaryWeeksSection(addr, cachedFrontend = null) {
       if (wkTry.ok) currentWeekId = Number(wkTry.value || 0);
     }
 
+    const weekCloseMap = new Map();
+    const closeStart = Math.max(0, (currentWeekId || lastSettledWeek || 0) - 8);
+    const closeEnd = Math.max(currentWeekId || 0, lastSettledWeek || 0);
+    for (let week = closeStart; week <= closeEnd; week++) {
+      const closeTry = await callFirstSuccess(binWeeks, [{name:'weekClose', args:[week]}]);
+      if (closeTry.ok && closeTry.value) {
+        const wc = closeTry.value;
+        const parsed = {
+          started: !!tupleVal(wc, 'started', 0, false),
+          finalized: !!tupleVal(wc, 'finalized', 1, false),
+          batches: Number(tupleVal(wc, 'batches', 2, 0)),
+          usersProcessed: BigInt(tupleVal(wc, 'usersProcessed', 3, 0n) || 0n),
+          matchedBV: BigInt(tupleVal(wc, 'matchedBV', 4, 0n) || 0n),
+          rawPayoutUSDT: BigInt(tupleVal(wc, 'rawPayoutUSDT', 5, 0n) || 0n),
+          startedAt: BigInt(tupleVal(wc, 'startedAt', 6, 0n) || 0n),
+          finalizedAt: BigInt(tupleVal(wc, 'finalizedAt', 7, 0n) || 0n),
+        };
+        weekCloseMap.set(week, parsed);
+        if (parsed.finalized && week > lastSettledWeek) lastSettledWeek = week;
+      }
+    }
+
     const weeks = [];
     const startWeek = Math.max(0, (currentWeekId || lastSettledWeek || 0) - 5);
     const endWeek = Math.max(currentWeekId || 0, lastSettledWeek || 0);
 
     for (let week = endWeek; week >= startWeek; week--) {
+      const close = weekCloseMap.get(week) || null;
       let taken = 0n, paid = 0n, cap = 0n, boostBP = 0n;
-      if (ranksExt?.rollingVolume) {
-        try { taken = BigInt(await ranksExt.rollingVolume(addr, week)); } catch {}
-      }
+
       const takenTry = await callFirstSuccess(binWeeks, [
         {name:'weekTakenPoints', args:[addr, week]},
         {name:'matchingTakenPoints', args:[addr, week]},
-      ])
-      if (takenTry.ok && BigInt(takenTry.value || 0n) > 0n) taken = BigInt(takenTry.value || 0n);
+      ]);
+      if (takenTry.ok) {
+        taken = BigInt(takenTry.value || 0n);
+      } else if (week !== currentWeekId && ranksExt?.rollingVolume) {
+        try { taken = BigInt(await ranksExt.rollingVolume(addr, week)); } catch {}
+      }
 
       const paidTry = await callFirstSuccess(binWeeks, [
         {name:'weeklyBonusPaid', args:[addr, week]},
         {name:'binaryBonusPaid', args:[addr, week]},
-      ])
+      ]);
       if (paidTry.ok) paid = BigInt(paidTry.value || 0n);
 
       const capTry = await callFirstSuccess(binWeeks, [
         {name:'weeklyCap', args:[addr, week]},
         {name:'weeklyCapFor', args:[addr, week]},
         {name:'capForWeek', args:[addr, week]},
-      ])
+      ]);
       if (capTry.ok) cap = BigInt(capTry.value || 0n);
 
       const boostTry = await callFirstSuccess(binWeeks, [
         {name:'weeklyBoostBP', args:[addr, week]},
         {name:'boostAppliedBP', args:[addr, week]},
         {name:'userWeeklyBoostBP', args:[addr, week]},
-      ])
+      ]);
       if (boostTry.ok) boostBP = BigInt(boostTry.value || 0n);
 
       if (week === currentWeekId && pendingCurrentWeekBinary === 0n) {
@@ -2868,7 +2894,8 @@ async function loadBinaryWeeksSection(addr, cachedFrontend = null) {
         boostBP,
         pending: week === currentWeekId ? pendingCurrentWeekBinary : 0n,
         isCurrent: week === currentWeekId,
-        isSettled: lastSettledWeek >= week && week > 0
+        isSettled: !!close?.finalized,
+        close,
       });
     }
 
@@ -2876,7 +2903,7 @@ async function loadBinaryWeeksSection(addr, cachedFrontend = null) {
     wrap.innerHTML = `
       <div class="grid g4" style="margin-bottom:12px;">
         <div class="kpi"><div class="kpi-label">Semana actual</div><div class="kpi-value c-blue" style="font-size:20px;">${currentWeekId || '—'}</div><div class="kpi-sub">Week ID</div></div>
-        <div class="kpi"><div class="kpi-label">Última liquidada</div><div class="kpi-value" style="font-size:20px;">${lastSettledWeek || '—'}</div><div class="kpi-sub">Settled</div></div>
+        <div class="kpi"><div class="kpi-label">Semana liquidada</div><div class="kpi-value" style="font-size:20px;">${lastSettledWeek || '—'}</div><div class="kpi-sub">Última finalizada</div></div>
         <div class="kpi"><div class="kpi-label">Pendiente semana actual</div><div class="kpi-value c-green" style="font-size:20px;">${fmt18(pendingCurrentWeekBinary || 0n)} USDT</div><div class="kpi-sub">Matching bonus</div></div>
         <div class="kpi"><div class="kpi-label">Cobro binario</div><div class="kpi-value" style="font-size:14px;letter-spacing:0;">${canClaim ? '<button class="btn btn-dark" onclick="claimBinaryBonus()">Reclamar pago binario</button>' : 'Solo informativo'}</div><div class="kpi-sub">Wallet del usuario</div></div>
       </div>
@@ -2892,19 +2919,26 @@ async function loadBinaryWeeksSection(addr, cachedFrontend = null) {
           </tr>
         </thead>
         <tbody>
-          ${weeks.length ? weeks.map(w => `
+          ${weeks.length ? weeks.map(w => {
+            const stateHtml = w.isCurrent
+              ? '<span class="badge badge-amber">En curso</span>'
+              : (w.isSettled ? '<span class="badge badge-green">Liquidada</span>' : '<span class="badge badge-gray">Sin dato</span>');
+            const closedMeta = w.close && w.isSettled
+              ? `<div style="font-size:10px;color:var(--gray-400);margin-top:2px;">Cierre: ${tsToDate(w.close.finalizedAt || 0n)}</div>`
+              : '';
+            return `
             <tr>
               <td>#${w.week}${w.isCurrent ? ' <span class="badge badge-blue">Actual</span>' : ''}</td>
-              <td>${fmtWeekPoints(w.taken)}</td>
-              <td>${fmt18(w.paid)} USDT${w.isCurrent && w.pending > 0n ? `<div style="font-size:10px;color:var(--green);margin-top:2px;">Pendiente: ${fmt18(w.pending)} USDT</div>` : ''}</td>
+              <td>${w.taken > 0n ? fmtWeekPoints(w.taken) : '—'}</td>
+              <td>${w.paid > 0n ? fmt18(w.paid) + ' USDT' : '—'}${w.isCurrent && w.pending > 0n ? `<div style="font-size:10px;color:var(--green);margin-top:2px;">Pendiente: ${fmt18(w.pending)} USDT</div>` : ''}${closedMeta}</td>
               <td>${w.cap > 0n ? fmt18(w.cap) + ' USDT' : '—'}</td>
               <td>${w.boostBP > 0n ? fmtBPToPct(w.boostBP) : '—'}</td>
-              <td>${w.isCurrent ? '<span class="badge badge-amber">En curso</span>' : (w.isSettled ? '<span class="badge badge-green">Liquidada</span>' : '<span class="badge badge-gray">Sin dato</span>')}</td>
-            </tr>
-          `).join('') : '<tr><td colspan="6">Sin semanas disponibles</td></tr>'}
+              <td>${stateHtml}</td>
+            </tr>`;
+          }).join('') : '<tr><td colspan="6">Sin semanas disponibles</td></tr>'}
         </tbody>
       </table>
-      <div style="font-size:11px;color:var(--gray-400);margin-top:10px;">La tabla intenta leer semanas, puntos, bono, cap y boost desde los módulos disponibles. Si alguna columna sale en “—”, ese dato no está expuesto en el contrato actual.</div>
+      <div style="font-size:11px;color:var(--gray-400);margin-top:10px;">La semana liquidada se detecta con <code>weekClose(week)</code>. En la semana actual ya no se recicla el dato de la semana cerrada para “puntos tomados”.</div>
     `;
   } catch (e) {
     wrap.innerHTML = `<div class="callout callout-amber"><span>⚠</span><span>No se pudo cargar la sección de semanas binarias: ${String(e?.message || e)}</span></div>`;
