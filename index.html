@@ -1064,6 +1064,10 @@ body {
           <div class="kpi"><div class="kpi-label">Pierna Derecha BV</div><div class="kpi-value c-blue" id="right-bv">—</div><div class="kpi-sub">Business Volume</div></div>
         </div>
         <div style="margin-bottom:12px;font-size:13px;color:var(--gray-600);">Pierna: <span id="user-leg" style="font-weight:700;color:var(--gray-800);">—</span></div>
+        <div class="panel" style="margin-bottom:16px;">
+          <div class="panel-head"><div class="panel-title">Semanas del binario</div></div>
+          <div class="panel-body" id="binary-weeks-wrap"><div class="empty"><div class="empty-icon">○</div><div class="empty-title">Busca un usuario para ver semanas binarias</div></div></div>
+        </div>
         <div class="sec"><span class="sec-label">Árbol binario (hasta 10 niveles)</span><span class="sec-line"></span></div>
         <div id="binary-tree-wrap"><div class="empty"><div class="empty-icon">○</div><div class="empty-title">Busca un usuario para ver el árbol</div></div></div>
       </div>
@@ -1405,6 +1409,28 @@ const CASHBACK_ABI = [
 const BINARY_ABI = [
   "function leftBV(address) view returns (uint256)",
   "function rightBV(address) view returns (uint256)"
+];
+
+const BINARY_WEEKS_ABI = [
+  "function leftBV(address) view returns (uint256)",
+  "function rightBV(address) view returns (uint256)",
+  "function pendingCurrentWeekBinary(address) view returns (uint256)",
+  "function rollingVolume(address, uint32) view returns (uint256)",
+  "function currentWeekId() view returns (uint32)",
+  "function weekTakenPoints(address, uint32) view returns (uint256)",
+  "function matchingTakenPoints(address, uint32) view returns (uint256)",
+  "function weeklyBonusPaid(address, uint32) view returns (uint256)",
+  "function binaryBonusPaid(address, uint32) view returns (uint256)",
+  "function weeklyCap(address, uint32) view returns (uint256)",
+  "function weeklyCapFor(address, uint32) view returns (uint256)",
+  "function capForWeek(address, uint32) view returns (uint256)",
+  "function weeklyBoostBP(address, uint32) view returns (uint16)",
+  "function boostAppliedBP(address, uint32) view returns (uint16)",
+  "function userWeeklyBoostBP(address, uint32) view returns (uint16)",
+  "function claimBinary() returns (uint256)",
+  "function claimCurrentWeekBinary() returns (uint256)",
+  "function claimBinary(address) returns (uint256)",
+  "function claimCurrentWeekBinary(address) returns (uint256)"
 ];
 const YIELD_ABI = [
   "event PositionOpened(uint256 indexed positionId, address indexed user, uint256 amount, bool compound)",
@@ -2186,6 +2212,7 @@ async function loadUserFromCore(addr) {
       ]);
       const leg = await contracts.core.userLeg(addr).catch(()=>0);
       renderBinary(lBV, rBV, leg);
+      await loadBinaryWeeksSection(addr, currentUserFrontendCache);
     } catch {}
   }
 
@@ -2281,7 +2308,7 @@ async function renderUserFromUserLens(addr, out) {
   await loadPackages(null, u.packageId);
   await loadYieldData(addr);
   await loadRanksTabFromUserLens(out);
-  try { renderBinary(out.binary.leftBV || 0n, out.binary.rightBV || 0n, out.coreUser.chosenLeg || 0); } catch {}
+  try { renderBinary(out.binary.leftBV || 0n, out.binary.rightBV || 0n, out.coreUser.chosenLeg || 0); await loadBinaryWeeksSection(addr, out); } catch {}
   await loadDirects(addr, directsCount);
 }
 
@@ -2743,6 +2770,180 @@ function renderBinary(leftBV, rightBV, leg) {
   document.getElementById('left-bv').textContent = fmtBV(leftBV);
   document.getElementById('right-bv').textContent = fmtBV(rightBV);
   document.getElementById('user-leg').textContent = LEG_NAMES[Number(leg)] || 'No definida';
+}
+
+function fmtWeekPoints(v) {
+  try { return Math.floor(Number(ethers.formatUnits(v || 0n, 18))).toLocaleString('es-CO'); }
+  catch { return '0'; }
+}
+
+function fmtBPToPct(v) {
+  const n = Number(v || 0);
+  return (n / 100).toLocaleString('es-CO', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '%';
+}
+
+async function callFirstSuccess(contract, attempts) {
+  for (const item of attempts) {
+    try {
+      const fn = contract[item.name];
+      if (typeof fn !== 'function') continue;
+      const value = await fn(...(item.args || []));
+      return { ok: true, value, name: item.name };
+    } catch {}
+  }
+  return { ok: false, value: null, name: null };
+}
+
+async function loadBinaryWeeksSection(addr, cachedFrontend = null) {
+  const wrap = document.getElementById('binary-weeks-wrap');
+  if (!wrap) return;
+  if (!contracts.binary || !contracts.core || !addresses.binary) {
+    wrap.innerHTML = '<div class="empty"><div class="empty-icon">⚙</div><div class="empty-title">BinaryModule no configurado</div></div>';
+    return;
+  }
+
+  wrap.innerHTML = '<div style="color:var(--gray-400);font-size:13px;padding:8px 0;font-family:var(--mono);">Cargando semanas binarias…</div>';
+
+  try {
+    const binWeeks = new ethers.Contract(addresses.binary, BINARY_WEEKS_ABI, provider);
+    const ranksExt = addresses.ranks ? new ethers.Contract(addresses.ranks, RANKS_EXTENDED_ABI, provider) : null;
+
+    let currentWeekId = Number(cachedFrontend?.binary?.currentWeekId || 0);
+    let lastSettledWeek = Number(cachedFrontend?.binary?.lastSettledWeek || 0);
+    let pendingCurrentWeekBinary = BigInt(cachedFrontend?.ranks?.pendingCurrentWeekBinary || 0n);
+
+    if (!currentWeekId && ranksExt?.currentWeekId) {
+      try { currentWeekId = Number(await ranksExt.currentWeekId()); } catch {}
+    }
+    if (!currentWeekId) {
+      const wkTry = await callFirstSuccess(binWeeks, [{name:'currentWeekId', args:[]}]);
+      if (wkTry.ok) currentWeekId = Number(wkTry.value || 0);
+    }
+
+    const weeks = [];
+    const startWeek = Math.max(0, (currentWeekId || lastSettledWeek || 0) - 5);
+    const endWeek = Math.max(currentWeekId || 0, lastSettledWeek || 0);
+
+    for (let week = endWeek; week >= startWeek; week--) {
+      let taken = 0n, paid = 0n, cap = 0n, boostBP = 0n;
+      if (ranksExt?.rollingVolume) {
+        try { taken = BigInt(await ranksExt.rollingVolume(addr, week)); } catch {}
+      }
+      const takenTry = await callFirstSuccess(binWeeks, [
+        {name:'weekTakenPoints', args:[addr, week]},
+        {name:'matchingTakenPoints', args:[addr, week]},
+      ])
+      if (takenTry.ok && BigInt(takenTry.value || 0n) > 0n) taken = BigInt(takenTry.value || 0n);
+
+      const paidTry = await callFirstSuccess(binWeeks, [
+        {name:'weeklyBonusPaid', args:[addr, week]},
+        {name:'binaryBonusPaid', args:[addr, week]},
+      ])
+      if (paidTry.ok) paid = BigInt(paidTry.value || 0n);
+
+      const capTry = await callFirstSuccess(binWeeks, [
+        {name:'weeklyCap', args:[addr, week]},
+        {name:'weeklyCapFor', args:[addr, week]},
+        {name:'capForWeek', args:[addr, week]},
+      ])
+      if (capTry.ok) cap = BigInt(capTry.value || 0n);
+
+      const boostTry = await callFirstSuccess(binWeeks, [
+        {name:'weeklyBoostBP', args:[addr, week]},
+        {name:'boostAppliedBP', args:[addr, week]},
+        {name:'userWeeklyBoostBP', args:[addr, week]},
+      ])
+      if (boostTry.ok) boostBP = BigInt(boostTry.value || 0n);
+
+      if (week === currentWeekId && pendingCurrentWeekBinary === 0n) {
+        const pendingTry = await callFirstSuccess(binWeeks, [{name:'pendingCurrentWeekBinary', args:[addr]}]);
+        if (pendingTry.ok) pendingCurrentWeekBinary = BigInt(pendingTry.value || 0n);
+      }
+
+      weeks.push({
+        week,
+        taken,
+        paid,
+        cap,
+        boostBP,
+        pending: week === currentWeekId ? pendingCurrentWeekBinary : 0n,
+        isCurrent: week === currentWeekId,
+        isSettled: lastSettledWeek >= week && week > 0
+      });
+    }
+
+    const canClaim = !!(walletAddress && currentUser && walletAddress.toLowerCase() === currentUser.toLowerCase() && signer);
+    wrap.innerHTML = `
+      <div class="grid g4" style="margin-bottom:12px;">
+        <div class="kpi"><div class="kpi-label">Semana actual</div><div class="kpi-value c-blue" style="font-size:20px;">${currentWeekId || '—'}</div><div class="kpi-sub">Week ID</div></div>
+        <div class="kpi"><div class="kpi-label">Última liquidada</div><div class="kpi-value" style="font-size:20px;">${lastSettledWeek || '—'}</div><div class="kpi-sub">Settled</div></div>
+        <div class="kpi"><div class="kpi-label">Pendiente semana actual</div><div class="kpi-value c-green" style="font-size:20px;">${fmt18(pendingCurrentWeekBinary || 0n)} USDT</div><div class="kpi-sub">Matching bonus</div></div>
+        <div class="kpi"><div class="kpi-label">Cobro binario</div><div class="kpi-value" style="font-size:14px;letter-spacing:0;">${canClaim ? '<button class="btn btn-dark" onclick="claimBinaryBonus()">Reclamar pago binario</button>' : 'Solo informativo'}</div><div class="kpi-sub">Wallet del usuario</div></div>
+      </div>
+      <table class="tbl">
+        <thead>
+          <tr>
+            <th>Semana</th>
+            <th>Puntos tomados</th>
+            <th>Bono liquidado</th>
+            <th>Cap máx. semanal</th>
+            <th>Boost</th>
+            <th>Estado</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${weeks.length ? weeks.map(w => `
+            <tr>
+              <td>#${w.week}${w.isCurrent ? ' <span class="badge badge-blue">Actual</span>' : ''}</td>
+              <td>${fmtWeekPoints(w.taken)}</td>
+              <td>${fmt18(w.paid)} USDT${w.isCurrent && w.pending > 0n ? `<div style="font-size:10px;color:var(--green);margin-top:2px;">Pendiente: ${fmt18(w.pending)} USDT</div>` : ''}</td>
+              <td>${w.cap > 0n ? fmt18(w.cap) + ' USDT' : '—'}</td>
+              <td>${w.boostBP > 0n ? fmtBPToPct(w.boostBP) : '—'}</td>
+              <td>${w.isCurrent ? '<span class="badge badge-amber">En curso</span>' : (w.isSettled ? '<span class="badge badge-green">Liquidada</span>' : '<span class="badge badge-gray">Sin dato</span>')}</td>
+            </tr>
+          `).join('') : '<tr><td colspan="6">Sin semanas disponibles</td></tr>'}
+        </tbody>
+      </table>
+      <div style="font-size:11px;color:var(--gray-400);margin-top:10px;">La tabla intenta leer semanas, puntos, bono, cap y boost desde los módulos disponibles. Si alguna columna sale en “—”, ese dato no está expuesto en el contrato actual.</div>
+    `;
+  } catch (e) {
+    wrap.innerHTML = `<div class="callout callout-amber"><span>⚠</span><span>No se pudo cargar la sección de semanas binarias: ${String(e?.message || e)}</span></div>`;
+  }
+}
+
+async function claimBinaryBonus() {
+  if (!await ensureSigner()) return;
+  if (!contracts.core || !contracts.binary) { toast('Core o BinaryModule no configurado', 'error'); return; }
+  if (!walletAddress || !currentUser || walletAddress.toLowerCase() !== currentUser.toLowerCase()) {
+    toast('Conecta y busca tu misma wallet para reclamar el binario', 'error');
+    return;
+  }
+
+  const attempts = [
+    { target: new ethers.Contract(addresses.binary, BINARY_WEEKS_ABI, signer), name: 'claimCurrentWeekBinary', args: [] },
+    { target: new ethers.Contract(addresses.binary, BINARY_WEEKS_ABI, signer), name: 'claimBinary', args: [] },
+    { target: new ethers.Contract(addresses.core, BINARY_WEEKS_ABI, signer), name: 'claimCurrentWeekBinary', args: [] },
+    { target: new ethers.Contract(addresses.core, BINARY_WEEKS_ABI, signer), name: 'claimBinary', args: [] },
+    { target: new ethers.Contract(addresses.binary, BINARY_WEEKS_ABI, signer), name: 'claimCurrentWeekBinary', args: [walletAddress] },
+    { target: new ethers.Contract(addresses.binary, BINARY_WEEKS_ABI, signer), name: 'claimBinary', args: [walletAddress] },
+  ];
+
+  for (const item of attempts) {
+    try {
+      if (typeof item.target[item.name] !== 'function') continue;
+      toast('Ejecutando cobro binario...', 'info');
+      const tx = await item.target[item.name](...(item.args || []));
+      await tx.wait();
+      toast('✅ Pago binario reclamado', 'success');
+      if (currentUser) {
+        await searchUser();
+        if (currentNetTab === 'binary') await loadBinaryWeeksSection(currentUser, currentUserFrontendCache);
+      }
+      return;
+    } catch {}
+  }
+
+  toast('No se encontró una función compatible para reclamar el binario en este contrato.', 'error');
 }
 
 
@@ -4917,7 +5118,7 @@ function switchNetTab(tab) {
     if (btn)  btn.classList.toggle('active', t === tab);
     if (pane) pane.style.display = t === tab ? 'block' : 'none';
   });
-  if (tab === 'binary' && currentUser) loadBinaryTree(currentUser);
+  if (tab === 'binary' && currentUser) { loadBinaryTree(currentUser); loadBinaryWeeksSection(currentUser, currentUserFrontendCache); }
 }
 
 async function loadBinaryTree(addr) {
