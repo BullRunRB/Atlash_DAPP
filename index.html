@@ -1288,10 +1288,10 @@ const TESTNET_ADDRESSES = {
   roleResolver:'0x5900026E4D818dEe319Da6e72e323e03642261eF',
   cashback:'0x2A2e99BC50B8DD8607649854C17798b085687e57',
   core:'0x4f762Fe9a9B269B42809E3ce90182f38C91A7f42',
-  ranks:'0xB1DF0A99059cCEfbAc4F372c8671Cedd171310b1',
-  pools:'0xe71e3D3d1dFB2C7fc0A7Cd4b06df535B6356306F',
+  ranks:'0x2f3e62d04fA08967DC8c0bD4E3EF4Ed6a300254A',
+  pools:'0x95aafb5E0C6109F1e9B234219cc62Bc754ff47c3',
   binary:'0x07aFF6fD65CF4378863577C178336727C74e70d6',
-  yield:'0x892171D284F3a9fc945982455c971d38526d44BB',
+  yield:'0x1a3EAA87FD754A876f5857f4458De098960e4a9f',
   admin:'0x3F6B565F06507999099e1d75263Dca7360FC2C45',
   config:'0x08AF17c59dbf091a3A2799E402D2fB5DFf316C18',
   userLens:'0x35a71a9963827d49E96a10De414aca93041Fee8E',
@@ -1550,6 +1550,20 @@ function formatMonthRange(startTs, endTs) {
   if (!startTs || !endTs || startTs == 0n || endTs == 0n) return '-';
   const endInclusive = BigInt(endTs) > 0n ? (BigInt(endTs) - 1n) : BigInt(endTs);
   return `${tsToDate(startTs)} → ${tsToDate(endInclusive)}`;
+}
+
+function formatTodayWithWeekday() {
+  try {
+    const now = new Date();
+    return now.toLocaleDateString('es-CO', {
+      weekday: 'long',
+      day: '2-digit',
+      month: 'long',
+      year: 'numeric'
+    });
+  } catch {
+    return '-';
+  }
 }
 
 function secondsLeft(ts) {
@@ -2562,7 +2576,8 @@ function renderPools(pools) {
   const badge = document.getElementById('pools-month-badge');
   const mi = pools.monthIndex || 0n;
   const monthRange = formatMonthRange(pools.monthStartAt || 0n, pools.monthEndAt || 0n);
-  badge.innerHTML = `<span class="badge badge-blue">${monthNameFromIndex(mi)}</span> <span class="badge badge-gray">${monthRange}</span>`;
+  const todayLabel = formatTodayWithWeekday();
+  badge.innerHTML = `<span class="badge badge-blue">${monthNameFromIndex(mi)}</span> <span class="badge badge-gray">${monthRange}</span> <span class="badge badge-amber">${todayLabel}</span>`;
 
   const leadershipShown = pools.leadershipClosed ? (pools.leadershipClaimableUSDT || 0n) : 0n;
   const topTenShown = pools.topTenClosed ? (pools.topTenClaimableUSDT || 0n) : 0n;
