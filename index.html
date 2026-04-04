@@ -2625,7 +2625,7 @@ function renderEarnings(ranks, pools, cb) {
     },
     {
       name: '🌟 Pool Liderazgo',
-      desc: `${monthNameFromIndex(pools.monthIndex || 0n)} · ${formatMonthRange(pools.monthStartAt || 0n, pools.monthEndAt || 0n)}`,
+      desc: `${monthNameFromIndex(pools.monthIndex || 0n)},
       amount: (pools.leadershipClosed ? (pools.leadershipClaimableUSDT || 0n) : 0n),
       poolInfo: 'Total acumulado: ' + fmt18((pools.leadershipAccruedUSDT ?? pools.leadershipPoolTotalUSDT ?? 0n)) + ' USDT' + (pools.leadershipClosed ? '' : ' · Pendiente de cierre'),
       canClaim: walletAddress && currentUser === walletAddress && !!pools.leadershipClosed,
@@ -2633,7 +2633,7 @@ function renderEarnings(ranks, pools, cb) {
     },
     {
       name: '🔟 Pool Top 10',
-      desc: `${monthNameFromIndex(pools.monthIndex || 0n)} · ${formatMonthRange(pools.monthStartAt || 0n, pools.monthEndAt || 0n)}`,
+      desc: `${monthNameFromIndex(pools.monthIndex || 0n)},
       amount: (pools.topTenClosed ? (pools.topTenClaimableUSDT || 0n) : 0n),
       poolInfo: 'Total pool: ' + fmt18(pools.topTenPoolTotalUSDT || 0n) + ' USDT' + (pools.topTenClosed ? '' : ' · Pendiente de cierre'),
       canClaim: walletAddress && currentUser === walletAddress && !!pools.topTenClosed,
