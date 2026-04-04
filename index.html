@@ -2575,9 +2575,8 @@ function renderPools(pools) {
   const el = document.getElementById('pools-body');
   const badge = document.getElementById('pools-month-badge');
   const mi = pools.monthIndex || 0n;
-  const monthRange = formatMonthRange(pools.monthStartAt || 0n, pools.monthEndAt || 0n);
   const todayLabel = formatTodayWithWeekday();
-  badge.innerHTML = `<span class="badge badge-blue">${monthNameFromIndex(mi)}</span> <span class="badge badge-gray">${monthRange}</span> <span class="badge badge-amber">${todayLabel}</span>`;
+  badge.innerHTML = `<span class="badge badge-blue">${monthNameFromIndex(mi)}</span> <span class="badge badge-amber">${todayLabel}</span>`;
 
   const leadershipShown = pools.leadershipClosed ? (pools.leadershipClaimableUSDT || 0n) : 0n;
   const topTenShown = pools.topTenClosed ? (pools.topTenClaimableUSDT || 0n) : 0n;
@@ -2592,7 +2591,7 @@ function renderPools(pools) {
     <div class="pool-row">
       <div>
         <div class="pool-name">Pool Liderazgo ${pools.leadershipClosed ? '<span class="badge badge-green">Cerrado</span>' : '<span class="badge badge-amber">Abierto</span>'}</div>
-        <div class="pool-info">${monthRange} · Total: ${fmt18((pools.leadershipAccruedUSDT ?? pools.leadershipPoolTotalUSDT ?? 0n))} USDT</div>
+        <div class="pool-info">Total: ${fmt18((pools.leadershipAccruedUSDT ?? pools.leadershipPoolTotalUSDT ?? 0n))} USDT</div>
       </div>
       <div>
         <div class="pool-amount">${fmt18(leadershipShown)} USDT</div>
@@ -2602,7 +2601,7 @@ function renderPools(pools) {
     <div class="pool-row">
       <div>
         <div class="pool-name">Pool Top 10 ${inTopTen ? `<span class="badge badge-gold">#${pos}</span>` : ''} ${pools.topTenClosed ? '<span class="badge badge-green">Cerrado</span>' : '<span class="badge badge-amber">Abierto</span>'}</div>
-        <div class="pool-info">${monthRange} · Total: ${fmt18(pools.topTenPoolTotalUSDT||0n)} USDT</div>
+        <div class="pool-info">Total: ${fmt18(pools.topTenPoolTotalUSDT||0n)} USDT</div>
       </div>
       <div>
         <div class="pool-amount">${fmt18(topTenShown)} USDT</div>
