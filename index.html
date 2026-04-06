@@ -2843,24 +2843,55 @@ async function loadBinaryEligibility(addr) {
   if (!el || !addresses.ranks || !provider || !addr) return;
   try {
     const ranksRead = new ethers.Contract(addresses.ranks, RANKS_EXTENDED_ABI, provider);
-    const weekId = Number(await ranksRead.currentWeekId().catch(()=>0));
-    const eligibilityWeeks = Number(await ranksRead.eligibilityWeeks().catch(()=>4));
+    const binRead = addresses.binary ? new ethers.Contract(addresses.binary, BINARY_WEEKS_ABI, provider) : null;
+
+    let weekId = Number(currentUserFrontendCache?.binary?.currentWeekId || 0);
+    if (!weekId) weekId = Number(await ranksRead.currentWeekId().catch(() => 0));
+    if (!weekId && binRead?.currentWeekId) weekId = Number(await binRead.currentWeekId().catch(() => 0));
+
+    let eligibilityWeeks = Number(await ranksRead.eligibilityWeeks().catch(() => 4));
+    if (!eligibilityWeeks || eligibilityWeeks < 1) eligibilityWeeks = 4;
 
     let rolling = 0n;
+    let currentWeekRolling = 0n;
     const weekly = [];
+
+    const cachedRolling = [
+      BigInt(currentUserFrontendCache?.ranks?.rollingWeek0 || 0n),
+      BigInt(currentUserFrontendCache?.ranks?.rollingWeek1 || 0n),
+      BigInt(currentUserFrontendCache?.ranks?.rollingWeek2 || 0n),
+      BigInt(currentUserFrontendCache?.ranks?.rollingWeek3 || 0n),
+    ];
+    const hasCachedRolling = cachedRolling.some(v => v > 0n);
+
     for (let i = 0; i < Math.max(eligibilityWeeks, 1); i++) {
       const w = weekId - i;
       if (w < 0) continue;
-      const v = BigInt(await ranksRead.rollingVolume(addr, w).catch(()=>0n));
+      let v = 0n;
+
+      if (hasCachedRolling && i < cachedRolling.length) {
+        v = cachedRolling[i];
+      }
+      if (v === 0n) {
+        v = BigInt(await ranksRead.rollingVolume(addr, w).catch(() => 0n));
+      }
+      if (v === 0n && i === 0 && currentUserFrontendCache?.ranks?.rollingWeek0) {
+        v = BigInt(currentUserFrontendCache.ranks.rollingWeek0 || 0n);
+      }
+
+      if (i === 0) currentWeekRolling = v;
       rolling += v;
       weekly.push(`#${w}: ${fmt18(v)} USDT`);
     }
 
-    const eligible = rolling > 0n;
-    el.textContent = eligible ? 'Elegible' : 'No elegible';
+    const eligible = currentWeekRolling > 0n || rolling > 0n;
+    el.textContent = eligible ? 'ELEGIBLE' : 'NO ELEGIBLE';
     el.style.color = eligible ? 'var(--green)' : 'var(--red)';
-    if (sub) sub.textContent = `Rolling ${eligibilityWeeks} semanas: ${fmt18(rolling)} USDT${weekly.length ? ' · ' + weekly.join(' | ') : ''}`;
-  } catch {
+    if (sub) {
+      sub.textContent = `Semana actual #${weekId || 0}: ${fmt18(currentWeekRolling)} USDT · Rolling ${eligibilityWeeks} semanas: ${fmt18(rolling)} USDT${weekly.length ? ' · ' + weekly.join(' | ') : ''}`;
+    }
+  } catch (e) {
+    console.warn('loadBinaryEligibility error', e);
     el.textContent = '—';
     if (sub) sub.textContent = 'No se pudo validar';
   }
