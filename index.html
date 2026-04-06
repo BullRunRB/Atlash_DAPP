@@ -2844,11 +2844,22 @@ async function loadBinaryEligibility(addr) {
   try {
     const ranksRead = new ethers.Contract(addresses.ranks, RANKS_EXTENDED_ABI, provider);
     const weekId = Number(await ranksRead.currentWeekId().catch(()=>0));
-    const rolling = BigInt(await ranksRead.rollingVolume(addr, weekId).catch(()=>0n));
+    const eligibilityWeeks = Number(await ranksRead.eligibilityWeeks().catch(()=>4));
+
+    let rolling = 0n;
+    const weekly = [];
+    for (let i = 0; i < Math.max(eligibilityWeeks, 1); i++) {
+      const w = weekId - i;
+      if (w < 0) continue;
+      const v = BigInt(await ranksRead.rollingVolume(addr, w).catch(()=>0n));
+      rolling += v;
+      weekly.push(`#${w}: ${fmt18(v)} USDT`);
+    }
+
     const eligible = rolling > 0n;
     el.textContent = eligible ? 'Elegible' : 'No elegible';
     el.style.color = eligible ? 'var(--green)' : 'var(--red)';
-    if (sub) sub.textContent = `Rolling 4 semanas: ${fmt18(rolling)} USDT`;
+    if (sub) sub.textContent = `Rolling ${eligibilityWeeks} semanas: ${fmt18(rolling)} USDT${weekly.length ? ' · ' + weekly.join(' | ') : ''}`;
   } catch {
     el.textContent = '—';
     if (sub) sub.textContent = 'No se pudo validar';
