@@ -1515,7 +1515,16 @@ function normalizeYieldPosition(p) {
   };
 }
 const MONTH_NAMES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
-function monthNameFromIndex(mi){ const n = Number(mi ?? 1); return MONTH_NAMES[((n % 12) + 12) % 12] || `Mes ${n}`; }
+function monthNameFromIndex(mi){
+  let n = Number(mi ?? 1);
+
+  if (isNaN(n)) return 'Mes inválido';
+
+  // convertir a base 0 correctamente
+  n = ((n - 1) % 12 + 12) % 12;
+
+  return MONTH_NAMES[n];
+}
 
 // ─── UTILS ───
 function fmt18(n) {
