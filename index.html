@@ -4575,8 +4575,9 @@ async function toggleWallet() {
       searchUser();
       switchTab('overview');
     } else {
+      hideLoginGate();
       switchTab('home');
-      showLoginGate('Wallet conectada, pero aún no está registrada. Compra un paquete Core inicial para entrar al dashboard.');
+      toast('Wallet no registrada. Compra un paquete Core inicial para habilitar el dashboard.', 'info');
     }
     if (authState.isAdmin) loadAdminDashboard().catch(()=>{});
   } catch (e) {
