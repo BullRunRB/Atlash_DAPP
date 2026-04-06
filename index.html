@@ -1560,9 +1560,15 @@ function getPackageColor(packageId) {
   return PACKAGE_COLORS[Number(packageId || 0)] || 'var(--gray-300)';
 }
 
-function monthNameFromIndex(idx) {
-  const n = Number(idx ?? 0);
-  return MONTH_NAMES[(n >= 0 && n < 12) ? n : 0];
+function monthNameFromIndex(mi){
+  let n = Number(mi ?? 1);
+
+  if (isNaN(n)) return 'Mes inválido';
+
+  // convertir a base 0 correctamente
+  n = ((n - 1) % 12 + 12) % 12;
+
+  return MONTH_NAMES[n];
 }
 
 function isZero(addr) {
