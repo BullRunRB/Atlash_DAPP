@@ -754,6 +754,45 @@ body {
 /* ── PAGINATION ── */
 .pagination { display:flex; gap:6px; justify-content:center; margin-top:16px; }
 
+
+/* ── PACKAGE UI PRO ── */
+.kpi-package-card { position:relative; overflow:hidden; transition:all .18s ease; }
+.kpi-package-card::after {
+  content:''; position:absolute; inset:0; pointer-events:none;
+  background:linear-gradient(135deg, rgba(255,255,255,.00) 0%, rgba(255,255,255,.45) 100%);
+  opacity:.65;
+}
+.kpi-package-mark {
+  position:absolute; right:18px; top:16px;
+  font-size:28px; font-weight:700; opacity:.16;
+}
+.kpi-package-card.pkg-active-1 { border-color:#9ca3af; background:linear-gradient(180deg,#ffffff 0%, #f9fafb 100%); box-shadow:0 0 0 3px rgba(107,114,128,.10), var(--shadow-md); }
+.kpi-package-card.pkg-active-2 { border-color:var(--blue); background:linear-gradient(180deg,#ffffff 0%, #eff6ff 100%); box-shadow:0 0 0 3px rgba(37,99,235,.12), var(--shadow-md); }
+.kpi-package-card.pkg-active-3 { border-color:var(--purple); background:linear-gradient(180deg,#ffffff 0%, #f5f3ff 100%); box-shadow:0 0 0 3px rgba(124,58,237,.12), var(--shadow-md); }
+.kpi-package-card.pkg-active-4 { border-color:var(--gold); background:linear-gradient(180deg,#ffffff 0%, #fffbeb 100%); box-shadow:0 0 0 3px rgba(184,134,11,.16), var(--shadow-md); }
+.kpi-package-card.pkg-active-1 #stat-package, .kpi-package-card.pkg-active-1 #stat-package-name, .kpi-package-card.pkg-active-1 #stat-package-mark { color:#6b7280; }
+.kpi-package-card.pkg-active-2 #stat-package, .kpi-package-card.pkg-active-2 #stat-package-name, .kpi-package-card.pkg-active-2 #stat-package-mark { color:var(--blue); }
+.kpi-package-card.pkg-active-3 #stat-package, .kpi-package-card.pkg-active-3 #stat-package-name, .kpi-package-card.pkg-active-3 #stat-package-mark { color:var(--purple); }
+.kpi-package-card.pkg-active-4 #stat-package, .kpi-package-card.pkg-active-4 #stat-package-name, .kpi-package-card.pkg-active-4 #stat-package-mark { color:var(--gold); }
+.pkg-card { overflow:hidden; }
+.pkg-card::after {
+  content:''; position:absolute; inset:0; pointer-events:none;
+  background:linear-gradient(135deg, rgba(255,255,255,0) 35%, rgba(255,255,255,.28) 100%);
+  opacity:0; transition:opacity .18s ease;
+}
+.pkg-card.active::after { opacity:1; }
+.pkg-card .pkg-active-chip {
+  position:absolute; left:16px; top:14px; z-index:2;
+  padding:4px 9px; border-radius:999px;
+  font-size:10px; font-weight:700; letter-spacing:.7px; text-transform:uppercase;
+  background:rgba(255,255,255,.92); border:1px solid var(--gray-200); color:var(--gray-800);
+  box-shadow:var(--shadow-sm);
+}
+.pkg-card .pkg-num { transition:transform .18s ease, opacity .18s ease; }
+.pkg-card.active .pkg-num { transform:scale(1.05); opacity:.9; }
+.pkg-card.active .pkg-name { text-shadow:0 1px 0 rgba(255,255,255,.6); }
+.pkg-card.active .pkg-role { color:var(--gray-600); font-weight:600; }
+
 /* ── RESPONSIVE ── */
 @media(max-width:1100px) { .g4,.pkg-grid { grid-template-columns:repeat(2,1fr); } }
 @media(max-width:768px) {
@@ -904,15 +943,17 @@ body {
         <span class="nav-brand-name">ATLASH</span>
       </a>
       <div class="nav-tabs">
-        <button class="nav-tab active" onclick="switchTab('overview')">Overview</button>
-        <button class="nav-tab" onclick="switchTab('earnings')">Ganancias</button>
-        <button class="nav-tab" onclick="switchTab('cashback')">Cashback</button>
-        <button class="nav-tab" onclick="switchTab('ranks')">Rangos</button>
-        <button class="nav-tab" onclick="switchTab('network')">Red</button>
-        <button class="nav-tab" onclick="switchTab('yield')">Yield</button>
-        <button class="nav-tab" onclick="switchTab('marketplace')">Marketplace</button>
-        <button class="nav-tab" onclick="switchTab('contracts')">Contratos</button>
-        <button class="nav-tab" id="nav-tab-admin" onclick="switchTab('admin')" style="display:none;">Admin</button>
+        <button class="nav-tab active" onclick="switchTab('home')" data-tab="home">Inicio</button>
+        <button class="nav-tab" onclick="switchTab('overview')" data-tab="overview">Overview</button>
+        <button class="nav-tab" onclick="switchTab('pools')" data-tab="pools">Pools</button>
+        <button class="nav-tab" onclick="switchTab('earnings')" data-tab="earnings">Ganancias</button>
+        <button class="nav-tab" onclick="switchTab('cashback')" data-tab="cashback">Cashback</button>
+        <button class="nav-tab" onclick="switchTab('ranks')" data-tab="ranks">Rangos</button>
+        <button class="nav-tab" onclick="switchTab('network')" data-tab="network">Red</button>
+        <button class="nav-tab" onclick="switchTab('yield')" data-tab="yield">Yield</button>
+        <button class="nav-tab" onclick="switchTab('marketplace')" data-tab="marketplace">Marketplace</button>
+        <button class="nav-tab" onclick="switchTab('contracts')" data-tab="contracts">Contratos</button>
+        <button class="nav-tab" id="nav-tab-admin" onclick="switchTab('admin')" data-tab="admin" style="display:inline-flex;">Admin</button>
       </div>
     </div>
     <div class="nav-right">
@@ -937,11 +978,34 @@ body {
       <button class="search-go" onclick="searchUser()">Buscar</button>
     </div>
 
+
+    <!-- HOME -->
+    <div class="tab-pane active" id="tab-home">
+      <div class="grid g2">
+        <div class="panel">
+          <div class="panel-head"><div class="panel-title">Acceso a la plataforma</div><div id="home-access-badge"></div></div>
+          <div class="panel-body" id="home-access-body">
+            <div class="empty"><div class="empty-icon">🔐</div><div class="empty-title">Conecta tu wallet</div><div class="empty-desc">Si la wallet no está registrada, desde aquí podrá comprar su paquete Core inicial.</div></div>
+          </div>
+        </div>
+        <div class="panel">
+          <div class="panel-head"><div class="panel-title">Compra inicial de paquetes Core</div><div><span class="badge badge-blue">Nuevo usuario</span></div></div>
+          <div class="panel-body">
+            <div class="field"><label class="field-label">Upline / patrocinador</label><input id="home-upline" class="addr-inp" placeholder="0x... dirección del patrocinador" spellcheck="false"></div>
+            <div class="field"><label class="field-label">Pierna binaria</label><div style="display:flex;gap:8px;"><button class="chip sel" id="home-leg-left" onclick="selectHomeLeg(1)">Izquierda</button><button class="chip" id="home-leg-right" onclick="selectHomeLeg(2)">Derecha</button></div></div>
+            <div class="sec" style="margin-top:10px;"><span class="sec-label">Paquetes Core</span><span class="sec-line"></span></div>
+            <div class="pkg-grid" id="home-packages-grid"><div class="empty" style="grid-column:1/-1"><div class="empty-icon">📦</div><div class="empty-title">Cargando paquetes…</div></div></div>
+            <div id="home-buy-status" class="field-hint" style="margin-top:10px;">Conecta una wallet para comprar.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- OVERVIEW -->
     <div class="tab-pane active" id="tab-overview">
       <div id="user-card-section"></div>
       <div class="grid g4">
-        <div class="kpi"><div class="kpi-label">Paquete activo</div><div class="kpi-value c-gold" id="stat-package">-</div><div class="kpi-sub" id="stat-package-name">Sin datos</div></div>
+        <div class="kpi kpi-package-card" id="stat-package-card"><div class="kpi-label">Paquete activo</div><div class="kpi-value c-gold" id="stat-package">-</div><div class="kpi-sub" id="stat-package-name">Sin datos</div><div class="kpi-package-mark" id="stat-package-mark">✦</div></div>
         <div class="kpi"><div class="kpi-label">Rango</div><div class="kpi-value" id="stat-rank">-</div><div class="kpi-sub" id="stat-rank-sub">Módulo de rangos</div></div>
         <div class="kpi"><div class="kpi-label">Cashback disponible</div><div class="kpi-value c-green" id="stat-cashback">-</div><div class="kpi-sub" id="stat-cashback-sub">Saldo activo</div></div>
         <div class="kpi"><div class="kpi-label">Referidos directos</div><div class="kpi-value c-blue" id="stat-directs">-</div><div class="kpi-sub" id="stat-upline">Upline: -</div></div>
@@ -958,6 +1022,20 @@ body {
       </div>
       <div class="sec"><span class="sec-label">Paquetes del ecosistema</span><span class="sec-line"></span></div>
       <div class="pkg-grid" id="packages-grid"><div class="empty" style="grid-column:1/-1"><div class="empty-icon">○</div><div class="empty-title">Cargando paquetes…</div></div></div>
+    </div>
+
+
+    <!-- POOLS -->
+    <div class="tab-pane" id="tab-pools">
+      <div class="grid g3">
+        <div class="kpi"><div class="kpi-label">Mes actual</div><div class="kpi-value c-blue" id="pools-current-month-name">—</div><div class="kpi-sub" id="pools-current-month-sub">Período on-chain</div></div>
+        <div class="kpi"><div class="kpi-label">Liderazgo actual</div><div class="kpi-value c-gold" id="pools-current-leadership">—</div><div class="kpi-sub">Acumulado del mes</div></div>
+        <div class="kpi"><div class="kpi-label">Top 10 actual</div><div class="kpi-value c-gold" id="pools-current-topten">—</div><div class="kpi-sub">Acumulado del mes</div></div>
+      </div>
+      <div class="panel">
+        <div class="panel-head"><div class="panel-title">Histórico de pools por mes</div><button class="btn btn-outline" onclick="loadPoolsHistory()" style="padding:5px 14px;font-size:12px;">↻</button></div>
+        <div class="panel-body" id="pools-history-wrap"><div class="empty"><div class="empty-icon">🗓</div><div class="empty-title">Sin datos</div><div class="empty-desc">Busca un usuario o conecta tu wallet para cargar el historial.</div></div></div>
+      </div>
     </div>
 
     <!-- EARNINGS -->
@@ -1012,7 +1090,7 @@ body {
           <div class="kpi"><div class="kpi-label">Referidos directos</div><div class="kpi-value c-blue" id="uni-directs-count">—</div><div class="kpi-sub">Nivel 1</div></div>
           <div class="kpi"><div class="kpi-label">Upline / Patrocinador</div><div class="kpi-value" id="uni-upline" style="font-size:13px;letter-spacing:0;">—</div><div class="kpi-sub">Dirección</div></div>
         </div>
-        <div class="sec"><span class="sec-label">Árbol unilevel (3 niveles)</span><span class="sec-line"></span></div>
+        <div class="sec"><span class="sec-label">Árbol unilevel (10 niveles)</span><span class="sec-line"></span></div>
         <div id="unilevel-tree-wrap"><div class="empty"><div class="empty-icon">○</div><div class="empty-title">Busca un usuario para ver el árbol</div></div></div>
         <div class="sec" style="margin-top:16px;"><span class="sec-label">Directos (lista rápida)</span><span class="sec-line"></span></div>
         <div id="directs-list"><div class="empty"><div class="empty-icon">○</div><div class="empty-title">Sin referidos</div><div class="empty-desc">Busca una dirección</div></div></div>
@@ -1020,11 +1098,16 @@ body {
 
       <!-- Binary -->
       <div id="net-pane-binary" style="display:none;">
-        <div class="grid g2" style="margin-bottom:16px;">
+        <div class="grid g3" style="margin-bottom:16px;">
           <div class="kpi"><div class="kpi-label">Pierna Izquierda BV</div><div class="kpi-value c-blue" id="left-bv">—</div><div class="kpi-sub">Business Volume</div></div>
           <div class="kpi"><div class="kpi-label">Pierna Derecha BV</div><div class="kpi-value c-blue" id="right-bv">—</div><div class="kpi-sub">Business Volume</div></div>
+          <div class="kpi"><div class="kpi-label">Elegibilidad binaria</div><div class="kpi-value" id="binary-eligibility">—</div><div class="kpi-sub" id="binary-eligibility-sub">Regla del contrato</div></div>
         </div>
         <div style="margin-bottom:12px;font-size:13px;color:var(--gray-600);">Pierna: <span id="user-leg" style="font-weight:700;color:var(--gray-800);">—</span></div>
+        <div class="panel" style="margin-bottom:16px;">
+          <div class="panel-head"><div class="panel-title">Semanas del binario</div></div>
+          <div class="panel-body" id="binary-weeks-wrap"><div class="empty"><div class="empty-icon">○</div><div class="empty-title">Busca un usuario para ver semanas binarias</div></div></div>
+        </div>
         <div class="sec"><span class="sec-label">Árbol binario (hasta 10 niveles)</span><span class="sec-line"></span></div>
         <div id="binary-tree-wrap"><div class="empty"><div class="empty-icon">○</div><div class="empty-title">Busca un usuario para ver el árbol</div></div></div>
       </div>
@@ -1154,7 +1237,7 @@ body {
         <div class="panel-head"><div class="panel-title">Estado del Core</div><button class="btn btn-outline" onclick="loadCoreStatus()" style="padding:5px 14px;font-size:12px;">↻ Recargar</button></div>
         <div class="panel-body" id="core-status-body"><div class="empty"><div class="empty-icon">○</div><div class="empty-title">Conectando…</div></div></div>
       </div>
-
+    </div>
 
     <!-- ADMIN -->
     <div class="tab-pane" id="tab-admin">
@@ -1245,20 +1328,20 @@ async function createProvider(network) {
 }
 
 const TESTNET_ADDRESSES = {
+  registry:'0x1047A4837846F69575ECa5edB9F3F7A9f5e1FFc8',
+  roleResolver:'0x436d4085387d34B367530A06E272A58A028bDb8a',
+  cashback:'0x9cc09912a7f605Ed7Adff8c6c21589998DC44954',
   core:'0x45dd1f437A8C62203575b77EdCA7eBbe159cd9C4',
-  userLens:'0x8e64968Ba730F8E284aC11788c7aea5C4c96138A', 
-  adminLens:'0x5ced4763633A350D57073e7BdBdD1aD640e1B3e6', 
   ranks:'0x98A5b2207E4e5976f3dd342B4E36A2374b0A2C10',
   pools:'0xeD78cd7165aA3bEbE4bfe4Ba276380170Bc721B8',
   binary:'0xA4a3e9E27199094CfE71BB41Ad5fE20bdB99A714',
-  cashback:'0x9cc09912a7f605Ed7Adff8c6c21589998DC44954',
   yield:'0x493F039251978E679479a520F89bD5ABD9e0AE83',
-  roleResolver:'0x436d4085387d34B367530A06E272A58A028bDb8a',
   admin:'0xB4dfA0C55aCE6c2D0C5886486b814975aE7A4daD',
   config:'0x45700C227c4D6FCF9f922a10493429471Ed54eA8',
-  registry:'0x1047A4837846F69575ECa5edB9F3F7A9f5e1FFc8',
-  mktRegistry:'0xf9541311E9556ab59406cd318d2fA5f1C3dE418f', mktCatalog:'0xf484ba0088623346aAF54c31Bc271f8A47176ACE', mktCheckout:'0x119bf8d51667160CbA1F3e12e3639A4932DD3269',
-  mktTreasury:'0x11eE7bC91DC7cc8A50A8c7308E5e2cbb56319F36', mktAccess:'0xd251D6eE26AECFD1eeA45763Fc4e7e087F912B71', mktRenewal:'0x406B5bAeb4Df8c02DF8cd5c132BD15DD0DD78DEd', mktViews:'0x877670cd7c69426419A2607822e9e22C7a81D5FA'
+  userLens:'0x8e64968Ba730F8E284aC11788c7aea5C4c96138A',
+  adminLens:'0x5ced4763633A350D57073e7BdBdD1aD640e1B3e6',
+  mktRegistry:'', mktCatalog:'', mktCheckout:'',
+  mktTreasury:'', mktAccess:'', mktRenewal:'', mktViews:''
 };
 
 
@@ -1309,6 +1392,7 @@ const CORE_ABI = [
   "function claimLeadership(uint256 monthIndex) returns (uint256)",
   "function claimTopTen(uint256 monthIndex) returns (uint256)",
   "function claimAll(uint256 monthIndex) returns (uint256 leadershipAmt, uint256 topTenAmt, uint256 ranksAmt)",
+  "function buyPackage(uint8 packageId, address upline, uint8 leg) returns ()",
   "function upgradePackage(uint8 newPackageId) returns ()",
   "function upgradePackageWithCashback(uint8 newPackageId, uint256 cashbackToUse) returns ()",
   "error UserMissing()",
@@ -1342,10 +1426,14 @@ const RANKS_ABI = [
 
 const POOLS_ABI = [
   "function currentMonthIndex() view returns (uint256)",
+  "function monthStartTimestamp(uint256 monthIndex) view returns (uint256)",
+  "function monthEndTimestamp(uint256 monthIndex) view returns (uint256)",
   "function leadershipClaimable(uint256, address) view returns (uint256)",
   "function topTenClaimable(uint256, address) view returns (uint256)",
   "function leadershipPoolTotal(uint256) view returns (uint256)",
   "function topTenAccruedByMonth(uint256) view returns (uint256)",
+  "function totalLeadershipAccrued() view returns (uint256)",
+  "function totalTopTenAccrued() view returns (uint256)",
   "function claimLeadership(uint256, address) returns (uint256)",
   "function claimTopTen(uint256, address) returns (uint256)"
 ];
@@ -1363,6 +1451,29 @@ const BINARY_ABI = [
   "function leftBV(address) view returns (uint256)",
   "function rightBV(address) view returns (uint256)"
 ];
+
+const BINARY_WEEKS_ABI = [
+  "function leftBV(address) view returns (uint256)",
+  "function rightBV(address) view returns (uint256)",
+  "function pendingCurrentWeekBinary(address) view returns (uint256)",
+  "function rollingVolume(address, uint32) view returns (uint256)",
+  "function currentWeekId() view returns (uint32)",
+  "function weekTakenPoints(address, uint32) view returns (uint256)",
+  "function matchingTakenPoints(address, uint32) view returns (uint256)",
+  "function weeklyBonusPaid(address, uint32) view returns (uint256)",
+  "function binaryBonusPaid(address, uint32) view returns (uint256)",
+  "function weeklyCap(address, uint32) view returns (uint256)",
+  "function weeklyCapFor(address, uint32) view returns (uint256)",
+  "function capForWeek(address, uint32) view returns (uint256)",
+  "function weeklyBoostBP(address, uint32) view returns (uint16)",
+  "function boostAppliedBP(address, uint32) view returns (uint16)",
+  "function userWeeklyBoostBP(address, uint32) view returns (uint16)",
+  "function weekClose(uint32) view returns (bool started, bool finalized, uint32 batches, uint64 usersProcessed, uint256 matchedBV, uint256 rawPayoutUSDT, uint256 startedAt, uint256 finalizedAt)",
+  "function claimBinary() returns (uint256)",
+  "function claimCurrentWeekBinary() returns (uint256)",
+  "function claimBinary(address) returns (uint256)",
+  "function claimCurrentWeekBinary(address) returns (uint256)"
+];
 const YIELD_ABI = [
   "event PositionOpened(uint256 indexed positionId, address indexed user, uint256 amount, bool compound)",
   "function yieldPoolBalance() view returns (uint256)",
@@ -1376,6 +1487,12 @@ const YIELD_ABI = [
   "function buyYield(uint256 amount, bool startCompound) returns (uint256 positionId)",
   "function sync(uint256 positionId) returns ()",
   "function setCompound(uint256 positionId, bool compound) returns ()",
+  "function MIN_YIELD_BUY() view returns (uint256)",
+  "function VOUCHER_MIN_DIRECTS() view returns (uint16)",
+  "function claimVoucherAccrued(uint256 positionId) returns ()",
+  "function setVoucherDesiredMode(uint256 positionId, bool desiredCompound) returns ()",
+  "function setVoucherSide(uint256 positionId, uint8 side) returns ()",
+  "function cancelExpiredVoucher(uint256 positionId) returns ()",
   "event PositionOpened(uint256 indexed positionId, address indexed user, uint256 amount, bool compound)",
   "event YieldSettled(uint256 indexed positionId, address indexed user, uint256 day, uint256 amount, bool compounded)"
 ];
@@ -1401,14 +1518,54 @@ let signer = null;
 let walletAddress = null;
 let currentUser = null;
 let authState = { owner:null, guardian:null, isOwner:false, isGuardian:false, isAdmin:false };
+let currentUserFrontendCache = null;
 let currentUserPackageId = 0;
 let currentUserPackagePrice = 0n;
 
 const PACKAGE_NAMES = {1:'Trader', 2:'Network Builder', 3:'Network Leader', 4:'Ecosystem Partner'};
 const PACKAGE_COLORS = {1:'var(--blue)', 2:'var(--purple)', 3:'var(--gold)', 4:'var(--green)'};
 const LEG_NAMES = {0:'No definida', 1:'Izquierda', 2:'Derecha'};
+function tupleVal(obj, key, idx, fallback = null) {
+  try {
+    if (obj == null) return fallback;
+    if (key && obj[key] !== undefined) return obj[key];
+    if (typeof idx === 'number' && obj[idx] !== undefined) return obj[idx];
+    return fallback;
+  } catch { return fallback; }
+}
+function normalizeYieldPosition(p) {
+  if (!p) return null;
+  return {
+    positionId: tupleVal(p, 'positionId', 0, 0),
+    user: tupleVal(p, 'user', 1, tupleVal(p, 'user', 0, ethers.ZeroAddress)),
+    basePrincipal: tupleVal(p, 'basePrincipal', 1, 0n),
+    principal: tupleVal(p, 'principal', 2, 0n),
+    paidOut: tupleVal(p, 'paidOut', 3, 0n),
+    pendingAccrued: tupleVal(p, 'pendingAccrued', 4, 0n),
+    accruedTotal: tupleVal(p, 'accruedTotal', 5, 0n),
+    lastDay: tupleVal(p, 'lastDay', 6, 0),
+    grantedDay: tupleVal(p, 'grantedDay', 7, 0),
+    deadlineDay: tupleVal(p, 'deadlineDay', 8, 0),
+    compoundLockUntilDay: tupleVal(p, 'compoundLockUntilDay', 9, 0),
+    compound: tupleVal(p, 'compound', 10, false),
+    completed: tupleVal(p, 'completed', 11, false),
+    voucherStatus: tupleVal(p, 'voucherStatus', 12, 0),
+    voucherDirects: tupleVal(p, 'voucherDirects', 13, 0n),
+    voucherTotalVolume: tupleVal(p, 'voucherTotalVolume', 14, 0n),
+    voucherSide: tupleVal(p, 'voucherSide', 15, 0),
+  };
+}
 const MONTH_NAMES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
-function monthNameFromIndex(mi){ const n = Number(mi ?? 0); return MONTH_NAMES[((n % 12) + 12) % 12] || `Mes ${n}`; }
+function monthNameFromIndex(mi){
+  let n = Number(mi ?? 1);
+
+  if (isNaN(n)) return 'Mes inválido';
+
+  // convertir a base 0 correctamente
+  n = ((n - 1) % 12 + 12) % 12;
+
+  return MONTH_NAMES[n];
+}
 
 // ─── UTILS ───
 function fmt18(n) {
@@ -1426,6 +1583,15 @@ function fmtIntPoints(n) {
   }
 }
 
+
+function wholeUnits18(n) {
+  try {
+    return BigInt(ethers.formatUnits(n || 0n, 18).split('.')[0] || '0');
+  } catch {
+    try { return BigInt(Math.floor(Number(n || 0))); } catch { return 0n; }
+  }
+}
+
 function shortAddr(addr) {
   if (!addr || addr === ethers.ZeroAddress) return '-';
   return addr.slice(0,6) + '...' + addr.slice(-4);
@@ -1435,9 +1601,15 @@ function getPackageColor(packageId) {
   return PACKAGE_COLORS[Number(packageId || 0)] || 'var(--gray-300)';
 }
 
-function monthNameFromIndex(idx) {
-  const n = Number(idx ?? 0);
-  return MONTH_NAMES[(n >= 0 && n < 12) ? n : 0];
+function monthNameFromIndex(mi){
+  let n = Number(mi ?? 1);
+
+  if (isNaN(n)) return 'Mes inválido';
+
+  // convertir a base 0 correctamente
+  n = ((n - 1) % 12 + 12) % 12;
+
+  return MONTH_NAMES[n];
 }
 
 function isZero(addr) {
@@ -1455,6 +1627,26 @@ function tsToDate(ts) {
   if (!ts || ts == 0n || ts == 0) return '-';
   const d = new Date(Number(ts) * 1000);
   return d.toLocaleDateString('es-CO', {day:'2-digit',month:'short',year:'numeric'});
+}
+
+function formatMonthRange(startTs, endTs) {
+  if (!startTs || !endTs || startTs == 0n || endTs == 0n) return '-';
+  const endInclusive = BigInt(endTs) > 0n ? (BigInt(endTs) - 1n) : BigInt(endTs);
+  return `${tsToDate(startTs)} → ${tsToDate(endInclusive)}`;
+}
+
+function formatTodayWithWeekday() {
+  try {
+    const now = new Date();
+    return now.toLocaleDateString('es-CO', {
+      weekday: 'long',
+      day: '2-digit',
+      month: 'long',
+      year: 'numeric'
+    });
+  } catch {
+    return '-';
+  }
 }
 
 function secondsLeft(ts) {
@@ -1478,9 +1670,10 @@ function toast(msg, type='info') {
 }
 
 function switchTab(name) {
-  document.querySelectorAll('.nav-tab').forEach((b,i) => {
-    const names = ['overview','earnings','cashback','ranks','network','yield','marketplace','contracts','admin'];
-    b.classList.toggle('active', names[i] === name);
+  const order = ['home','overview','pools','earnings','cashback','ranks','network','yield','marketplace','contracts','admin'];
+  document.querySelectorAll('.nav-tab').forEach((b) => {
+    const t = b.getAttribute('data-tab');
+    b.classList.toggle('active', t === name);
   });
   document.querySelectorAll('.tab-pane').forEach(pane => {
     pane.classList.toggle('active', pane.id === 'tab-'+name);
@@ -1489,8 +1682,11 @@ function switchTab(name) {
   if (name === 'marketplace' && (contracts.mktCatalog || contracts.mktRegistry)) loadMarketplace().catch(() => {});
   if (name === 'ranks') loadRanksTab(currentUser || null);
   if (name === 'network' && currentUser && currentNetTab === 'binary') loadBinaryTree(currentUser);
-  if (name === 'admin' && authState.isAdmin) loadAdminDashboard().catch(()=>{});
+  if (name === 'admin') loadAdminDashboard().catch(()=>{});
+  if (name === 'pools') loadPoolsHistory().catch(()=>{});
+  if (name === 'home') loadHomeTab().catch(()=>{});
 }
+
 
 async function copyText(text) {
   try { await navigator.clipboard.writeText(text); toast('Copiado al portapapeles', 'success'); }
@@ -1617,6 +1813,8 @@ async function launchDapp() {
   // ── 8. Load data async (non-blocking)
   loadCoreStatus();
   loadPackages();
+  loadHomeTab().catch(()=>{});
+  loadPoolsHistory().catch(()=>{});
 
   // Auto-detect unset modules from Core (best-effort)
   Promise.allSettled([
@@ -1964,6 +2162,7 @@ async function detectUserYieldPositionIds(userAddr) {
 }
 
 async function loadUserFromCore(addr) {
+  currentUserFrontendCache = null;
   const [userData, directCountRes] = await Promise.allSettled([
     contracts.core.users(addr),
     contracts.core.directCount(addr)
@@ -1983,34 +2182,60 @@ async function loadUserFromCore(addr) {
 
   if (contracts.ranks) {
     try {
-      const [pen, pool] = await Promise.all([
-        contracts.ranks.pendingTotal(addr),
-        contracts.ranks.availablePool()
-      ]);
-      ranksData = {pendingUserUSDT: pen, poolAvailableUSDT: pool};
+      let pen = 0n;
+      let pool = 0n;
+      try {
+        [pen, pool] = await Promise.all([
+          contracts.ranks.pendingTotal(addr).catch(() => 0n),
+          contracts.ranks.availablePool().catch(() => 0n)
+        ]);
+      } catch {}
+      if ((!pen || pen === 0n) && addresses.ranks) {
+        try {
+          const ranksExt = new ethers.Contract(addresses.ranks, RANKS_EXTENDED_ABI, provider);
+          const pendingRewards = await Promise.all(Array.from({ length: 10 }, (_, i) => ranksExt.pendingRankReward(addr, i + 1).catch(() => 0n)));
+          pen = pendingRewards.reduce((acc, v) => acc + BigInt(v || 0n), 0n);
+        } catch {}
+      }
+      ranksData = {pendingUserUSDT: pen || 0n, poolAvailableUSDT: pool || 0n};
     } catch {}
   }
 
   if (contracts.pools) {
     try {
       const mi = await contracts.pools.currentMonthIndex();
-      const [l, t, lTotal, tTotal] = await Promise.all([
+      const [l, t, lTotal, tTotal, lAcc, tAcc, monthStartAt, monthEndAt] = await Promise.all([
         contracts.pools.leadershipClaimable(mi, addr),
         contracts.pools.topTenClaimable(mi, addr),
         contracts.pools.leadershipPoolTotal(mi),
-        contracts.pools.topTenAccruedByMonth(mi)
+        contracts.pools.topTenAccruedByMonth(mi),
+        contracts.pools.totalLeadershipAccrued ? contracts.pools.totalLeadershipAccrued().catch(() => null) : Promise.resolve(null),
+        contracts.pools.totalTopTenAccrued ? contracts.pools.totalTopTenAccrued().catch(() => null) : Promise.resolve(null),
+        contracts.pools.monthStartTimestamp ? contracts.pools.monthStartTimestamp(mi).catch(() => 0n) : Promise.resolve(0n),
+        contracts.pools.monthEndTimestamp ? contracts.pools.monthEndTimestamp(mi).catch(() => 0n) : Promise.resolve(0n)
       ]);
-      poolsData = {leadershipClaimableUSDT:l, topTenClaimableUSDT:t, leadershipPoolTotalUSDT:lTotal, leadershipAccruedUSDT:lTotal, topTenPoolTotalUSDT:tTotal, monthIndex:mi};
+      poolsData = {
+        leadershipClaimableUSDT:l,
+        topTenClaimableUSDT:t,
+        leadershipPoolTotalUSDT:lTotal,
+        leadershipAccruedUSDT:(lAcc ?? lTotal ?? 0n),
+        topTenPoolTotalUSDT:(tAcc ?? tTotal ?? 0n),
+        monthIndex:mi,
+        monthStartAt: monthStartAt || 0n,
+        monthEndAt: monthEndAt || 0n
+      };
     } catch {}
   }
 
   if (contracts.adminLens) {
     try {
       const adminOv = await contracts.adminLens.getAdminOverview(poolsData.monthIndex || 0n).catch(() => null);
-      if (adminOv?.pools?.totalLeadershipAccrued !== undefined) {
-        poolsData.leadershipAccruedUSDT = adminOv.pools.totalLeadershipAccrued || poolsData.leadershipAccruedUSDT || 0n;
-      } else if (adminOv?.month?.leadershipAccrued !== undefined) {
-        poolsData.leadershipAccruedUSDT = adminOv.month.leadershipAccrued || poolsData.leadershipAccruedUSDT || 0n;
+      const leadAdmin = tupleVal(tupleVal(adminOv,'pools',5,{}),'totalLeadershipAccrued',11,null);
+      const leadMonth = tupleVal(tupleVal(adminOv,'month',8,{}),'leadershipAccrued',3,null);
+      if (leadAdmin !== null && leadAdmin !== undefined) {
+        poolsData.leadershipAccruedUSDT = leadAdmin || poolsData.leadershipAccruedUSDT || 0n;
+      } else if (leadMonth !== null && leadMonth !== undefined) {
+        poolsData.leadershipAccruedUSDT = leadMonth || poolsData.leadershipAccruedUSDT || 0n;
       }
     } catch {}
   }
@@ -2037,6 +2262,7 @@ async function loadUserFromCore(addr) {
   renderUserCard({addr, exists, frozen, upline, highestPackage, validUntil, monthlyIncludedUntil, isActive, inactiveSecs, directs});
   renderStatsFromCore({highestPackage, validUntil, isActive, frozen}, cashbackData, directs, upline);
   renderMembership(validUntil, monthlyIncludedUntil, isActive, frozen);
+  await refreshBinaryEarningsState(addr);
   renderEarnings(ranksData, poolsData, cashbackData);
   const cashbackLots = await loadCashbackLots(addr);
   renderCashback(cashbackData, cashbackLots);
@@ -2050,11 +2276,14 @@ async function loadUserFromCore(addr) {
       ]);
       const leg = await contracts.core.userLeg(addr).catch(()=>0);
       renderBinary(lBV, rBV, leg);
+      await loadBinaryEligibility(addr);
+      await loadBinaryWeeksSection(addr, currentUserFrontendCache);
     } catch {}
   }
 
   await loadDirects(addr, directs);
   await loadYieldData(addr);
+  await loadPackages(null, highestPackage);
   // Always load ranks data
   loadRanksTab(addr).catch(()=>{});
   // Update unilevel stats
@@ -2069,6 +2298,7 @@ async function loadUserFromCore(addr) {
 }
 
 async function renderUserFromUserLens(addr, out) {
+  currentUserFrontendCache = out;
   const u = out.coreUser;
   const cb = out.cashback;
   let directsCount = Number(u.directCount || 0n);
@@ -2077,7 +2307,11 @@ async function renderUserFromUserLens(addr, out) {
   }
   currentUserPackageId = Number(u.packageId || 0);
   currentUserPackagePrice = BigInt(out.packageInfo?.price || 0n);
-  const ranks = { pendingUserUSDT: out.ranks.pendingTotal || 0n, poolAvailableUSDT: 0n };
+  let rankPendingTotal = BigInt(out.ranks.pendingTotal || 0n);
+  if (rankPendingTotal === 0n && Array.isArray(out.ranks.pendingRankRewards)) {
+    try { rankPendingTotal = Array.from(out.ranks.pendingRankRewards).reduce((acc, v) => acc + BigInt(v || 0n), 0n); } catch {}
+  }
+  const ranks = { pendingUserUSDT: rankPendingTotal, poolAvailableUSDT: 0n };
   const pools = {
     monthIndex: out.pools.monthIndex || 0n,
     monthStartAt: out.pools.monthStartAt || 0n,
@@ -2095,21 +2329,30 @@ async function renderUserFromUserLens(addr, out) {
     try {
       const mi = pools.monthIndex && pools.monthIndex > 0n ? pools.monthIndex : await contracts.pools.currentMonthIndex().catch(() => 0n);
       pools.monthIndex = mi;
-      const [leadTotal, topTotal] = await Promise.all([
+      const [leadTotal, topTotal, leadAcc, topAcc, monthStartAt, monthEndAt] = await Promise.all([
         contracts.pools.leadershipPoolTotal(mi).catch(() => 0n),
-        contracts.pools.topTenAccruedByMonth(mi).catch(() => 0n)
+        contracts.pools.topTenAccruedByMonth(mi).catch(() => 0n),
+        contracts.pools.totalLeadershipAccrued ? contracts.pools.totalLeadershipAccrued().catch(() => null) : Promise.resolve(null),
+        contracts.pools.totalTopTenAccrued ? contracts.pools.totalTopTenAccrued().catch(() => null) : Promise.resolve(null),
+        contracts.pools.monthStartTimestamp ? contracts.pools.monthStartTimestamp(mi).catch(() => pools.monthStartAt || 0n) : Promise.resolve(pools.monthStartAt || 0n),
+        contracts.pools.monthEndTimestamp ? contracts.pools.monthEndTimestamp(mi).catch(() => pools.monthEndAt || 0n) : Promise.resolve(pools.monthEndAt || 0n)
       ]);
       pools.leadershipPoolTotalUSDT = leadTotal || 0n;
-      pools.topTenPoolTotalUSDT = topTotal || 0n;
+      pools.topTenPoolTotalUSDT = topAcc ?? topTotal ?? 0n;
+      pools.leadershipAccruedUSDT = leadAcc ?? leadTotal ?? 0n;
+      pools.monthStartAt = monthStartAt || pools.monthStartAt || 0n;
+      pools.monthEndAt = monthEndAt || pools.monthEndAt || 0n;
     } catch {}
   }
   if (contracts.adminLens) {
     try {
       const adminOv = await contracts.adminLens.getAdminOverview(pools.monthIndex || 0n).catch(() => null);
-      if (adminOv?.pools?.totalLeadershipAccrued !== undefined) {
-        pools.leadershipAccruedUSDT = adminOv.pools.totalLeadershipAccrued || 0n;
-      } else if (adminOv?.month?.leadershipAccrued !== undefined) {
-        pools.leadershipAccruedUSDT = adminOv.month.leadershipAccrued || 0n;
+      const leadAdmin = tupleVal(tupleVal(adminOv,'pools',5,{}),'totalLeadershipAccrued',11,null);
+      const leadMonth = tupleVal(tupleVal(adminOv,'month',8,{}),'leadershipAccrued',3,null);
+      if (leadAdmin !== null && leadAdmin !== undefined) {
+        pools.leadershipAccruedUSDT = leadAdmin || 0n;
+      } else if (leadMonth !== null && leadMonth !== undefined) {
+        pools.leadershipAccruedUSDT = leadMonth || 0n;
       } else {
         pools.leadershipAccruedUSDT = pools.leadershipPoolTotalUSDT || 0n;
       }
@@ -2120,6 +2363,7 @@ async function renderUserFromUserLens(addr, out) {
   renderUserCard({ addr, exists:u.exists, frozen:u.frozen, upline:u.upline, highestPackage:u.packageId, validUntil:u.validUntil, monthlyIncludedUntil:u.monthlyIncludedUntil, isActive:u.activeNow, inactiveSecs:0n, directs:directsCount });
   renderStatsFromCore({ highestPackage:u.packageId, validUntil:u.validUntil, isActive:u.activeNow, frozen:u.frozen }, { balanceUSDT:cb.balance||0n, nextExpiryAt:cb.nextExpiryAt||0n, nextExpiryAmountUSDT:cb.nextExpiryAmount||0n, expiringSoonAmountUSDT:cb.expiringIn30d||0n }, directsCount, u.upline);
   renderMembership(u.validUntil, u.monthlyIncludedUntil, u.activeNow, u.frozen);
+  await refreshBinaryEarningsState(addr);
   renderEarnings(ranks, pools, { balanceUSDT: cb.balance || 0n });
   const cashbackLots = await loadCashbackLots(addr);
   renderCashback({ balanceUSDT:cb.balance||0n, nextExpiryAt:cb.nextExpiryAt||0n, nextExpiryAmountUSDT:cb.nextExpiryAmount||0n, expiringSoonAmountUSDT:cb.expiringIn30d||0n }, cashbackLots);
@@ -2130,7 +2374,7 @@ async function renderUserFromUserLens(addr, out) {
   await loadPackages(null, u.packageId);
   await loadYieldData(addr);
   await loadRanksTabFromUserLens(out);
-  try { renderBinary(out.binary.leftBV || 0n, out.binary.rightBV || 0n, out.coreUser.chosenLeg || 0); } catch {}
+  try { renderBinary(out.binary.leftBV || 0n, out.binary.rightBV || 0n, out.coreUser.chosenLeg || 0); await loadBinaryEligibility(addr); await loadBinaryWeeksSection(addr, out); } catch {}
   await loadDirects(addr, directsCount);
 }
 
@@ -2182,12 +2426,24 @@ function renderUserCard(u) {
         <div class="user-right-sub">${secondsLeft(u.validUntil)}</div>
       </div>` : ''}
     </div>
+    <div style="display:flex;justify-content:flex-end;margin-top:12px;"><button class="btn btn-outline" onclick="switchTab('pools');loadPoolsHistory();">Ver detalle de pools</button></div>
   `;
 }
 
+
 function renderStatsFromCore(userData, cb, directs, upline) {
-  document.getElementById('stat-package').textContent = userData.highestPackage > 0 ? `#${userData.highestPackage}` : '-';
-  document.getElementById('stat-package-name').textContent = PACKAGE_NAMES[userData.highestPackage] || 'Sin paquete';
+  const packageId = Number(userData.highestPackage || 0);
+  const packageCard = document.getElementById('stat-package-card');
+  const packageMark = document.getElementById('stat-package-mark');
+  document.getElementById('stat-package').textContent = packageId > 0 ? `#${packageId}` : '-';
+  document.getElementById('stat-package-name').textContent = PACKAGE_NAMES[packageId] || 'Sin paquete';
+  if (packageCard) {
+    packageCard.className = 'kpi kpi-package-card' + (packageId > 0 ? ` pkg-active-${packageId}` : '');
+  }
+  if (packageMark) {
+    packageMark.textContent = packageId > 0 ? '✦' : '•';
+  }
+
   document.getElementById('stat-rank').textContent = '-';
   document.getElementById('stat-rank-sub').textContent = 'Rank en modulo';
   document.getElementById('stat-cashback').textContent = fmt18(cb.balanceUSDT) + ' USDT';
@@ -2258,12 +2514,66 @@ async function getUpgradeOptions() {
     .map(p => ({ ...p, diff: p.price > currentPrice ? p.price - currentPrice : 0n }));
 }
 
+let upgradeCashbackState = { balance: 0n, spendable: 0n };
+
+async function getUpgradeCashbackInfo() {
+  let balance = 0n;
+  let spendable = 0n;
+  try {
+    if (contracts.userLens && currentUser) {
+      const monthIndex = contracts.pools ? await contracts.pools.currentMonthIndex().catch(()=>0n) : 0n;
+      const out = await contracts.userLens.getUserFrontend(currentUser, monthIndex, []).catch(() => null);
+      if (out?.cashback) {
+        balance = BigInt(out.cashback.balance || 0n);
+        spendable = BigInt(out.cashback.spendableForUpgrade || 0n);
+      }
+    }
+  } catch {}
+  if (balance === 0n && contracts.cashback && currentUser) {
+    try { balance = BigInt(await contracts.cashback.balanceOf(currentUser)); } catch {}
+  }
+  if (spendable === 0n) spendable = balance;
+  return { balance, spendable };
+}
+
+function getUpgradeCashbackInputValue(packageId) {
+  const inp = document.getElementById(`upgrade-cb-input-${packageId}`);
+  if (!inp) return 0n;
+  const raw = String(inp.value || '').replace(',', '.').trim();
+  if (!raw) return 0n;
+  try {
+    const parsed = ethers.parseUnits(raw, 18);
+    return parsed < 0n ? 0n : parsed;
+  } catch {
+    return 0n;
+  }
+}
+
+function updateUpgradeCashbackCard(packageId, diffWei, maxUsableWei) {
+  const inputWei = getUpgradeCashbackInputValue(packageId);
+  const useWei = inputWei > maxUsableWei ? maxUsableWei : inputWei;
+  const appliedEl = document.getElementById(`upgrade-cb-applied-${packageId}`);
+  const payableEl = document.getElementById(`upgrade-usdt-pay-${packageId}`);
+  const hintEl = document.getElementById(`upgrade-cb-hint-${packageId}`);
+  const inputEl = document.getElementById(`upgrade-cb-input-${packageId}`);
+  if (inputEl && inputWei !== useWei) inputEl.value = fmt18(useWei);
+  if (appliedEl) appliedEl.textContent = fmt18(useWei) + ' USDT';
+  if (payableEl) payableEl.textContent = fmt18(diffWei > useWei ? (diffWei - useWei) : 0n) + ' USDT';
+  if (hintEl) hintEl.textContent = maxUsableWei > 0n ? `Máximo usable en este upgrade: ${fmt18(maxUsableWei)} USDT` : 'No hay cashback usable para este upgrade';
+}
+
+function setMaxUpgradeCashback(packageId, maxUsableWei) {
+  const inputEl = document.getElementById(`upgrade-cb-input-${packageId}`);
+  if (inputEl) inputEl.value = fmt18(maxUsableWei);
+}
+
 async function openUpgradeModal() {
   if (!walletAddress || !currentUser || walletAddress.toLowerCase() !== currentUser.toLowerCase()) {
     toast('Conecta y busca tu misma wallet para hacer upgrade', 'error');
     return;
   }
   const options = await getUpgradeOptions();
+  upgradeCashbackState = await getUpgradeCashbackInfo();
   const existing = document.getElementById('upgrade-modal-bg');
   if (existing) existing.remove();
   const bg = document.createElement('div');
@@ -2271,20 +2581,45 @@ async function openUpgradeModal() {
   bg.className = 'modal-bg';
   const currentName = PACKAGE_NAMES[currentUserPackageId] || ('Paquete ' + currentUserPackageId);
   bg.innerHTML = `
-    <div class="modal" style="max-width:760px;">
+    <div class="modal" style="max-width:960px;">
       <div class="modal-title">Upgrade de paquete ATLASH</div>
       <div class="modal-sub">Paquete actual: <strong>${currentName}</strong> · Precio base: <strong>${fmt18(currentUserPackagePrice)} USDT</strong></div>
-      ${options.length ? `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;">${options.map(op => `
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;">
+        <div class="dist-box" style="margin-bottom:0;">
+          <div class="dist-title">Cashback disponible</div>
+          <div style="font-size:22px;font-weight:700;color:var(--green);font-family:var(--mono);">${fmt18(upgradeCashbackState.balance)} USDT</div>
+        </div>
+        <div class="dist-box" style="margin-bottom:0;">
+          <div class="dist-title">Cashback gastable en upgrade</div>
+          <div style="font-size:22px;font-weight:700;color:var(--blue);font-family:var(--mono);">${fmt18(upgradeCashbackState.spendable)} USDT</div>
+        </div>
+      </div>
+      ${options.length ? `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px;">${options.map(op => {
+        const maxUsable = op.diff < upgradeCashbackState.spendable ? op.diff : upgradeCashbackState.spendable;
+        return `
         <div class="pkg-card" style="padding:16px;">
           <div class="pkg-name">${PACKAGE_NAMES[op.packageId] || ('Paquete '+op.packageId)}</div>
           <div class="pkg-role">Paquete ${op.packageId}</div>
           <div class="pkg-price">${fmt18(op.price)} USDT</div>
-          <div class="mem-row"><span class="mem-label">Pagas hoy</span><span class="mem-val" style="color:var(--green);">${fmt18(op.diff)} USDT</span></div>
+          <div class="mem-row"><span class="mem-label">Diferencia upgrade</span><span class="mem-val" style="color:var(--green);">${fmt18(op.diff)} USDT</span></div>
+          <div class="mem-row"><span class="mem-label">Cashback disponible</span><span class="mem-val">${fmt18(upgradeCashbackState.balance)} USDT</span></div>
+          <div class="mem-row"><span class="mem-label">Máximo usable</span><span class="mem-val" style="color:var(--blue);">${fmt18(maxUsable)} USDT</span></div>
+          <div style="margin-top:10px;">
+            <label class="field-label">Cashback a usar</label>
+            <div style="display:flex;gap:8px;align-items:center;">
+              <input id="upgrade-cb-input-${op.packageId}" class="addr-inp" type="number" min="0" step="0.01" value="0" oninput="updateUpgradeCashbackCard(${op.packageId}, ${op.diff}n, ${maxUsable}n)" style="font-family:var(--font);" />
+              <button class="btn btn-outline" type="button" onclick="setMaxUpgradeCashback(${op.packageId}, ${maxUsable}n); updateUpgradeCashbackCard(${op.packageId}, ${op.diff}n, ${maxUsable}n)">Usar máximo</button>
+            </div>
+            <div id="upgrade-cb-hint-${op.packageId}" class="field-hint">Máximo usable en este upgrade: ${fmt18(maxUsable)} USDT</div>
+          </div>
+          <div class="mem-row"><span class="mem-label">Cashback aplicado</span><span class="mem-val" id="upgrade-cb-applied-${op.packageId}">0.00 USDT</span></div>
+          <div class="mem-row"><span class="mem-label">USDT a pagar hoy</span><span class="mem-val" id="upgrade-usdt-pay-${op.packageId}" style="color:var(--gold);">${fmt18(op.diff)} USDT</span></div>
           <div style="display:flex;gap:8px;margin-top:12px;">
-            <button class="btn btn-dark" style="flex:1;" onclick="executeUpgrade(${op.packageId})">Upgrade</button>
+            <button class="btn btn-dark" style="flex:1;" onclick="executeUpgrade(${op.packageId}, false)">Upgrade normal</button>
             <button class="btn btn-outline" style="flex:1;" onclick="executeUpgrade(${op.packageId}, true)">Con cashback</button>
           </div>
-        </div>`).join('')}</div>` : `<div class="empty"><div class="empty-icon">✅</div><div class="empty-title">No hay upgrades disponibles</div></div>`}
+        </div>`;
+      }).join('')}</div>` : `<div class="empty"><div class="empty-icon">✅</div><div class="empty-title">No hay upgrades disponibles</div></div>`}
       <div style="display:flex;justify-content:flex-end;margin-top:16px;"><button class="btn btn-outline" onclick="closeUpgradeModal()">Cerrar</button></div>
     </div>`;
   document.body.appendChild(bg);
@@ -2316,8 +2651,11 @@ async function executeUpgrade(targetPackageId, useCashback = false) {
       const tx = await coreWithSigner.upgradePackage(option.packageId);
       await tx.wait();
     } else {
+      const maxUsable = option.diff < upgradeCashbackState.spendable ? option.diff : upgradeCashbackState.spendable;
+      const cashbackToUse = getUpgradeCashbackInputValue(option.packageId);
+      const cashbackFinal = cashbackToUse > maxUsable ? maxUsable : cashbackToUse;
       toast('Ejecutando upgrade con cashback...', 'info');
-      const tx = await coreWithSigner.upgradePackageWithCashback(option.packageId, 0);
+      const tx = await coreWithSigner.upgradePackageWithCashback(option.packageId, cashbackFinal);
       await tx.wait();
     }
     toast('✅ Upgrade completado', 'success');
@@ -2332,13 +2670,14 @@ function renderPools(pools) {
   const el = document.getElementById('pools-body');
   const badge = document.getElementById('pools-month-badge');
   const mi = pools.monthIndex || 0n;
-  badge.innerHTML = `<span class="badge badge-blue">${monthNameFromIndex(mi)}</span>`;
+  const todayLabel = formatTodayWithWeekday();
+  badge.innerHTML = `<span class="badge badge-blue">${monthNameFromIndex(mi)}</span> <span class="badge badge-amber">${todayLabel}</span>`;
 
   const leadershipShown = pools.leadershipClosed ? (pools.leadershipClaimableUSDT || 0n) : 0n;
   const topTenShown = pools.topTenClosed ? (pools.topTenClaimableUSDT || 0n) : 0n;
 
-  document.getElementById('pool-leadership-total').textContent = fmt18(pools.leadershipPoolTotalUSDT||0n) + ' USDT';
-  document.getElementById('pool-topten-total').textContent = fmt18(pools.topTenPoolTotalUSDT||0n) + ' USDT';
+  document.getElementById('pool-leadership-total').textContent = fmt18((pools.leadershipAccruedUSDT ?? pools.leadershipPoolTotalUSDT ?? 0n)) + ' USDT';
+  document.getElementById('pool-topten-total').textContent = fmt18((pools.topTenPoolTotalUSDT ?? 0n)) + ' USDT';
 
   const pos = pools.userTopTenPosition;
   const inTopTen = pos > 0;
@@ -2369,6 +2708,8 @@ function renderPools(pools) {
 
 function renderEarnings(ranks, pools, cb) {
   const el = document.getElementById('earnings-list');
+  const binaryPending = BigInt(window.__binaryPendingForEarnings || 0n);
+  const binaryWeek = Number(window.__binaryWeekForEarnings || 0);
   const rows = [
     {
       name: '🏆 Bonos de Rango',
@@ -2380,7 +2721,7 @@ function renderEarnings(ranks, pools, cb) {
     },
     {
       name: '🌟 Pool Liderazgo',
-      desc: monthNameFromIndex(pools.monthIndex || 0n),
+      desc: `${monthNameFromIndex(pools.monthIndex || 0n)}`,
       amount: (pools.leadershipClosed ? (pools.leadershipClaimableUSDT || 0n) : 0n),
       poolInfo: 'Total acumulado: ' + fmt18((pools.leadershipAccruedUSDT ?? pools.leadershipPoolTotalUSDT ?? 0n)) + ' USDT' + (pools.leadershipClosed ? '' : ' · Pendiente de cierre'),
       canClaim: walletAddress && currentUser === walletAddress && !!pools.leadershipClosed,
@@ -2388,13 +2729,20 @@ function renderEarnings(ranks, pools, cb) {
     },
     {
       name: '🔟 Pool Top 10',
-      desc: monthNameFromIndex(pools.monthIndex || 0n),
+      desc: `${monthNameFromIndex(pools.monthIndex || 0n)}`,
       amount: (pools.topTenClosed ? (pools.topTenClaimableUSDT || 0n) : 0n),
       poolInfo: 'Total pool: ' + fmt18(pools.topTenPoolTotalUSDT || 0n) + ' USDT' + (pools.topTenClosed ? '' : ' · Pendiente de cierre'),
       canClaim: walletAddress && currentUser === walletAddress && !!pools.topTenClosed,
       onClaim: () => claimTopTen(pools.monthIndex)
     },
-    
+    {
+      name: '↔ Bono Binario',
+      desc: binaryWeek ? `Semana #${binaryWeek}` : 'Pendiente semanal',
+      amount: binaryPending,
+      poolInfo: binaryWeek ? ('Pendiente reservado en RanksModule para la semana ' + binaryWeek) : 'Sin semana detectada',
+      canClaim: walletAddress && currentUser === walletAddress && binaryPending > 0n,
+      onClaim: () => claimBinaryFromEarnings(binaryWeek)
+    },
   ];
 
   const total = rows.reduce((s, r) => s + ((r.canClaim ? r.amount : 0n) || 0n), 0n);
@@ -2414,9 +2762,7 @@ function renderEarnings(ranks, pools, cb) {
           <div class="amount">${fmt18(r.amount)} USDT</div>
           <div class="user-right-sub">${r.poolInfo}</div>
         </div>
-        ${r.canClaim ? `<button class="btn-claim" ${r.amount === 0n ? 'disabled' : ''} onclick="(${r.onClaim.toString()})()">
-          ${r.amount === 0n ? 'Sin saldo' : 'Reclamar'}
-        </button>` : '<span style="font-size:11px;color:var(--text-muted);font-family:&quot;DM Mono&quot;,monospace;">Informativo</span>'}
+        ${r.canClaim ? `<button class="btn btn-dark" ${r.amount === 0n ? 'disabled' : ''} onclick="(${r.onClaim.toString()})()">${r.amount === 0n ? 'Sin saldo' : 'Reclamar'}</button>` : '<span style="font-size:11px;color:var(--gray-400);font-family:var(--mono);">Informativo</span>'}
       </div>
     `).join('')}
   `;
@@ -2426,18 +2772,19 @@ function renderEarnings(ranks, pools, cb) {
 async function loadCashbackLots(addr) {
   if (!contracts.cashback || !addr) return null;
   try {
-    const res = await contracts.cashback.cashbackLotsSummary(addr, 0).catch(() => null);
+    let res = await contracts.cashback.cashbackLotsSummary(addr, 100).catch(() => null);
+    if (!res) res = await contracts.cashback.cashbackLotsSummary(addr, 50).catch(() => null);
     if (!res) return null;
-    const lotIndexes = Array.from(res.lotIndexes || []);
-    const amounts = Array.from(res.amounts || []);
-    const expiresAts = Array.from(res.expiresAts || []);
+    const lotIndexes = Array.from(tupleVal(res, 'lotIndexes', 0, []) || []);
+    const amounts = Array.from(tupleVal(res, 'amounts', 1, []) || []);
+    const expiresAts = Array.from(tupleVal(res, 'expiresAts', 2, []) || []);
     const now = BigInt(Math.floor(Date.now()/1000));
     return {
       lotIndexes,
       amountsUSDT: amounts,
       expiresAt: expiresAts,
       expired: expiresAts.map(ts => BigInt(ts || 0) <= now),
-      totalLotsReturned: Number(res.totalLotsReturned || lotIndexes.length || 0)
+      totalLotsReturned: Number(tupleVal(res, 'totalLotsReturned', 3, lotIndexes.length || 0))
     };
   } catch (e) {
     console.warn('loadCashbackLots', e);
@@ -2490,6 +2837,24 @@ function renderCashback(cb, lotsPage) {
   `;
 }
 
+async function loadBinaryEligibility(addr) {
+  const el = document.getElementById('binary-eligibility');
+  const sub = document.getElementById('binary-eligibility-sub');
+  if (!el || !addresses.ranks || !provider || !addr) return;
+  try {
+    const ranksRead = new ethers.Contract(addresses.ranks, RANKS_EXTENDED_ABI, provider);
+    const weekId = Number(await ranksRead.currentWeekId().catch(()=>0));
+    const rolling = BigInt(await ranksRead.rollingVolume(addr, weekId).catch(()=>0n));
+    const eligible = rolling > 0n;
+    el.textContent = eligible ? 'Elegible' : 'No elegible';
+    el.style.color = eligible ? 'var(--green)' : 'var(--red)';
+    if (sub) sub.textContent = `Rolling 4 semanas: ${fmt18(rolling)} USDT`;
+  } catch {
+    el.textContent = '—';
+    if (sub) sub.textContent = 'No se pudo validar';
+  }
+}
+
 function renderBinary(leftBV, rightBV, leg) {
   const fmtBV = (v) => {
     try { return Math.floor(Number(ethers.formatUnits(v || 0n, 18))).toLocaleString('es-CO'); }
@@ -2500,9 +2865,270 @@ function renderBinary(leftBV, rightBV, leg) {
   document.getElementById('user-leg').textContent = LEG_NAMES[Number(leg)] || 'No definida';
 }
 
+function fmtWeekPoints(v) {
+  try { return Math.floor(Number(ethers.formatUnits(v || 0n, 18))).toLocaleString('es-CO'); }
+  catch { return '0'; }
+}
+
+function fmtBPToPct(v) {
+  const n = Number(v || 0);
+  return (n / 100).toLocaleString('es-CO', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '%';
+}
+
+async function callFirstSuccess(contract, attempts) {
+  for (const item of attempts) {
+    try {
+      const fn = contract[item.name];
+      if (typeof fn !== 'function') continue;
+      const value = await fn(...(item.args || []));
+      return { ok: true, value, name: item.name };
+    } catch {}
+  }
+  return { ok: false, value: null, name: null };
+}
+
+async function loadBinaryWeeksSection(addr, cachedFrontend = null) {
+  const wrap = document.getElementById('binary-weeks-wrap');
+  if (!wrap) return;
+  if (!contracts.binary || !contracts.core || !addresses.binary) {
+    wrap.innerHTML = '<div class="empty"><div class="empty-icon">⚙</div><div class="empty-title">BinaryModule no configurado</div></div>';
+    return;
+  }
+
+  wrap.innerHTML = '<div style="color:var(--gray-400);font-size:13px;padding:8px 0;font-family:var(--mono);">Cargando semanas binarias…</div>';
+
+  try {
+    const binWeeks = new ethers.Contract(addresses.binary, BINARY_WEEKS_ABI, provider);
+    const ranksExt = addresses.ranks ? new ethers.Contract(addresses.ranks, RANKS_EXTENDED_ABI, provider) : null;
+
+    let currentWeekId = Number(cachedFrontend?.binary?.currentWeekId || 0);
+    let lastSettledWeek = Number(cachedFrontend?.binary?.lastSettledWeek || 0);
+    let pendingCurrentWeekBinary = BigInt(cachedFrontend?.ranks?.pendingCurrentWeekBinary || 0n);
+
+    if (!currentWeekId && ranksExt?.currentWeekId) {
+      try { currentWeekId = Number(await ranksExt.currentWeekId()); } catch {}
+    }
+    if (!currentWeekId) {
+      const wkTry = await callFirstSuccess(binWeeks, [{name:'currentWeekId', args:[]}]);
+      if (wkTry.ok) currentWeekId = Number(wkTry.value || 0);
+    }
+
+    const weekCloseMap = new Map();
+    const closeStart = Math.max(0, (currentWeekId || lastSettledWeek || 0) - 8);
+    const closeEnd = Math.max(currentWeekId || 0, lastSettledWeek || 0);
+    for (let week = closeStart; week <= closeEnd; week++) {
+      const closeTry = await callFirstSuccess(binWeeks, [{name:'weekClose', args:[week]}]);
+      if (closeTry.ok && closeTry.value) {
+        const wc = closeTry.value;
+        const parsed = {
+          started: !!tupleVal(wc, 'started', 0, false),
+          finalized: !!tupleVal(wc, 'finalized', 1, false),
+          batches: Number(tupleVal(wc, 'batches', 2, 0)),
+          usersProcessed: BigInt(tupleVal(wc, 'usersProcessed', 3, 0n) || 0n),
+          matchedBV: BigInt(tupleVal(wc, 'matchedBV', 4, 0n) || 0n),
+          rawPayoutUSDT: BigInt(tupleVal(wc, 'rawPayoutUSDT', 5, 0n) || 0n),
+          startedAt: BigInt(tupleVal(wc, 'startedAt', 6, 0n) || 0n),
+          finalizedAt: BigInt(tupleVal(wc, 'finalizedAt', 7, 0n) || 0n),
+        };
+        weekCloseMap.set(week, parsed);
+        if (parsed.finalized && week > lastSettledWeek) lastSettledWeek = week;
+      }
+    }
+
+    const weeks = [];
+    const startWeek = Math.max(0, (currentWeekId || lastSettledWeek || 0) - 5);
+    const endWeek = Math.max(currentWeekId || 0, lastSettledWeek || 0);
+
+    for (let week = endWeek; week >= startWeek; week--) {
+      const close = weekCloseMap.get(week) || null;
+      let taken = 0n, paid = 0n, cap = 0n, boostBP = 0n;
+
+      const takenTry = await callFirstSuccess(binWeeks, [
+        {name:'weekTakenPoints', args:[addr, week]},
+        {name:'matchingTakenPoints', args:[addr, week]},
+      ]);
+      if (takenTry.ok) {
+        taken = BigInt(takenTry.value || 0n);
+      } else if (week !== currentWeekId && ranksExt?.rollingVolume) {
+        try { taken = BigInt(await ranksExt.rollingVolume(addr, week)); } catch {}
+      }
+
+      const paidTry = await callFirstSuccess(binWeeks, [
+        {name:'weeklyBonusPaid', args:[addr, week]},
+        {name:'binaryBonusPaid', args:[addr, week]},
+      ]);
+      if (paidTry.ok) paid = BigInt(paidTry.value || 0n);
+
+      const capTry = await callFirstSuccess(binWeeks, [
+        {name:'weeklyCap', args:[addr, week]},
+        {name:'weeklyCapFor', args:[addr, week]},
+        {name:'capForWeek', args:[addr, week]},
+      ]);
+      if (capTry.ok) cap = BigInt(capTry.value || 0n);
+
+      const boostTry = await callFirstSuccess(binWeeks, [
+        {name:'weeklyBoostBP', args:[addr, week]},
+        {name:'boostAppliedBP', args:[addr, week]},
+        {name:'userWeeklyBoostBP', args:[addr, week]},
+      ]);
+      if (boostTry.ok) boostBP = BigInt(boostTry.value || 0n);
+
+      if (week === currentWeekId && pendingCurrentWeekBinary === 0n) {
+        const pendingTry = await callFirstSuccess(binWeeks, [{name:'pendingCurrentWeekBinary', args:[addr]}]);
+        if (pendingTry.ok) pendingCurrentWeekBinary = BigInt(pendingTry.value || 0n);
+      }
+
+      weeks.push({
+        week,
+        taken,
+        paid,
+        cap,
+        boostBP,
+        pending: week === currentWeekId ? pendingCurrentWeekBinary : 0n,
+        isCurrent: week === currentWeekId,
+        isSettled: !!close?.finalized,
+        close,
+      });
+    }
+
+    const canClaim = !!(walletAddress && currentUser && walletAddress.toLowerCase() === currentUser.toLowerCase() && signer);
+    wrap.innerHTML = `
+      <div class="grid g4" style="margin-bottom:12px;">
+        <div class="kpi"><div class="kpi-label">Semana actual</div><div class="kpi-value c-blue" style="font-size:20px;">${currentWeekId || '—'}</div><div class="kpi-sub">Week ID</div></div>
+        <div class="kpi"><div class="kpi-label">Semana liquidada</div><div class="kpi-value" style="font-size:20px;">${lastSettledWeek || '—'}</div><div class="kpi-sub">Última finalizada</div></div>
+        <div class="kpi"><div class="kpi-label">Pendiente semana actual</div><div class="kpi-value c-green" style="font-size:20px;">${fmt18(pendingCurrentWeekBinary || 0n)} USDT</div><div class="kpi-sub">Matching bonus</div></div>
+        <div class="kpi"><div class="kpi-label">Cobro binario</div><div class="kpi-value" style="font-size:14px;letter-spacing:0;">${canClaim ? '<button class="btn btn-dark" onclick="claimBinaryBonus()">Reclamar pago binario</button>' : 'Solo informativo'}</div><div class="kpi-sub">Wallet del usuario</div></div>
+      </div>
+      <table class="tbl">
+        <thead>
+          <tr>
+            <th>Semana</th>
+            <th>Puntos tomados</th>
+            <th>Bono liquidado</th>
+            <th>Cap máx. semanal</th>
+            <th>Boost</th>
+            <th>Estado</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${weeks.length ? weeks.map(w => {
+            const stateHtml = w.isCurrent
+              ? '<span class="badge badge-amber">En curso</span>'
+              : (w.isSettled ? '<span class="badge badge-green">Liquidada</span>' : '<span class="badge badge-gray">Sin dato</span>');
+            const closedMeta = w.close && w.isSettled
+              ? `<div style="font-size:10px;color:var(--gray-400);margin-top:2px;">Cierre: ${tsToDate(w.close.finalizedAt || 0n)}</div>`
+              : '';
+            return `
+            <tr>
+              <td>#${w.week}${w.isCurrent ? ' <span class="badge badge-blue">Actual</span>' : ''}</td>
+              <td>${w.taken > 0n ? fmtWeekPoints(w.taken) : '—'}</td>
+              <td>${w.paid > 0n ? fmt18(w.paid) + ' USDT' : '—'}${w.isCurrent && w.pending > 0n ? `<div style="font-size:10px;color:var(--green);margin-top:2px;">Pendiente: ${fmt18(w.pending)} USDT</div>` : ''}${closedMeta}</td>
+              <td>${w.cap > 0n ? fmt18(w.cap) + ' USDT' : '—'}</td>
+              <td>${w.boostBP > 0n ? fmtBPToPct(w.boostBP) : '—'}</td>
+              <td>${stateHtml}</td>
+            </tr>`;
+          }).join('') : '<tr><td colspan="6">Sin semanas disponibles</td></tr>'}
+        </tbody>
+      </table>
+      <div style="font-size:11px;color:var(--gray-400);margin-top:10px;">La semana liquidada se detecta con <code>weekClose(week)</code>. En la semana actual ya no se recicla el dato de la semana cerrada para “puntos tomados”.</div>
+    `;
+  } catch (e) {
+    wrap.innerHTML = `<div class="callout callout-amber"><span>⚠</span><span>No se pudo cargar la sección de semanas binarias: ${String(e?.message || e)}</span></div>`;
+  }
+}
+
+
+async function refreshBinaryEarningsState(addr) {
+  window.__binaryPendingForEarnings = 0n;
+  window.__binaryWeekForEarnings = 0;
+  if (!addresses.ranks || !provider || !addr) return;
+  try {
+    const ranksRead = new ethers.Contract(addresses.ranks, RANKS_EXTENDED_ABI, provider);
+    const weekId = Number(await ranksRead.currentWeekId().catch(()=>0));
+    let found = 0n; let foundWeek = 0;
+    for (let w = weekId; w >= Math.max(1, weekId - 8); w--) {
+      const amt = BigInt(await ranksRead.pendingBinaryReward(addr, w).catch(()=>0n));
+      if (amt > 0n) { found = amt; foundWeek = w; break; }
+    }
+    window.__binaryPendingForEarnings = found;
+    window.__binaryWeekForEarnings = foundWeek;
+  } catch {}
+}
+
+async function claimBinaryFromEarnings(weekId) {
+  if (!await ensureSigner()) return;
+  if (!addresses.ranks || !weekId) { toast('No se detectó una semana pendiente de binario', 'error'); return; }
+  try {
+    const ranksWrite = new ethers.Contract(addresses.ranks, RANKS_EXTENDED_ABI, signer);
+    toast('Reclamando bono binario...', 'info');
+    const tx = await ranksWrite.claimMyBinary(weekId);
+    await tx.wait();
+    toast('✅ Bono binario reclamado', 'success');
+    if (currentUser) { await searchUser(); }
+  } catch (e) {
+    toast('Error al reclamar binario: ' + formatContractError(e), 'error');
+  }
+}
+
+async function claimBinaryBonus() {
+  if (!await ensureSigner()) return;
+  if (!contracts.core || !contracts.binary) { toast('Core o BinaryModule no configurado', 'error'); return; }
+  if (!walletAddress || !currentUser || walletAddress.toLowerCase() !== currentUser.toLowerCase()) {
+    toast('Conecta y busca tu misma wallet para reclamar el binario', 'error');
+    return;
+  }
+
+  const attempts = [
+    { target: new ethers.Contract(addresses.binary, BINARY_WEEKS_ABI, signer), name: 'claimCurrentWeekBinary', args: [] },
+    { target: new ethers.Contract(addresses.binary, BINARY_WEEKS_ABI, signer), name: 'claimBinary', args: [] },
+    { target: new ethers.Contract(addresses.core, BINARY_WEEKS_ABI, signer), name: 'claimCurrentWeekBinary', args: [] },
+    { target: new ethers.Contract(addresses.core, BINARY_WEEKS_ABI, signer), name: 'claimBinary', args: [] },
+    { target: new ethers.Contract(addresses.binary, BINARY_WEEKS_ABI, signer), name: 'claimCurrentWeekBinary', args: [walletAddress] },
+    { target: new ethers.Contract(addresses.binary, BINARY_WEEKS_ABI, signer), name: 'claimBinary', args: [walletAddress] },
+  ];
+
+  for (const item of attempts) {
+    try {
+      if (typeof item.target[item.name] !== 'function') continue;
+      toast('Ejecutando cobro binario...', 'info');
+      const tx = await item.target[item.name](...(item.args || []));
+      await tx.wait();
+      toast('✅ Pago binario reclamado', 'success');
+      if (currentUser) {
+        await searchUser();
+        if (currentNetTab === 'binary') await loadBinaryWeeksSection(currentUser, currentUserFrontendCache);
+      }
+      return;
+    } catch {}
+  }
+
+  toast('No se encontró una función compatible para reclamar el binario en este contrato.', 'error');
+}
+
+
+const UNILEVEL_POINT_BP = [8000, 4000, 2000, 1500, 1000, 800, 600, 500, 400, 200];
+
+function getUnilevelBp(level) {
+  const idx = Number(level || 0) - 1;
+  return idx >= 0 && idx < UNILEVEL_POINT_BP.length ? UNILEVEL_POINT_BP[idx] : 0;
+}
+
+function pointsFromAmountWei(amountWei, level, isYield = false) {
+  try {
+    let basis = BigInt(amountWei || 0n);
+    if (basis <= 0n) return 0n;
+    if (isYield) basis = basis / 2n; // Yield aporta sobre el 50%
+    const bp = BigInt(getUnilevelBp(level));
+    if (bp <= 0n) return 0n;
+    return (basis * bp) / 10000n;
+  } catch {
+    return 0n;
+  }
+}
+
 function makeTreeNodeCard(node, label, compact = false) {
   if (!node) return `
-    <div style="border:1.5px dashed var(--gray-200);border-radius:var(--radius-lg);padding:${compact ? '10px' : '12px'};text-align:center;min-width:${compact ? '130px' : '152px'};">
+    <div style="border:1.5px dashed var(--gray-200);border-radius:var(--radius-lg);padding:${compact ? '10px' : '12px'};text-align:center;min-width:${compact ? '130px' : '168px'};">
       <div style="font-size:11px;color:var(--gray-300);font-family:var(--mono);">Vacío</div>
       <div style="font-size:10px;color:var(--gray-300);margin-top:2px;">${label}</div>
     </div>`;
@@ -2510,16 +3136,21 @@ function makeTreeNodeCard(node, label, compact = false) {
   const color = node.isActive ? 'var(--green)' : 'var(--red)';
   const pkgName = PACKAGE_NAMES[node.pkg] || ('Paquete ' + node.pkg);
   const yieldColor = node.yieldActive ? 'var(--gold)' : (node.hasYield ? 'var(--blue)' : 'var(--gray-300)');
-  const personalValue = Number(BigInt(node.personalPts || 0n) / (10n ** 18n));
+  const personalValue = wholeUnits18(node.personalPts || 0n);
   const totalValue = BigInt(node.totalPts || 0n);
+  const contributionTotal = wholeUnits18(node.contributionPts || 0n);
+  const contributionCore = wholeUnits18(node.coreContributionPts || 0n);
+  const contributionYield = wholeUnits18(node.yieldContributionPts || 0n);
 
   return `
-    <div style="border:1.5px solid ${color};border-radius:var(--radius-lg);padding:${compact ? '10px' : '12px'};text-align:center;min-width:${compact ? '130px' : '152px'};background:var(--white);position:relative;">
+    <div style="border:1.5px solid ${color};border-radius:var(--radius-lg);padding:${compact ? '10px' : '12px'};text-align:center;min-width:${compact ? '130px' : '168px'};background:var(--white);position:relative;">
       <div style="position:absolute;top:6px;right:8px;width:8px;height:8px;border-radius:50%;background:${color};"></div>
       <div style="font-family:var(--mono);font-size:10px;color:var(--gray-500);margin-bottom:4px;">${shortAddr(node.addr)}</div>
       <div style="font-size:${compact ? '10px' : '11px'};font-weight:700;color:var(--gray-800);margin-bottom:2px;">${pkgName}</div>
       <div style="font-size:10px;color:${yieldColor};font-weight:600;margin-bottom:4px;">${node.yieldActive ? '★ ' : (node.hasYield ? '◔ ' : '○ ')}${node.yieldLabel}</div>
-      <div style="font-size:10px;color:var(--gray-500);font-family:var(--mono);">Pts pers.: ${personalValue.toLocaleString()}</div>
+      <div style="font-size:10px;color:var(--gray-500);font-family:var(--mono);">Vol. pers.: ${fmtIntPoints(personalValue)}</div>
+      <div style="font-size:10px;color:var(--gray-800);font-family:var(--mono);font-weight:700;">Aporta: ${fmtIntPoints(contributionTotal)}</div>
+      <div style="font-size:9px;color:var(--gray-400);font-family:var(--mono);">Core: ${fmtIntPoints(contributionCore)} · Yield: ${fmtIntPoints(contributionYield)}</div>
       <div style="font-size:9px;color:var(--gray-400);font-family:var(--mono);">Pts red: ${fmtIntPoints(totalValue)}</div>
       <div style="font-size:9px;color:var(--gray-400);margin-top:3px;">${label}</div>
       <div style="margin-top:6px;"><button onclick="document.getElementById('search-addr').value='${node.addr}';searchUser();" class="btn btn-outline" style="padding:3px 10px;font-size:10px;">Ver</button></div>
@@ -2575,6 +3206,9 @@ async function getNetworkNodeInfo(nodeAddr, coreRead = contracts.core, ranksRead
       isActive: validUntil > nowTs,
       totalPts,
       personalPts,
+      contributionPts: 0n,
+      coreContributionPts: 0n,
+      yieldContributionPts: 0n,
       hasYield: yieldMeta.hasAny,
       yieldActive: yieldMeta.active,
       yieldLabel: yieldMeta.active ? 'Yield activo' : (yieldMeta.hasAny ? 'Yield registrado' : 'Sin yield'),
@@ -2587,6 +3221,9 @@ async function getNetworkNodeInfo(nodeAddr, coreRead = contracts.core, ranksRead
       isActive: false,
       totalPts: 0n,
       personalPts: 0n,
+      contributionPts: 0n,
+      coreContributionPts: 0n,
+      yieldContributionPts: 0n,
       hasYield: false,
       yieldActive: false,
       yieldLabel: 'Sin yield'
@@ -2601,7 +3238,8 @@ async function renderUnilevelTree(addr, directAddresses) {
     wrap.innerHTML = '<div class="callout callout-blue"><span>ℹ</span><span>Core no configurado</span></div>';
     return;
   }
-  wrap.innerHTML = '<div style="color:var(--gray-400);font-size:13px;padding:16px;font-family:var(--mono);">Cargando árbol unilevel...</div>';
+
+  wrap.innerHTML = '<div style="color:var(--gray-400);font-size:13px;padding:16px;font-family:var(--mono);">Cargando árbol unilevel (10 niveles)...</div>';
 
   try {
     const coreRead = contracts.core;
@@ -2616,16 +3254,16 @@ async function renderUnilevelTree(addr, directAddresses) {
         const scanCount = Math.min(total, 300);
         const startId = Math.max(1, total - scanCount + 1);
         for (let id = startId; id <= total; id++) {
-          const p = await yieldRead.positions(id).catch(() => null);
-          if (!p) continue;
-          const user = String(p.user || '').toLowerCase();
+          const pos = await yieldRead.positions(id).catch(() => null);
+          if (!pos) continue;
+          const user = String(pos.user || '').toLowerCase();
           if (!user) continue;
           const current = yieldStatusCache.get(user) || { hasAny: false, active: false, positions: 0, principal: 0n };
           current.hasAny = true;
           current.positions += 1;
-          current.principal += BigInt(p.principal || 0n);
-          const completed = !!p.completed;
-          const voucherStatus = Number(p.voucherStatus || 0);
+          current.principal += BigInt(pos.principal || 0n);
+          const completed = !!pos.completed;
+          const voucherStatus = Number(pos.voucherStatus || 0);
           if (!completed && (voucherStatus === 0 || voucherStatus === 1 || voucherStatus === 2)) current.active = true;
           yieldStatusCache.set(user, current);
         }
@@ -2633,69 +3271,106 @@ async function renderUnilevelTree(addr, directAddresses) {
     }
 
     const root = (await getNetworkNodeInfo(addr, coreRead, ranksRead, yieldRead, yieldStatusCache)) || {
-      addr, pkg: 0, exists: true, isActive: false, totalPts: 0n, personalPts: 0n, hasYield: false, yieldActive: false, yieldLabel: 'Sin yield'
+      addr, pkg: 0, exists: true, isActive: false, totalPts: 0n, personalPts: 0n, contributionPts: 0n, coreContributionPts: 0n, yieldContributionPts: 0n, hasYield: false, yieldActive: false, yieldLabel: 'Sin yield'
     };
 
-    async function fetchChildren(parents, perParentLimit) {
+    const nodeMap = new Map();
+    const levels = [];
+    const rootKey = String(addr).toLowerCase();
+    nodeMap.set(rootKey, { ...root, addr, level: 0, parent: null, children: [] });
+
+    let currentParents = [addr];
+    for (let level = 1; level <= 10; level++) {
+      if (!currentParents.length) break;
+      const nextParents = [];
       const groups = [];
-      for (const parent of parents) {
+      for (const parent of currentParents) {
         const cntRaw = await coreRead.directCount(parent).catch(() => 0n);
         const total = Number(cntRaw || 0n);
-        const cnt = Math.min(total, perParentLimit);
-        const children = (await Promise.all(Array.from({ length: cnt }, (_, i) => coreRead.directAt(parent, i).catch(() => null)))).filter(Boolean);
-        const infos = (await Promise.all(children.map(a => getNetworkNodeInfo(a, coreRead, ranksRead, yieldRead, yieldStatusCache)))).filter(Boolean);
-        groups.push({ parent, total, shown: infos.length, children: infos, extra: Math.max(0, total - infos.length) });
+        const childAddrs = (await Promise.all(Array.from({ length: total }, (_, i) => coreRead.directAt(parent, i).catch(() => null)))).filter(Boolean);
+        const infos = (await Promise.all(childAddrs.map(a => getNetworkNodeInfo(a, coreRead, ranksRead, yieldRead, yieldStatusCache)))).filter(Boolean);
+        const children = infos.map(info => {
+          const key = String(info.addr).toLowerCase();
+          const node = { ...info, level, parent, children: [], contributionPts: 0n, coreContributionPts: 0n, yieldContributionPts: 0n };
+          nodeMap.set(key, node);
+          const parentNode = nodeMap.get(String(parent).toLowerCase());
+          if (parentNode) parentNode.children.push(info.addr);
+          nextParents.push(info.addr);
+          return node;
+        });
+        groups.push({ parent, total, shown: children.length, extra: 0, children });
       }
-      return groups;
+      levels.push({ level, groups, nodes: groups.flatMap(g => g.children) });
+      currentParents = nextParents;
     }
 
-    const level1Addrs = directAddresses?.length ? directAddresses.slice(0, 12) : ((await fetchChildren([addr], 12))[0]?.children?.map(x => x.addr) || []);
-    const level1 = (await Promise.all(level1Addrs.map(a => getNetworkNodeInfo(a, coreRead, ranksRead, yieldRead, yieldStatusCache)))).filter(Boolean);
-    const safeLevel1 = level1Addrs.length ? level1 : [];
+    const nodesByAddr = new Map(Array.from(nodeMap.values()).map(n => [String(n.addr).toLowerCase(), n]));
+    const downlineAddrs = Array.from(nodesByAddr.values()).filter(n => n.level > 0).map(n => n.addr);
+    const currentBlock = await provider.getBlockNumber().catch(() => null);
+    const startBlock = currentBlock != null ? Math.max(0, currentBlock - 350000) : 0;
 
-    const level2Groups = await fetchChildren((safeLevel1.length ? safeLevel1 : level1).map(x => x.addr), 4);
-    const level2Nodes = level2Groups.flatMap(g => g.children);
-    const level3Groups = await fetchChildren(level2Nodes.map(x => x.addr), 3);
+    // Core purchases => Paid.baseAmount * level%
+    if (coreRead?.filters?.Paid && currentBlock != null) {
+      for (const node of Array.from(nodesByAddr.values()).filter(n => n.level > 0)) {
+        try {
+          const logs = await coreRead.queryFilter(coreRead.filters.Paid(node.addr), startBlock, currentBlock).catch(() => []);
+          let corePts = 0n;
+          for (const log of logs) {
+            const baseAmount = BigInt(log?.args?.baseAmount ?? 0n);
+            corePts += pointsFromAmountWei(baseAmount, node.level, false);
+          }
+          node.coreContributionPts = corePts;
+        } catch {}
+      }
+    }
+
+    // Yield purchases => PositionOpened.amount * 50% * level%
+    if (yieldRead?.filters?.PositionOpened && currentBlock != null) {
+      for (const node of Array.from(nodesByAddr.values()).filter(n => n.level > 0)) {
+        try {
+          const logs = await yieldRead.queryFilter(yieldRead.filters.PositionOpened(null, node.addr), startBlock, currentBlock).catch(() => []);
+          let yieldPts = 0n;
+          for (const log of logs) {
+            const amount = BigInt(log?.args?.amount ?? 0n);
+            yieldPts += pointsFromAmountWei(amount, node.level, true);
+          }
+          node.yieldContributionPts = yieldPts;
+        } catch {}
+      }
+    }
+
+    for (const node of Array.from(nodesByAddr.values()).filter(n => n.level > 0)) {
+      node.contributionPts = BigInt(node.coreContributionPts || 0n) + BigInt(node.yieldContributionPts || 0n);
+    }
+
+    const summaryHtml = levels.map(lvl => {
+      const totalContribution = lvl.nodes.reduce((acc, n) => acc + wholeUnits18(n.contributionPts || 0n), 0n);
+      return `<div class="kpi" style="padding:12px 14px;"><div class="kpi-label">Nivel ${lvl.level}</div><div class="kpi-value" style="font-size:18px;">${fmtIntPoints(totalContribution)}</div><div class="kpi-sub">${lvl.nodes.length} usuario(s)</div></div>`;
+    }).join('');
+
+    const levelsHtml = levels.map(lvl => `
+      <div class="sec" style="margin:14px 0 8px;"><span class="sec-label">Nivel ${lvl.level}</span><span class="sec-line"></span></div>
+      <div style="display:flex;gap:14px;overflow-x:auto;padding-bottom:8px;align-items:flex-start;">
+        ${lvl.groups.length ? lvl.groups.map(g => `
+          <div style="min-width:220px;background:var(--gray-50);border:1px solid var(--gray-200);border-radius:14px;padding:10px;">
+            <div style="font-size:10px;color:var(--gray-400);font-family:var(--mono);margin-bottom:8px;">Bajo ${shortAddr(g.parent)}</div>
+            <div style="display:flex;flex-direction:column;gap:8px;align-items:center;">
+              ${g.children.length ? g.children.map(ch => makeTreeNodeCard(ch, 'Nivel ' + lvl.level, true)).join('') : '<div style="font-size:11px;color:var(--gray-400);">Sin descendientes</div>'}
+            </div>
+          </div>`).join('') : '<div class="empty"><div class="empty-icon">○</div><div class="empty-title">Sin usuarios</div></div>'}
+      </div>`).join('');
 
     wrap.innerHTML = `
       <div style="overflow-x:auto;padding-bottom:16px;">
-        <div style="min-width:920px;display:flex;flex-direction:column;gap:16px;">
-          <div style="display:flex;justify-content:center;">${makeTreeNodeCard(root, 'Raíz')}</div>
-
-          <div class="sec" style="margin:0;"><span class="sec-label">Nivel 1</span><span class="sec-line"></span></div>
-          <div style="display:flex;justify-content:center;gap:18px;flex-wrap:wrap;align-items:flex-start;">
-            ${level1.length ? level1.map(node => `<div style="display:flex;flex-direction:column;align-items:center;gap:8px;min-width:152px;"><div style="width:1px;height:16px;background:var(--gray-300);"></div>${makeTreeNodeCard(node, 'Nivel 1', true)}</div>`).join('') : '<div class="empty" style="min-width:260px;"><div class="empty-icon">👤</div><div class="empty-title">Sin directos</div></div>'}
-          </div>
-
-          <div class="sec" style="margin:0;"><span class="sec-label">Nivel 2</span><span class="sec-line"></span></div>
-          <div style="display:flex;gap:16px;align-items:flex-start;overflow-x:auto;padding-bottom:8px;">
-            ${level2Groups.length ? level2Groups.map(g => `
-              <div style="min-width:220px;background:var(--gray-50);border:1px solid var(--gray-200);border-radius:14px;padding:10px;">
-                <div style="font-size:10px;color:var(--gray-400);font-family:var(--mono);margin-bottom:8px;">Bajo ${shortAddr(g.parent)}</div>
-                <div style="display:flex;flex-direction:column;gap:8px;align-items:center;">
-                  ${g.children.length ? g.children.map(ch => makeTreeNodeCard(ch, 'Nivel 2', true)).join('') : '<div style="font-size:11px;color:var(--gray-400);">Sin descendientes</div>'}
-                  ${g.extra > 0 ? `<div style="font-size:10px;color:var(--gray-400);">+ ${g.extra} más</div>` : ''}
-                </div>
-              </div>`).join('') : '<div class="empty"><div class="empty-icon">○</div><div class="empty-title">Sin nivel 2</div></div>'}
-          </div>
-
-          <div class="sec" style="margin:0;"><span class="sec-label">Nivel 3</span><span class="sec-line"></span></div>
-          <div style="display:flex;gap:16px;align-items:flex-start;overflow-x:auto;padding-bottom:8px;">
-            ${level3Groups.length ? level3Groups.map(g => `
-              <div style="min-width:220px;background:var(--gray-50);border:1px solid var(--gray-200);border-radius:14px;padding:10px;">
-                <div style="font-size:10px;color:var(--gray-400);font-family:var(--mono);margin-bottom:8px;">Bajo ${shortAddr(g.parent)}</div>
-                <div style="display:flex;flex-direction:column;gap:8px;align-items:center;">
-                  ${g.children.length ? g.children.map(ch => makeTreeNodeCard(ch, 'Nivel 3', true)).join('') : '<div style="font-size:11px;color:var(--gray-400);">Sin descendientes</div>'}
-                  ${g.extra > 0 ? `<div style="font-size:10px;color:var(--gray-400);">+ ${g.extra} más</div>` : ''}
-                </div>
-              </div>`).join('') : '<div class="empty"><div class="empty-icon">○</div><div class="empty-title">Sin nivel 3</div></div>'}
-          </div>
-
-          <div style="font-size:11px;color:var(--gray-400);font-family:var(--mono);text-align:center;">Vista unilevel hasta 3 niveles | Pts pers. = volumen personal | Pts red = puntos acumulados en rangos | Yield solo refleja posiciones detectadas</div>
+        <div style="min-width:960px;display:flex;flex-direction:column;gap:10px;">
+          <div style="display:flex;justify-content:center;margin-bottom:10px;">${makeTreeNodeCard(root, 'Raíz')}</div>
+          <div class="grid g4" style="margin-bottom:4px;">${summaryHtml || '<div class="empty" style="grid-column:1/-1"><div class="empty-title">Sin niveles</div></div>'}</div>
+          ${levelsHtml || '<div class="empty"><div class="empty-icon">👤</div><div class="empty-title">Sin red unilevel</div></div>'}
+          <div style="font-size:11px;color:var(--gray-400);font-family:var(--mono);text-align:center;">Puntos por nivel: 80%, 40%, 20%, 15%, 10%, 8%, 6%, 5%, 4%, 2%. Yield aporta sobre el 50% del monto. Valores mostrados en enteros.</div>
         </div>
       </div>`;
   } catch (e) {
-    wrap.innerHTML = `<div class="callout callout-red"><span>⚠</span><span>No se pudo cargar el árbol unilevel: ${escapeHtml(String(e?.message || e))}</span></div>`;
+    wrap.innerHTML = `<div class="callout callout-amber"><span>⚠</span><span>No se pudo cargar el árbol unilevel: ${String(e?.message || e)}</span></div>`;
   }
 }
 
@@ -2780,23 +3455,41 @@ async function loadPackages(activeIds, userPkg) {
   if (!contracts.core) return;
 
   try {
-    const pkgDefs = [];
-    if (contracts.userLens) {
-      const all = await contracts.userLens.getPackages().catch(()=>[]);
-      for (const p of all) {
-        const id = Number(p.packageId || 0);
-        if (!id) continue;
-        if (activeIds && !activeIds.map(Number).includes(id)) continue;
-        if (p.exists) pkgDefs.push({id, price:p.price, brokerFee:p.brokerFee, includedMonths:p.includedMonths, enabled:p.enabled});
+    let pkgDefs = [];
+    if (contracts.userLens && typeof contracts.userLens.getPackages === 'function') {
+      try {
+        const all = await contracts.userLens.getPackages();
+        pkgDefs = (Array.isArray(all) ? all : []).map(p => ({
+          id: Number(tupleVal(p, 'packageId', 0, 0)),
+          price: tupleVal(p, 'price', 1, 0n),
+          brokerFee: tupleVal(p, 'brokerFee', 2, 0n),
+          includedMonths: tupleVal(p, 'includedMonths', 3, 0),
+          enabled: !!tupleVal(p, 'enabled', 4, true),
+          exists: !!tupleVal(p, 'exists', 5, true)
+        })).filter(p => p.id > 0 && p.exists);
+      } catch (e) {
+        console.warn('getPackages lens fallback to core', e);
       }
-    } else {
-      const maxId = activeIds ? Math.max(...activeIds.map(Number)) : Number(await contracts.core.maxPackageId());
+    }
+    if (!pkgDefs.length) {
+      const maxId = activeIds ? Math.max(...activeIds.map(Number)) : Number(await contracts.core.maxPackageId().catch(() => 4n));
       for (let i = 1; i <= maxId; i++) {
         if (activeIds && !activeIds.map(Number).includes(i)) continue;
         try {
-          const [price, brokerFee, includedMonths, enabled, exists] = await contracts.core.packages(i);
-          if (exists) pkgDefs.push({id:i, price, brokerFee, includedMonths, enabled});
-        } catch {}
+          const p = await contracts.core.packages(i);
+          const exists = !!tupleVal(p, null, 4, true);
+          if (!exists) continue;
+          pkgDefs.push({
+            id: i,
+            price: tupleVal(p, null, 0, 0n),
+            brokerFee: tupleVal(p, null, 1, 0n),
+            includedMonths: tupleVal(p, null, 2, 0),
+            enabled: !!tupleVal(p, null, 3, true),
+            exists: true
+          });
+        } catch (e) {
+          console.warn('packages core read failed', i, e);
+        }
       }
     }
 
@@ -2814,9 +3507,11 @@ async function loadPackages(activeIds, userPkg) {
 
     el.innerHTML = pkgDefs.map(p => {
       const b = benefits[p.id] || {};
-      const isUserPkg = Number(userPkg) === p.id;
+      const selectedPkg = Number((userPkg ?? currentUserPackageId) || 0);
+      const isUserPkg = selectedPkg === p.id;
       return `
-        <div class="pkg-card pkg-${p.id} ${isUserPkg?'active':''}">
+        <div class="pkg-card pkg-${p.id} ${isUserPkg?'active':''}" data-package="${p.id}">
+          ${isUserPkg ? '<div class="pkg-active-chip">Activo</div>' : ''}
           <div class="pkg-num">${p.id}</div>
           <div class="pkg-name">${PACKAGE_NAMES[p.id] || 'Paquete '+p.id}</div>
           ${b.role ? `<div style="font-size:11px;color:var(--text-muted);font-family:var(--mono),monospace;margin-bottom:10px;text-transform:uppercase;letter-spacing:1px;">${b.role}</div>` : ''}
@@ -2829,14 +3524,17 @@ async function loadPackages(activeIds, userPkg) {
             ${b.hasPools ? '<li>Acceso a pools globales</li>' : ''}
             ${!p.enabled ? '<li style="color:var(--red)">Deshabilitado</li>' : ''}
           </ul>
-          ${isUserPkg ? '<div style="margin-top:12px;text-align:center;font-size:10px;font-family:\'DM Mono\',monospace;color:var(--gold);letter-spacing:1px;">★ TU PAQUETE</div>' : ''}
+          ${isUserPkg ? '<div style="margin-top:12px;display:flex;justify-content:center;"><span class="badge badge-gold">★ Paquete activo</span></div>' : ''}
         </div>
       `;
     }).join('');
   } catch(e) {
+    console.error('loadPackages error', e);
     el.innerHTML = `<div class="empty" style="grid-column:1/-1;"><div class="empty-icon">⚠️</div><div class="empty-title">Error al cargar paquetes</div><div class="empty-desc">${e.message}</div></div>`;
   }
+  renderHomePackages(registrationState.registered).catch(()=>{});
 }
+
 
 function updateContractsTab() {
   const el = document.getElementById('contracts-list');
@@ -3102,14 +3800,15 @@ async function loadYieldData(addr) {
   if (!el) return;
 
   try {
-    // Load global stats
-    const [poolBal, totalPrincipal, nextId, minRate, maxRate, buyFeeVal] = await Promise.allSettled([
+    const [poolBal, totalPrincipal, nextId, minRate, maxRate, buyFeeVal, minBuyRes, voucherMinRes] = await Promise.allSettled([
       contracts.yield.yieldPoolBalance(),
       contracts.yield.totalActivePrincipal(),
       contracts.yield.nextPositionId(),
       contracts.yield.minDailyRateBP(),
       contracts.yield.maxDailyRateBP(),
-      contracts.yield.buyFee()
+      contracts.yield.buyFee(),
+      contracts.yield.MIN_YIELD_BUY ? contracts.yield.MIN_YIELD_BUY() : Promise.resolve(null),
+      contracts.yield.VOUCHER_MIN_DIRECTS ? contracts.yield.VOUCHER_MIN_DIRECTS() : Promise.resolve(null)
     ]);
 
     const g = r => r.status === 'fulfilled' ? r.value : null;
@@ -3126,18 +3825,52 @@ async function loadYieldData(addr) {
       if (feeEl) feeEl.textContent = fmt18(g(buyFeeVal));
     }
 
-    // Load user positions by scanning events
-    const totalPositions = g(nextId) ? Number(g(nextId)) - 1 : 0;
-    if (totalPositions === 0) {
-      el.innerHTML = '<div class="empty"><div class="empty-icon">📭</div><div class="empty-title">Sin posiciones</div><div class="empty-desc">Este usuario no tiene posiciones de yield aun</div></div>';
-    } else {
-      await loadUserPositions(addr, totalPositions, el);
+    const buyPanel = document.getElementById('buy-yield-panel');
+    let metaEl = document.getElementById('yield-meta-box');
+    if (!metaEl && buyPanel) {
+      metaEl = document.createElement('div');
+      metaEl.id = 'yield-meta-box';
+      metaEl.style.marginBottom = '14px';
+      buyPanel.querySelector('.panel-body')?.prepend(metaEl);
+    }
+    if (metaEl) {
+      let todayRateText = '';
+      if (contracts.adminLens && contracts.pools) {
+        try {
+          const mi = await contracts.pools.currentMonthIndex().catch(()=>0n);
+          const adminOv = await contracts.adminLens.getAdminOverview(mi).catch(()=>null);
+          const todayRateBP = adminOv?.yield?.todayRateBP ?? null;
+          if (todayRateBP !== null && todayRateBP !== undefined) todayRateText = (Number(todayRateBP)/100).toFixed(2) + '% hoy';
+        } catch {}
+      }
+      metaEl.innerHTML = `<div class="dist-box">
+        <div class="dist-title">Yield · Parámetros actuales</div>
+        <div class="dist-grid" style="grid-template-columns:repeat(4,1fr);gap:10px;">
+          <div class="dist-item"><span class="dist-dot"></span>Fee buy: ${g(buyFeeVal) !== null ? fmt18(g(buyFeeVal)) + ' USDT' : '-'}</div>
+          <div class="dist-item"><span class="dist-dot"></span>Mínimo: ${g(minBuyRes) !== null ? fmt18(g(minBuyRes)) + ' USDT' : '-'}</div>
+          <div class="dist-item"><span class="dist-dot"></span>Voucher directos: ${g(voucherMinRes) !== null ? Number(g(voucherMinRes)) : '-'}</div>
+          <div class="dist-item"><span class="dist-dot"></span>Tasa actual: ${todayRateText || (g(minRate) !== null && g(maxRate) !== null ? (Number(g(minRate))/100).toFixed(2)+'% - '+(Number(g(maxRate))/100).toFixed(2)+'%' : '-')}</div>
+        </div>
+      </div>`;
     }
 
-    // Load allowed packages for buy form
-    await loadYieldPackages();
+    if (currentUserFrontendCache && String(currentUserFrontendCache.coreUser?.user || '').toLowerCase() === String(addr).toLowerCase() && Array.isArray(currentUserFrontendCache.yieldPositions)) {
+      const lensPositions = currentUserFrontendCache.yieldPositions.map(normalizeYieldPosition).filter(p => Number(p?.positionId || 0) > 0);
+      if (lensPositions.length) {
+        renderPositionsData(addr, lensPositions, el, true);
+      } else {
+        el.innerHTML = '<div class="empty"><div class="empty-icon">📭</div><div class="empty-title">Sin posiciones</div><div class="empty-desc">Este usuario no tiene posiciones de yield aún</div></div>';
+      }
+    } else {
+      const totalPositions = g(nextId) ? Number(g(nextId)) - 1 : 0;
+      if (totalPositions === 0) {
+        el.innerHTML = '<div class="empty"><div class="empty-icon">📭</div><div class="empty-title">Sin posiciones</div><div class="empty-desc">Este usuario no tiene posiciones de yield aun</div></div>';
+      } else {
+        await loadUserPositions(addr, totalPositions, el);
+      }
+    }
 
-    // Update buy button state
+    await loadYieldPackages();
     updateBuyYieldBtn();
 
   } catch(e) {
@@ -3230,7 +3963,7 @@ async function renderPositions(userAddr, positionIds, el) {
   for (const id of positionIds) {
     try {
       const p = await contracts.yield.positions(id);
-      posData.push({ id, ...p });
+      posData.push(normalizeYieldPosition({ positionId:id, ...p }));
     } catch(e) { /* skip */ }
   }
 
@@ -3239,44 +3972,73 @@ async function renderPositions(userAddr, positionIds, el) {
     return;
   }
 
+  renderPositionsData(userAddr, posData, el, false);
+}
+
+function renderPositionsData(userAddr, positions, el, fromLens = false) {
   const VOUCHER_STATUS = ['Normal', 'Pending', 'Activo', 'Cancelado'];
-  const canSync = walletAddress && walletAddress.toLowerCase() === userAddr.toLowerCase();
+  const SIDE_NAMES = ['No definida', 'Izquierda', 'Derecha'];
+  const canManage = walletAddress && walletAddress.toLowerCase() === userAddr.toLowerCase();
 
   let html = `<div style="display:flex;flex-direction:column;gap:12px;">`;
-  for (const p of posData) {
-    const pct = p.accruedTotal > 0n ? Math.min(100, Math.round(Number(p.accruedTotal) * 100 / Number(p.basePrincipal))) : 0;
-    const remaining = p.basePrincipal > 0n ? (200n * p.basePrincipal / 100n) - p.accruedTotal : 0n;
-    const isCompound = p.compound;
-    const vStatus = Number(p.voucherStatus);
-    const isCompleted = p.accruedTotal >= (p.basePrincipal * 2n);
+  for (const p of positions) {
+    const posId = Number(p.positionId || p.id || 0);
+    const basePrincipal = BigInt(p.basePrincipal || 0n);
+    const principal = BigInt(p.principal || 0n);
+    const paidOut = BigInt(p.paidOut || 0n);
+    const pendingAccrued = BigInt(p.pendingAccrued || 0n);
+    const accruedTotal = BigInt(p.accruedTotal || 0n);
+    const compound = !!p.compound;
+    const completed = !!p.completed || (basePrincipal > 0n && accruedTotal >= (basePrincipal * 2n));
+    const vStatus = Number(p.voucherStatus || 0);
+    const pct = basePrincipal > 0n ? Math.min(100, Math.round(Number(accruedTotal * 10000n / (basePrincipal * 2n)) / 100)) : 0;
+    const remaining = basePrincipal > 0n ? ((basePrincipal * 2n) - accruedTotal > 0n ? (basePrincipal * 2n) - accruedTotal : 0n) : 0n;
+    const grantedDay = Number(p.grantedDay || 0);
+    const deadlineDay = Number(p.deadlineDay || 0);
+    const lockDay = Number(p.compoundLockUntilDay || 0);
+    const voucherDirects = BigInt(p.voucherDirects || 0n);
+    const voucherTotalVolume = BigInt(p.voucherTotalVolume || 0n);
+    const voucherSide = Number(p.voucherSide || 0);
 
     html += `
     <div class="pos-card">
       <div class="pos-head">
         <div class="pos-title">
-          ${isCompound ? '📊' : '💸'} Posicion #${p.id}
-          <span class="badge ${isCompound ? 'badge-gold' : 'badge-green'}">${isCompound ? 'Compound' : 'Withdraw'}</span>
+          ${compound ? '📊' : '💸'} Posición #${posId}
+          <span class="badge ${compound ? 'badge-gold' : 'badge-green'}">${compound ? 'Compound' : 'Withdraw'}</span>
           ${vStatus > 0 ? `<span class="badge badge-purple">Voucher: ${VOUCHER_STATUS[vStatus]||vStatus}</span>` : ''}
-          ${isCompleted ? '<span class="badge badge-green">✓ Completada</span>' : ''}
+          ${completed ? '<span class="badge badge-green">✓ Completada</span>' : ''}
+          ${fromLens ? '<span class="badge badge-blue">Lens</span>' : ''}
         </div>
-        ${canSync && !isCompleted ? `<button class="btn btn-outline" onclick="syncPosition(${p.id})" style="padding:5px 14px;font-size:11px;">Sync ↻</button>` : ''}
+        ${canManage && !completed ? `<button class="btn btn-outline" onclick="syncPosition(${posId})" style="padding:5px 14px;font-size:11px;">Sync ↻</button>` : ''}
       </div>
       <div class="pos-body">
         <div class="pos-grid">
-          <div><div class="pos-stat-label">Principal base</div><div class="pos-stat-val" style="color:var(--gold);">${fmt18(p.basePrincipal)} USDT</div></div>
-          <div><div class="pos-stat-label">Principal actual</div><div class="pos-stat-val">${fmt18(p.principal)} USDT</div></div>
-          <div><div class="pos-stat-label">Pagado a wallet</div><div class="pos-stat-val" style="color:var(--green);">${fmt18(p.paidOut)} USDT</div></div>
-          <div><div class="pos-stat-label">Total acumulado</div><div class="pos-stat-val" style="color:var(--blue);">${fmt18(p.accruedTotal)} USDT</div></div>
+          <div><div class="pos-stat-label">Principal base</div><div class="pos-stat-val" style="color:var(--gold);">${fmt18(basePrincipal)} USDT</div></div>
+          <div><div class="pos-stat-label">Principal actual</div><div class="pos-stat-val">${fmt18(principal)} USDT</div></div>
+          <div><div class="pos-stat-label">Pagado</div><div class="pos-stat-val" style="color:var(--green);">${fmt18(paidOut)} USDT</div></div>
+          <div><div class="pos-stat-label">Acumulado</div><div class="pos-stat-val" style="color:var(--blue);">${fmt18(accruedTotal)} USDT</div></div>
         </div>
         <div>
-          <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--gray-400);margin-bottom:4px;"><span>Progreso hacia 200%</span><span style="color:var(--gold);">${pct}% - resta ${fmt18(remaining)} USDT</span></div>
+          <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--gray-400);margin-bottom:4px;"><span>Progreso hacia 200%</span><span style="color:var(--gold);">${pct}% · resta ${fmt18(remaining)} USDT</span></div>
           <div class="prog"><div class="prog-fill" style="width:${pct}%;"></div></div>
         </div>
-        ${p.pendingAccrued > 0n ? `<div style="margin-top:10px;font-family:var(--mono);font-size:11px;color:var(--amber);">⏳ Pendiente bloqueado: ${fmt18(p.pendingAccrued)} USDT</div>` : ''}
-        ${canSync && !isCompleted ? `<div style="margin-top:12px;">
-          <button onclick="togglePositionMode(${p.id}, ${!isCompound})" class="btn btn-outline" style="font-size:11px;padding:6px 14px;">
-            Cambiar a ${isCompound ? 'Withdraw' : 'Compound'}
-          </button>
+        <div class="dist-box" style="margin-top:12px;">
+          <div class="dist-title">Detalle de posición</div>
+          <div class="dist-grid" style="grid-template-columns:repeat(3,1fr);gap:8px;">
+            <div class="dist-item"><span class="dist-dot"></span>Pending accrued: ${fmt18(pendingAccrued)} USDT</div>
+            <div class="dist-item"><span class="dist-dot"></span>Granted day: ${grantedDay || '-'}</div>
+            <div class="dist-item"><span class="dist-dot"></span>Deadline day: ${deadlineDay || '-'}</div>
+            <div class="dist-item"><span class="dist-dot"></span>Compound lock: ${lockDay || '-'}</div>
+            <div class="dist-item"><span class="dist-dot"></span>Voucher directos: ${voucherDirects ? voucherDirects.toString() : '0'}</div>
+            <div class="dist-item"><span class="dist-dot"></span>Voucher volumen: ${fmt18(voucherTotalVolume)} USDT</div>
+            <div class="dist-item"><span class="dist-dot"></span>Voucher lado: ${SIDE_NAMES[voucherSide] || 'No definida'}</div>
+          </div>
+        </div>
+        ${canManage && !completed ? `<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;">
+          <button onclick="togglePositionMode(${posId}, ${!compound})" class="btn btn-outline" style="font-size:11px;padding:6px 14px;">Cambiar a ${compound ? 'Withdraw' : 'Compound'}</button>
+          ${vStatus > 0 && pendingAccrued > 0n ? `<button onclick="claimVoucherAccrued(${posId})" class="btn btn-green" style="font-size:11px;padding:6px 14px;">Cobrar voucher</button>` : ''}
+          ${vStatus === 1 ? `<button onclick="setVoucherDesiredMode(${posId}, ${!compound})" class="btn btn-outline" style="font-size:11px;padding:6px 14px;">Definir modo voucher</button>` : ''}
         </div>` : ''}
       </div>
     </div>`;
@@ -3309,6 +4071,36 @@ async function togglePositionMode(posId, newCompound) {
     const tx = await c.setCompound(posId, newCompound);
     await tx.wait();
     toast(`✅ Modo cambiado a ${newCompound ? 'Compound' : 'Withdraw'}`, 'success');
+    if (currentUser) await loadYieldData(currentUser);
+  } catch(e) {
+    toast('Error: ' + (e.reason || e.message || e), 'error');
+  }
+}
+
+async function claimVoucherAccrued(posId) {
+  if (!await ensureSigner()) return;
+  if (!contracts.yield?.claimVoucherAccrued) { toast('Función de voucher no disponible', 'error'); return; }
+  try {
+    const c = contracts.yield.connect(signer);
+    toast(`Cobrando voucher de la posición #${posId}...`, 'info');
+    const tx = await c.claimVoucherAccrued(posId);
+    await tx.wait();
+    toast('✅ Voucher cobrado', 'success');
+    if (currentUser) await loadYieldData(currentUser);
+  } catch(e) {
+    toast('Error: ' + (e.reason || e.message || e), 'error');
+  }
+}
+
+async function setVoucherDesiredMode(posId, desiredCompound) {
+  if (!await ensureSigner()) return;
+  if (!contracts.yield?.setVoucherDesiredMode) { toast('Función de voucher no disponible', 'error'); return; }
+  try {
+    const c = contracts.yield.connect(signer);
+    toast(`Actualizando preferencia de voucher #${posId}...`, 'info');
+    const tx = await c.setVoucherDesiredMode(posId, desiredCompound);
+    await tx.wait();
+    toast('✅ Preferencia de voucher actualizada', 'success');
     if (currentUser) await loadYieldData(currentUser);
   } catch(e) {
     toast('Error: ' + (e.reason || e.message || e), 'error');
@@ -3457,6 +4249,144 @@ function checkProtocol() {
 
 function showLoginGate(message) { const gate = document.getElementById('login-gate'); if (gate) gate.classList.add('show'); const line = document.getElementById('login-status-line'); if (line && message) line.textContent = message; }
 function hideLoginGate() { const gate = document.getElementById('login-gate'); if (gate) gate.classList.remove('show'); }
+
+function selectHomeLeg(leg) {
+  homeSelectedLeg = Number(leg) === 2 ? 2 : 1;
+  const l = document.getElementById('home-leg-left');
+  const r = document.getElementById('home-leg-right');
+  if (l) l.classList.toggle('sel', homeSelectedLeg === 1);
+  if (r) r.classList.toggle('sel', homeSelectedLeg === 2);
+}
+
+async function loadHomeTab() {
+  const badge = document.getElementById('home-access-badge');
+  const body = document.getElementById('home-access-body');
+  const status = document.getElementById('home-buy-status');
+  const grid = document.getElementById('home-packages-grid');
+  if (!body || !grid) return;
+  if (!walletAddress) {
+    if (badge) badge.innerHTML = '<span class="badge badge-gray">Sin wallet</span>';
+    body.innerHTML = '<div class="empty"><div class="empty-icon">🔐</div><div class="empty-title">Conecta tu wallet</div><div class="empty-desc">Si la wallet no está registrada, desde aquí podrá comprar su paquete Core inicial.</div></div>';
+    if (status) status.textContent = 'Conecta una wallet para comprar.';
+    return;
+  }
+  const reg = registrationState.checked ? registrationState : await checkWalletRegistration();
+  if (badge) badge.innerHTML = reg.registered ? '<span class="badge badge-green">Registrado</span>' : '<span class="badge badge-amber">No registrado</span>';
+  body.innerHTML = reg.registered
+    ? `<div class="callout callout-blue"><span>✅</span><span>La wallet <strong>${shortAddr(walletAddress)}</strong> ya está registrada con paquete <strong>${PACKAGE_NAMES[reg.packageId] || ('#'+reg.packageId)}</strong>. Ya puede entrar al dashboard.</span></div><div style="margin-top:12px;display:flex;gap:8px;"><button class="btn btn-dark" onclick="switchTab('overview')">Ir al dashboard</button><button class="btn btn-outline" onclick="document.getElementById('search-addr').value='${walletAddress}';searchUser();">Cargar mi perfil</button></div>`
+    : `<div class="callout callout-amber"><span>ℹ</span><span>La wallet <strong>${shortAddr(walletAddress)}</strong> aún no está registrada. Debe comprar un paquete Core para habilitar el dashboard.</span></div>`;
+  if (status) status.textContent = reg.registered ? 'Wallet registrada.' : 'Selecciona paquete, upline y pierna para comprar.';
+  await renderHomePackages(reg.registered);
+}
+
+async function renderHomePackages(isRegistered = false) {
+  const grid = document.getElementById('home-packages-grid');
+  if (!grid) return;
+  if (!contracts.core) { grid.innerHTML = '<div class="empty" style="grid-column:1/-1"><div class="empty-title">Core no configurado</div></div>'; return; }
+  let pkgDefs = [];
+  try {
+    if (contracts.userLens && typeof contracts.userLens.getPackages === 'function') {
+      const all = await contracts.userLens.getPackages().catch(()=>[]);
+      pkgDefs = (Array.isArray(all) ? all : []).map(p => ({ id:Number(tupleVal(p,'packageId',0,0)), price:tupleVal(p,'price',1,0n), includedMonths:tupleVal(p,'includedMonths',3,0), enabled:!!tupleVal(p,'enabled',4,true), exists:!!tupleVal(p,'exists',5,true) })).filter(p=>p.id>0 && p.exists);
+    }
+    if (!pkgDefs.length) {
+      const maxId = Number(await contracts.core.maxPackageId().catch(()=>4n));
+      for (let i=1;i<=maxId;i++) {
+        const p = await contracts.core.packages(i).catch(()=>null);
+        if (!p) continue;
+        if (!tupleVal(p,null,4,true)) continue;
+        pkgDefs.push({ id:i, price:tupleVal(p,null,0,0n), includedMonths:tupleVal(p,null,2,0), enabled:!!tupleVal(p,null,3,true), exists:true });
+      }
+    }
+  } catch {}
+  grid.innerHTML = pkgDefs.map(p => `
+    <div class="pkg-card pkg-${p.id} ${!p.enabled ? 'mine' : ''}">
+      <div class="pkg-num">${p.id}</div>
+      <div class="pkg-name">${PACKAGE_NAMES[p.id] || ('Paquete '+p.id)}</div>
+      <div class="pkg-role">Core Package</div>
+      <div class="pkg-price">${fmt18(p.price)} USDT</div>
+      <div class="pkg-feat">${p.includedMonths || 0} mes(es) incluidos</div>
+      <div class="pkg-feat">Compra inicial para registro</div>
+      <div style="margin-top:12px;display:flex;justify-content:center;">
+        <button class="btn ${isRegistered ? 'btn-outline' : 'btn-dark'}" ${isRegistered || !p.enabled ? 'disabled' : ''} onclick="buyCorePackage(${p.id})">${isRegistered ? 'Ya registrado' : (p.enabled ? 'Comprar paquete' : 'Deshabilitado')}</button>
+      </div>
+    </div>`).join('') || '<div class="empty" style="grid-column:1/-1"><div class="empty-title">Sin paquetes</div></div>';
+}
+
+async function buyCorePackage(packageId) {
+  if (!await ensureSigner()) return;
+  if (!walletAddress) return;
+  const reg = await checkWalletRegistration();
+  if (reg.registered) { toast('La wallet ya está registrada', 'error'); return; }
+  const upline = (document.getElementById('home-upline')?.value || '').trim();
+  if (!isValidAddr(upline)) { toast('Ingresa una dirección válida de upline', 'error'); return; }
+  const coreRead = contracts.core;
+  const coreWithSigner = coreRead.connect(signer);
+  const pkg = await coreRead.packages(packageId).catch(()=>null);
+  const price = BigInt(tupleVal(pkg,null,0,0n) || 0n);
+  const enabled = !!tupleVal(pkg,null,3,true);
+  if (!enabled || price <= 0n) { toast('Paquete no disponible', 'error'); return; }
+  try {
+    const usdtAddr = await coreRead.usdt();
+    const usdt = new ethers.Contract(usdtAddr, USDT_ABI, signer);
+    const allowance = await usdt.allowance(walletAddress, addresses.core);
+    if (allowance < price) {
+      toast('Aprobando USDT...', 'info');
+      const txA = await usdt.approve(addresses.core, price);
+      await txA.wait();
+    }
+    toast('Comprando paquete core...', 'info');
+    const tx = await coreWithSigner.buyPackage(packageId, upline, homeSelectedLeg);
+    await tx.wait();
+    toast('✅ Compra completada', 'success');
+    await checkWalletRegistration();
+    document.getElementById('search-addr').value = walletAddress;
+    await searchUser();
+    switchTab('overview');
+  } catch (e) {
+    toast('Error al comprar: ' + formatContractError(e), 'error');
+  }
+}
+
+async function loadPoolsHistory() {
+  const wrap = document.getElementById('pools-history-wrap');
+  if (!wrap) return;
+  if (!contracts.pools) { wrap.innerHTML = '<div class="empty"><div class="empty-title">PoolsModule no configurado</div></div>'; return; }
+  wrap.innerHTML = '<div style="color:var(--gray-400);font-size:13px;padding:8px 0;font-family:var(--mono);">Cargando historial de pools…</div>';
+  try {
+    const currentMonth = await contracts.pools.currentMonthIndex().catch(()=>0n);
+    const rows = [];
+    const user = currentUser || walletAddress || ethers.ZeroAddress;
+    for (let offset = 0; offset < 6; offset++) {
+      const mi = BigInt(currentMonth) - BigInt(offset);
+      if (mi <= 0n) continue;
+      const [startAt, endAt, leadTotal, topTotal, leadClaim, topClaim] = await Promise.all([
+        contracts.pools.monthStartTimestamp(mi).catch(()=>0n),
+        contracts.pools.monthEndTimestamp(mi).catch(()=>0n),
+        contracts.pools.leadershipPoolTotal(mi).catch(()=>0n),
+        contracts.pools.topTenAccruedByMonth(mi).catch(()=>0n),
+        user !== ethers.ZeroAddress ? contracts.pools.leadershipClaimable(mi, user).catch(()=>0n) : Promise.resolve(0n),
+        user !== ethers.ZeroAddress ? contracts.pools.topTenClaimable(mi, user).catch(()=>0n) : Promise.resolve(0n),
+      ]);
+      rows.push({ mi, startAt, endAt, leadTotal, topTotal, leadClaim, topClaim });
+    }
+    const first = rows[0] || null;
+    if (first) {
+      const name = document.getElementById('pools-current-month-name');
+      const sub = document.getElementById('pools-current-month-sub');
+      const l = document.getElementById('pools-current-leadership');
+      const t = document.getElementById('pools-current-topten');
+      if (name) name.textContent = monthNameFromIndex(first.mi);
+      if (sub) sub.textContent = `${tsToDate(first.startAt)} → ${tsToDate(first.endAt)}`;
+      if (l) l.textContent = fmt18(first.leadTotal) + ' USDT';
+      if (t) t.textContent = fmt18(first.topTotal) + ' USDT';
+    }
+    wrap.innerHTML = `<table class="tbl"><thead><tr><th>Mes</th><th>Periodo</th><th>Liderazgo</th><th>Top 10</th><th>Tu reclamable</th></tr></thead><tbody>${rows.map(r => `<tr><td>${monthNameFromIndex(r.mi)} (#${r.mi})</td><td>${tsToDate(r.startAt)} → ${tsToDate(r.endAt)}</td><td>${fmt18(r.leadTotal)} USDT</td><td>${fmt18(r.topTotal)} USDT</td><td>${fmt18((r.leadClaim||0n)+(r.topClaim||0n))} USDT</td></tr>`).join('')}</tbody></table>`;
+  } catch (e) {
+    wrap.innerHTML = `<div class="callout callout-amber"><span>⚠</span><span>No se pudo cargar el historial de pools: ${String(e?.message || e)}</span></div>`;
+  }
+}
+
 function updateAdminVisibility() {
   const tab = document.getElementById('nav-tab-admin'); if (tab) tab.style.display = authState.isAdmin ? '' : 'none';
   const badges = document.getElementById('login-role-badges');
@@ -3470,7 +4400,44 @@ async function refreshAuthState() {
   const line = document.getElementById('login-status-line');
   if (line) { if (!walletAddress) line.textContent='Conecta tu wallet para habilitar el dashboard.'; else if (authState.isOwner) line.textContent='Wallet validada como owner. Se habilitó la pestaña admin.'; else if (authState.isGuardian) line.textContent='Wallet validada como guardian. Se habilitó la pestaña admin.'; else line.textContent='Wallet conectada. Ya puedes usar el dashboard.'; }
 }
-function setDashboardAccess(enabled) { const app = document.getElementById('app'); if (app) app.classList.add('visible'); if (enabled) hideLoginGate(); else showLoginGate(); }
+let homeSelectedLeg = 1;
+let registrationState = { checked:false, registered:false, exists:false, packageId:0 };
+
+function setMainTabsLocked(locked) {
+  document.querySelectorAll('.nav-tab[data-tab]').forEach(btn => {
+    const tab = btn.getAttribute('data-tab');
+    const always = tab === 'home' || tab === 'contracts' || (tab === 'admin' && authState.isAdmin);
+    btn.disabled = locked && !always;
+    btn.style.opacity = (locked && !always) ? '0.45' : '';
+    btn.style.pointerEvents = (locked && !always) ? 'none' : '';
+  });
+}
+
+async function checkWalletRegistration() {
+  if (!walletAddress || !contracts.core) {
+    registrationState = { checked:false, registered:false, exists:false, packageId:0 };
+    setMainTabsLocked(false);
+    return registrationState;
+  }
+  try {
+    const u = await contracts.core.users(walletAddress);
+    const exists = !!(u?.[0]);
+    const packageId = Number(u?.[3] || 0);
+    registrationState = { checked:true, registered: exists, exists, packageId };
+  } catch {
+    registrationState = { checked:true, registered:false, exists:false, packageId:0 };
+  }
+  setMainTabsLocked(!registrationState.registered && !authState.isAdmin);
+  await loadHomeTab().catch(()=>{});
+  return registrationState;
+}
+
+function setDashboardAccess(enabled) {
+  const app = document.getElementById('app');
+  if (app) app.classList.add('visible');
+  if (enabled) hideLoginGate(); else showLoginGate();
+}
+
 
 // ─── WALLET CONNECTION - Supports MetaMask AND injected wallets (Trust, etc.) ───
 async function ensureWalletOnActiveNetwork() {
@@ -3496,7 +4463,7 @@ async function toggleWallet() {
   const btn = document.getElementById('wallet-btn');
   const loginBtn = document.getElementById('login-connect-btn');
   if (walletAddress) {
-    walletAddress = null; signer = null; authState = { owner:null, guardian:null, isOwner:false, isGuardian:false, isAdmin:false };
+    walletAddress = null; signer = null; authState = { owner:null, guardian:null, isOwner:false, isGuardian:false, isAdmin:false }; registrationState = { checked:false, registered:false, exists:false, packageId:0 }; setMainTabsLocked(false);
     if (lbl) lbl.textContent = 'Conectar wallet';
     if (loginBtn) loginBtn.textContent = 'Conectar wallet';
     if (btn) { btn.classList.remove('connected'); btn.disabled = false; }
@@ -3522,11 +4489,18 @@ async function toggleWallet() {
     if (loginBtn) loginBtn.textContent = 'Wallet conectada';
     if (btn) { btn.disabled = false; btn.classList.add('connected'); }
     await refreshAuthState();
+    await checkWalletRegistration();
     setDashboardAccess(true);
     toast(`Conectado · ${activeNetwork.label}`, 'success');
     updateBuyYieldBtn(); loadSellerBalance().catch(()=>{});
     const search = document.getElementById('search-addr'); if (search) search.value = walletAddress;
-    searchUser();
+    if (registrationState.registered || authState.isAdmin) {
+      searchUser();
+      switchTab('overview');
+    } else {
+      switchTab('home');
+      showLoginGate('Wallet conectada, pero aún no está registrada. Compra un paquete Core inicial para entrar al dashboard.');
+    }
     if (authState.isAdmin) loadAdminDashboard().catch(()=>{});
   } catch (e) {
     console.error('toggleWallet error', e);
@@ -3540,50 +4514,130 @@ async function toggleWallet() {
 }
 
 async function loadAdminDashboard() {
-  if (!authState.isAdmin) return;
-  const ov = await loadAdminLensOverview();
-  if (!ov) return;
-  const role = authState.isOwner ? 'Owner' : (authState.isGuardian ? 'Guardian' : 'Usuario');
+  const role = authState.isOwner ? 'Owner' : (authState.isGuardian ? 'Guardian' : 'Lectura');
   document.getElementById('admin-role').textContent = role;
   document.getElementById('admin-role-sub').textContent = walletAddress ? shortAddr(walletAddress) : 'Wallet actual';
-  const core = ov.core || {}; const wiring = ov.wiring || {}; const month = ov.month || {};
-  document.getElementById('admin-core-usdt').textContent = fmt18(core.usdtBalance || 0n) + ' USDT';
-  document.getElementById('admin-core-reserved').textContent = fmt18(core.reservedUSDT || 0n) + ' USDT';
-  document.getElementById('admin-core-free').textContent = fmt18(core.freeUSDT || 0n) + ' USDT';
-  document.getElementById('admin-pending-ranks').textContent = fmt18(core.pendingRanksAmount || 0n) + ' USDT';
-  document.getElementById('admin-pending-leadership').textContent = fmt18(core.pendingLeadershipAmount || 0n) + ' USDT';
-  document.getElementById('admin-pending-topten').textContent = fmt18(core.pendingTopTenAmount || 0n) + ' USDT';
+
+  const direct = await loadAdminDirectSnapshot();
+  const ov = await loadAdminLensOverview().catch(() => null);
+
+  const core = tupleVal(ov, 'core', 2, {}) || {};
+  const wiring = tupleVal(ov, 'wiring', 1, {}) || {};
+  const poolsAdmin = tupleVal(ov, 'pools', 5, {}) || {};
+  const month = tupleVal(ov, 'month', 8, {}) || {};
+
+  const ownerVal = tupleVal(core, 'owner', 0, direct.owner);
+  const guardianVal = tupleVal(core, 'guardian', 1, direct.guardian);
+  const totalUsersVal = tupleVal(core, 'totalUsers', 9, direct.totalUsers);
+  const monthIndexVal = tupleVal(core, 'currentMonthIndex', 10, tupleVal(month, 'monthIndex', 0, direct.monthIndex));
+  const usdtBalVal = tupleVal(core, 'usdtBalance', 23, direct.usdtBalance);
+  const reservedVal = tupleVal(core, 'reservedUSDT', 11, direct.reservedUSDT);
+  const freeVal = tupleVal(core, 'freeUSDT', 12, direct.freeUSDT);
+  const pendingRanksVal = tupleVal(core, 'pendingRanksAmount', 13, direct.pendingRanksAmount);
+  const pendingLeadershipVal = tupleVal(core, 'pendingLeadershipAmount', 14, direct.pendingLeadershipAmount);
+  const pendingTopTenVal = tupleVal(core, 'pendingTopTenAmount', 15, direct.pendingTopTenAmount);
+  const leadershipAccruedVal = tupleVal(poolsAdmin, 'totalLeadershipAccrued', 11, tupleVal(month, 'leadershipAccrued', 3, direct.leadershipAccrued));
+  const topTenAccruedVal = tupleVal(poolsAdmin, 'totalTopTenAccrued', 13, tupleVal(month, 'topTenAccrued', 4, direct.topTenAccrued));
+
+  document.getElementById('admin-core-usdt').textContent = fmt18(usdtBalVal || 0n) + ' USDT';
+  document.getElementById('admin-core-reserved').textContent = fmt18(reservedVal || 0n) + ' USDT';
+  document.getElementById('admin-core-free').textContent = fmt18(freeVal || 0n) + ' USDT';
+  document.getElementById('admin-pending-ranks').textContent = fmt18(pendingRanksVal || 0n) + ' USDT';
+  document.getElementById('admin-pending-leadership').textContent = fmt18(pendingLeadershipVal || 0n) + ' USDT';
+  document.getElementById('admin-pending-topten').textContent = fmt18(pendingTopTenVal || 0n) + ' USDT';
+
   const box = document.getElementById('admin-overview-box');
   if (box) box.innerHTML = `
-    <div class="mem-row"><span class="mem-label">Owner</span><span class="mem-val">${shortAddr(core.owner)}</span></div>
-    <div class="mem-row"><span class="mem-label">Guardian</span><span class="mem-val">${shortAddr(core.guardian)}</span></div>
-    <div class="mem-row"><span class="mem-label">Usuarios</span><span class="mem-val">${fmtIntPoints(core.totalUsers || 0n)}</span></div>
-    <div class="mem-row"><span class="mem-label">Month index</span><span class="mem-val">${fmtIntPoints(core.currentMonthIndex || month.monthIndex || 0n)}</span></div>
-    <div class="mem-row"><span class="mem-label">Leadership accrued</span><span class="mem-val">${fmt18(month.leadershipAccrued || 0n)} USDT</span></div>
-    <div class="mem-row" style="border:none;"><span class="mem-label">Top 10 accrued</span><span class="mem-val">${fmt18(month.topTenAccrued || 0n)} USDT</span></div>`;
+    <div class="mem-row"><span class="mem-label">Owner</span><span class="mem-val">${shortAddr(ownerVal)}</span></div>
+    <div class="mem-row"><span class="mem-label">Guardian</span><span class="mem-val">${shortAddr(guardianVal)}</span></div>
+    <div class="mem-row"><span class="mem-label">Usuarios</span><span class="mem-val">${fmtIntPoints(totalUsersVal || 0n)}</span></div>
+    <div class="mem-row"><span class="mem-label">Month index</span><span class="mem-val">${fmtIntPoints(monthIndexVal || 0n)}</span></div>
+    <div class="mem-row"><span class="mem-label">Leadership accrued</span><span class="mem-val">${fmt18(leadershipAccruedVal || 0n)} USDT</span></div>
+    <div class="mem-row" style="border:none;"><span class="mem-label">Top 10 accrued</span><span class="mem-val">${fmt18(topTenAccruedVal || 0n)} USDT</span></div>
+    ${ov ? '' : '<div style="margin-top:12px;font-size:11px;color:var(--gray-400);">Mostrando lectura directa porque AdminLens no respondió.</div>'}
+  `;
+
   const wbox = document.getElementById('admin-wiring-box');
   if (wbox) {
-    const rows = Object.entries(wiring).map(([k,v]) => `<div class="ctr-row"><span class="ctr-name">${k}</span><span class="ctr-chip ${v?'chip-ok':'chip-no'}">${v?'OK':'FAIL'}</span></div>`).join('');
-    wbox.innerHTML = rows || '<div class="empty"><div class="empty-icon">○</div><div class="empty-title">Sin checks</div></div>';
+    const entries = wiring && typeof wiring === 'object' ? Object.entries(wiring).filter(([k]) => isNaN(Number(k))) : [];
+    const rows = entries.map(([k,v]) => `<div class="ctr-row"><span class="ctr-name">${k}</span><span class="ctr-chip ${v?'chip-ok':'chip-no'}">${v?'OK':'FAIL'}</span></div>`).join('');
+    wbox.innerHTML = rows || `<div class="empty"><div class="empty-icon">ℹ</div><div class="empty-title">${ov ? 'Checks de wiring' : 'AdminLens no disponible'}</div><div class="empty-desc">${ov ? 'No se recibieron checks de wiring.' : 'Se cargaron datos directos desde Core y Pools.'}</div></div>`;
   }
 }
 
+async function loadAdminDirectSnapshot() {
+  const snap = {
+    owner: null, guardian: null, totalUsers: 0n, monthIndex: 0n,
+    usdtBalance: 0n, reservedUSDT: 0n, freeUSDT: 0n,
+    pendingRanksAmount: 0n, pendingLeadershipAmount: 0n, pendingTopTenAmount: 0n,
+    leadershipAccrued: 0n, topTenAccrued: 0n
+  };
+  if (!contracts.core) return snap;
+  try {
+    const [owner, guardian, totalUsers, pendingRanks, pendingLeadership, pendingTopTen] = await Promise.all([
+      contracts.core.owner().catch(() => null),
+      contracts.core.guardian().catch(() => null),
+      contracts.core.totalUsers().catch(() => 0n),
+      contracts.core.pendingRanksAmount().catch(() => 0n),
+      contracts.core.pendingLeadershipAmount().catch(() => 0n),
+      contracts.core.pendingTopTenAmount().catch(() => 0n)
+    ]);
+    snap.owner = owner;
+    snap.guardian = guardian;
+    snap.totalUsers = totalUsers || 0n;
+    snap.pendingRanksAmount = pendingRanks || 0n;
+    snap.pendingLeadershipAmount = pendingLeadership || 0n;
+    snap.pendingTopTenAmount = pendingTopTen || 0n;
+  } catch {}
+
+  try {
+    if (contracts.pools?.currentMonthIndex) snap.monthIndex = await contracts.pools.currentMonthIndex().catch(() => 0n);
+    if (contracts.pools?.totalLeadershipAccrued) snap.leadershipAccrued = await contracts.pools.totalLeadershipAccrued().catch(() => 0n);
+    if (contracts.pools?.totalTopTenAccrued) snap.topTenAccrued = await contracts.pools.totalTopTenAccrued().catch(() => 0n);
+  } catch {}
+
+  try {
+    const usdtAddr = await contracts.core.usdt().catch(() => null);
+    if (usdtAddr && !isZero(usdtAddr)) {
+      const usdt = new ethers.Contract(usdtAddr, USDT_ABI, provider);
+      snap.usdtBalance = await usdt.balanceOf(addresses.core).catch(() => 0n);
+    }
+  } catch {}
+
+  snap.reservedUSDT = (snap.pendingRanksAmount || 0n) + (snap.pendingLeadershipAmount || 0n) + (snap.pendingTopTenAmount || 0n);
+  snap.freeUSDT = (snap.usdtBalance || 0n) > snap.reservedUSDT ? ((snap.usdtBalance || 0n) - snap.reservedUSDT) : 0n;
+  return snap;
+}
 
 async function loadAdminLensOverview() {
+  if (!contracts.adminLens && activeNetwork === NETWORKS.testnet && TESTNET_ADDRESSES.adminLens) {
+    try {
+      addresses.adminLens = addresses.adminLens || TESTNET_ADDRESSES.adminLens;
+      contracts.adminLens = new ethers.Contract(addresses.adminLens, ADMIN_LENS_V3_ABI, provider);
+    } catch {}
+  }
   if (!contracts.adminLens || !walletAddress) return null;
   try {
     const [owner, guardian] = await Promise.all([contracts.core.owner().catch(()=>null), contracts.core.guardian().catch(()=>null)]);
     const mine = String(walletAddress).toLowerCase();
     if (owner && String(owner).toLowerCase() !== mine && guardian && String(guardian).toLowerCase() !== mine) return null;
-    const monthIndex = contracts.core.currentMonthIndex ? await contracts.core.currentMonthIndex().catch(()=>0n) : 0n;
-    return await contracts.adminLens.getAdminOverview(monthIndex);
+    const attempts = [];
+    if (contracts.pools?.currentMonthIndex) {
+      const mi = await contracts.pools.currentMonthIndex().catch(()=>0n);
+      attempts.push(mi);
+    }
+    attempts.push(0n);
+    for (const monthIndex of attempts) {
+      try {
+        const ov = await contracts.adminLens.getAdminOverview(monthIndex);
+        if (ov) return ov;
+      } catch (e) {
+        console.warn('admin lens overview attempt failed', monthIndex?.toString?.() || monthIndex, e);
+      }
+    }
+    return null;
   } catch(e) {
     console.warn('admin lens overview', e);
-    const box = document.getElementById('admin-overview-box');
-    const wbox = document.getElementById('admin-wiring-box');
-    const msg = escapeHtml(String(e?.shortMessage || e?.message || e));
-    if (box) box.innerHTML = `<div class="empty"><div class="empty-icon">⚠</div><div class="empty-title">Error cargando Admin Lens</div><div class="empty-desc">${msg.slice(0,180)}</div></div>`;
-    if (wbox) wbox.innerHTML = `<div class="empty"><div class="empty-icon">⚠</div><div class="empty-title">Sin wiring</div><div class="empty-desc">${msg.slice(0,180)}</div></div>`;
     return null;
   }
 }
@@ -4140,7 +5194,10 @@ const RANKS_EXTENDED_ABI = [
   "function minCorePackageForRank(uint256) view returns (uint8)",
   "function availablePool() view returns (uint256)",
   "function rollingVolume(address, uint32) view returns (uint256)",
-  "function currentWeekId() view returns (uint32)"
+  "function currentWeekId() view returns (uint32)",
+  "function eligibilityWeeks() view returns (uint8)",
+  "function pendingBinaryReward(address, uint32) view returns (uint256)",
+  "function claimMyBinary(uint32 weekId) returns (uint256)"
 ];
 
 const RANK_NAMES = ['—','Rango 1','Rango 2','Rango 3','Rango 4','Rango 5',
@@ -4222,6 +5279,9 @@ async function loadRanksTab(addr) {
       for (let i = 1; i <= 10; i++) pendingCalls.push(ranksExt.pendingRankReward(addr, i).catch(()=>0n));
       const pResults = await Promise.all(pendingCalls);
       for (let i = 0; i < 10; i++) pendingPerRank[i+1] = pResults[i];
+      if (!pendTotal || pendTotal === 0n) {
+        pendTotal = pResults.reduce((acc, v) => acc + BigInt(v || 0n), 0n);
+      }
     } catch {}
 
     // Get directs count + their ranks
@@ -4404,7 +5464,7 @@ function switchNetTab(tab) {
     if (btn)  btn.classList.toggle('active', t === tab);
     if (pane) pane.style.display = t === tab ? 'block' : 'none';
   });
-  if (tab === 'binary' && currentUser) loadBinaryTree(currentUser);
+  if (tab === 'binary' && currentUser) { loadBinaryTree(currentUser); loadBinaryWeeksSection(currentUser, currentUserFrontendCache); }
 }
 
 async function loadBinaryTree(addr) {
@@ -4735,7 +5795,6 @@ async function bootstrapLoginMode() {
     loadCoreStatus();
     loadPackages();
     loadYieldPackages();
-    loadMarketplace().catch(()=>{});
     setDashboardAccess(false);
     showLoginGate('Conecta tu wallet para habilitar el dashboard.');
     updateAdminVisibility();
@@ -4776,454 +5835,6 @@ if (window.ethereum) {
 
 document.addEventListener('DOMContentLoaded', () => {
   bootstrapLoginMode();
-});
-
-
-
-// ===================== ATLASH PRO EXTENSIONS (2026-04-06) =====================
-(function(){
-  const coreExtras = [
-    "function buyPackage(uint8 packageId, address upline, uint8 leg) returns ()",
-    "function promos(uint8 id) view returns (uint256,uint256,bool)",
-    "function adminModule() view returns (address)"
-  ];
-  coreExtras.forEach(x => { if (!CORE_ABI.includes(x)) CORE_ABI.push(x); });
-  const rankExtras = [
-    "function pendingRankReward(address, uint8) view returns (uint256)",
-    "function pendingBinaryReward(address, uint32) view returns (uint256)",
-    "function rollingVolume(address, uint32) view returns (uint256)",
-    "function currentWeekId() view returns (uint32)",
-    "function claimMyBinary(uint32 weekId) returns (uint256)",
-    "event BinaryRewardReserved(address indexed user, uint32 indexed weekId, uint256 amount, uint256 capEffective, uint16 boostBP)"
-  ];
-  rankExtras.forEach(x => { if (!RANKS_ABI.includes(x)) RANKS_ABI.push(x); if (typeof RANKS_EXTENDED_ABI !== 'undefined' && !RANKS_EXTENDED_ABI.includes(x)) RANKS_EXTENDED_ABI.push(x); });
-  const poolsExtras = [
-    "function monthStartTimestamp(uint256 monthIndex) view returns (uint256)",
-    "function monthEndTimestamp(uint256 monthIndex) view returns (uint256)",
-    "function leadershipMonthClosed(uint256 monthIndex) view returns (bool)",
-    "function topTenMonthClosed(uint256 monthIndex) view returns (bool)",
-    "function totalLeadershipAccrued() view returns (uint256)",
-    "function totalTopTenAccrued() view returns (uint256)"
-  ];
-  poolsExtras.forEach(x => { if (!POOLS_ABI.includes(x)) POOLS_ABI.push(x); });
-  const binaryExtras = [
-    "function currentWeekId() view returns (uint32)",
-    "function lastSettledWeek(address) view returns (uint32)",
-    "function parentOf(address) view returns (address)",
-    "function isPlaced(address) view returns (bool)",
-    "function isLeftOfParent(address) view returns (bool)",
-    "function leftChildOf(address) view returns (address)",
-    "function rightChildOf(address) view returns (address)",
-    "function weekClose(uint32) view returns (bool started, bool finalized, uint32 batches, uint64 usersProcessed, uint256 matchedBV, uint256 rawPayoutUSDT, uint256 startedAt, uint256 finalizedAt)"
-  ];
-  binaryExtras.forEach(x => { if (!BINARY_ABI.includes(x)) BINARY_ABI.push(x); });
-})();
-
-window.__atlashRegState = { checked:false, exists:false, frozen:false, active:false, packageId:0, upline:ethers.ZeroAddress, validUntil:0n, monthlyIncludedUntil:0n };
-window.__atlashBinaryEarnings = { totalClaimable:0n, currentPending:0n, weekIds:[], perWeek:{} };
-window.__atlashPoolsHistory = [];
-
-async function getWalletRegistrationState(addr){
-  const fallback = { checked:true, exists:false, frozen:false, active:false, packageId:0, upline:ethers.ZeroAddress, validUntil:0n, monthlyIncludedUntil:0n };
-  if (!addr || !contracts.core) return fallback;
-  try {
-    const u = await contracts.core.users(addr).catch(async () => {
-      const s = await contracts.core.getUserStatus(addr);
-      return [s[3], s[4], s[2], s[0], s[1], 0n];
-    });
-    const exists = !!u[0];
-    const frozen = !!u[1];
-    const upline = u[2] || ethers.ZeroAddress;
-    const packageId = Number(u[3] || 0);
-    const validUntil = BigInt(u[4] || 0n);
-    const monthlyIncludedUntil = BigInt(u[5] || 0n);
-    const now = BigInt(Math.floor(Date.now()/1000));
-    return { checked:true, exists, frozen, active: exists && !frozen && validUntil >= now, packageId, upline, validUntil, monthlyIncludedUntil };
-  } catch {
-    return fallback;
-  }
-}
-
-function ensureProTabs(){
-  const nav = document.querySelector('.nav-tabs');
-  if (nav && !document.getElementById('nav-tab-onboarding')) {
-    Array.from(nav.querySelectorAll('.nav-tab')).forEach(btn => {
-      if (!btn.dataset.tab) {
-        const txt = (btn.getAttribute('onclick') || '').match(/switchTab\('([^']+)'\)/);
-        if (txt) btn.dataset.tab = txt[1];
-      }
-    });
-    const mkBtn = (id,label,tab,active=false) => {
-      const b=document.createElement('button');
-      b.className='nav-tab'+(active?' active':'');
-      b.id=id; b.dataset.tab=tab; b.textContent=label; b.onclick=()=>switchTab(tab); return b;
-    };
-    nav.prepend(mkBtn('nav-tab-onboarding','Inicio','onboarding',false));
-    const ov = Array.from(nav.children).find(x => x.dataset.tab==='overview');
-    if (ov) ov.after(mkBtn('nav-tab-pools','Pools','pools',false));
-  }
-  const main = document.querySelector('.main');
-  if (main && !document.getElementById('tab-onboarding')) {
-    const overview = document.getElementById('tab-overview');
-    const pane = document.createElement('div');
-    pane.className='tab-pane';
-    pane.id='tab-onboarding';
-    pane.innerHTML = `
-      <div class="sec"><span class="sec-label">Activación inicial</span><span class="sec-line"></span></div>
-      <div class="panel">
-        <div class="panel-head"><div class="panel-title">Comprar paquete Core</div><div id="onboarding-wallet-chip"></div></div>
-        <div class="panel-body" id="onboarding-body"><div class="empty"><div class="empty-icon">○</div><div class="empty-title">Conecta una wallet</div><div class="empty-desc">Si la wallet no está registrada, desde aquí podrá comprar su primer paquete.</div></div></div>
-      </div>`;
-    main.insertBefore(pane, overview);
-  }
-  if (main && !document.getElementById('tab-pools')) {
-    const overview = document.getElementById('tab-overview');
-    const pane = document.createElement('div');
-    pane.className='tab-pane';
-    pane.id='tab-pools';
-    pane.innerHTML = `
-      <div class="sec"><span class="sec-label">Histórico de pools</span><span class="sec-line"></span></div>
-      <div class="panel" style="margin-bottom:16px;">
-        <div class="panel-head"><div class="panel-title">Resumen de meses</div><button class="btn btn-outline" onclick="loadPoolsHistoryTab()" style="padding:5px 14px;font-size:12px;">↻ Recargar</button></div>
-        <div class="panel-body" id="pools-history-wrap"><div class="empty"><div class="empty-icon">○</div><div class="empty-title">Sin datos</div><div class="empty-desc">Busca un usuario o conecta tu wallet.</div></div></div>
-      </div>`;
-    overview.after(pane);
-  }
-  const binaryPane = document.getElementById('net-pane-binary');
-  if (binaryPane && !document.getElementById('binary-eligibility-kpi')) {
-    const host = binaryPane.querySelector('.grid.g2');
-    if (host) {
-      const box = document.createElement('div');
-      box.className='kpi';
-      box.id='binary-eligibility-kpi';
-      box.innerHTML = '<div class="kpi-label">Elegibilidad binaria</div><div class="kpi-value" id="binary-eligibility-value">—</div><div class="kpi-sub" id="binary-eligibility-sub">Regla del contrato</div>';
-      host.appendChild(box);
-    }
-  }
-}
-
-function setTabVisibility(registered){
-  const allowedWhenUnreg = new Set(['onboarding','contracts']);
-  document.querySelectorAll('.nav-tab').forEach(btn => {
-    const tab = btn.dataset.tab || '';
-    if (tab === 'admin') {
-      btn.style.display = authState.isAdmin ? '' : 'none';
-      return;
-    }
-    btn.style.display = registered ? '' : (allowedWhenUnreg.has(tab) ? '' : 'none');
-  });
-  const searchWrap = document.querySelector('.search-wrap');
-  if (searchWrap) searchWrap.style.display = registered ? '' : 'none';
-}
-
-async function renderOnboardingTab(){
-  const body = document.getElementById('onboarding-body');
-  const chip = document.getElementById('onboarding-wallet-chip');
-  if (!body) return;
-  chip.innerHTML = walletAddress ? `<span class="badge badge-green">${shortAddr(walletAddress)}</span>` : '';
-  if (!walletAddress) {
-    body.innerHTML = '<div class="empty"><div class="empty-icon">🦊</div><div class="empty-title">Conecta tu wallet</div><div class="empty-desc">Luego el dashboard validará si la wallet ya está registrada o si debe comprar su primer paquete.</div></div>';
-    return;
-  }
-  const st = window.__atlashRegState || await getWalletRegistrationState(walletAddress);
-  if (st.exists) {
-    body.innerHTML = `<div class="callout callout-blue"><span>ℹ</span><span>La wallet <strong>${shortAddr(walletAddress)}</strong> ya está registrada con paquete <strong>${PACKAGE_NAMES[st.packageId] || ('#'+st.packageId)}</strong>. Ya puede entrar al dashboard.</span></div>`;
-    return;
-  }
-  let pkgs = [];
-  try {
-    if (contracts.userLens?.getPackages) pkgs = await contracts.userLens.getPackages();
-  } catch {}
-  if (!pkgs.length && contracts.core) {
-    try {
-      const maxId = Number(await contracts.core.maxPackageId().catch(()=>4n));
-      for (let i=1;i<=maxId;i++) {
-        const p = await contracts.core.packages(i).catch(()=>null);
-        if (p && p[4]) pkgs.push({packageId:i, price:p[0], brokerFee:p[1], includedMonths:p[2], enabled:p[3], exists:p[4]});
-      }
-    } catch {}
-  }
-  const inscriptionFee = await contracts.core.INSCRIPTION_FEE().catch(()=>0n);
-  body.innerHTML = `
-    <div class="callout callout-amber" style="margin-bottom:16px;"><span>⚠</span><span>Esta wallet aún no está registrada. Hasta comprar un paquete Core no podrá entrar al resto del dashboard.</span></div>
-    <div class="field-grid" style="margin-bottom:16px;">
-      <div class="field"><label class="field-label">Upline / patrocinador</label><input class="addr-inp" id="onb-upline" placeholder="0x... o dejar vacío si será raíz" spellcheck="false"></div>
-      <div class="field"><label class="field-label">Pierna binaria</label><select class="addr-inp" id="onb-leg" style="font-family:var(--font)"><option value="1">Izquierda</option><option value="2">Derecha</option></select></div>
-    </div>
-    <div class="callout callout-blue" style="margin-bottom:16px;"><span>ℹ</span><span>Se cobrará además la inscripción: <strong>${fmt18(inscriptionFee)} USDT</strong>.</span></div>
-    <div class="pkg-grid">${pkgs.filter(p => (p.enabled ?? true) && (p.exists ?? true)).map(p => {
-      const packageId = Number(p.packageId || p.id || 0);
-      const price = BigInt(p.price || 0n);
-      const includedMonths = Number(p.includedMonths || 0);
-      return `<div class="pkg-card pkg-${packageId}"><div class="pkg-num">${packageId}</div><div class="pkg-name">${PACKAGE_NAMES[packageId] || ('Paquete '+packageId)}</div><div class="pkg-role">Core package</div><div class="pkg-price">${fmt18(price)} USDT</div><div class="pkg-feat">Inscripción: ${fmt18(inscriptionFee)} USDT</div><div class="pkg-feat">Meses incluidos: ${includedMonths}</div><div class="pkg-feat">Total inicial: ${fmt18(price + inscriptionFee)} USDT</div><div style="margin-top:12px;"><button class="btn btn-dark" style="width:100%;" onclick="buyInitialPackage(${packageId}, ${price}n, ${inscriptionFee}n)">Comprar paquete</button></div></div>`;
-    }).join('')}</div>`;
-}
-
-async function buyInitialPackage(packageId, priceWei, inscriptionWei){
-  if (!await ensureSigner()) return;
-  if (!walletAddress) { toast('Conecta tu wallet', 'error'); return; }
-  const state = await getWalletRegistrationState(walletAddress);
-  if (state.exists) { toast('La wallet ya está registrada', 'error'); await updateRegistrationGate(); return; }
-  const uplineInput = (document.getElementById('onb-upline')?.value || '').trim();
-  const upline = isValidAddr(uplineInput) ? uplineInput : ethers.ZeroAddress;
-  const leg = Number(document.getElementById('onb-leg')?.value || '1');
-  if (!(leg === 1 || leg === 2)) { toast('Selecciona una pierna válida', 'error'); return; }
-  try {
-    const coreWithSigner = contracts.core.connect(signer);
-    const usdtAddr = await contracts.core.usdt();
-    const usdt = new ethers.Contract(usdtAddr, USDT_ABI, signer);
-    const total = BigInt(priceWei || 0n) + BigInt(inscriptionWei || 0n);
-    const allowance = await usdt.allowance(walletAddress, addresses.core).catch(()=>0n);
-    if (allowance < total) {
-      toast('Aprobando USDT...', 'info');
-      const txA = await usdt.approve(addresses.core, total);
-      await txA.wait();
-    }
-    toast('Comprando paquete inicial...', 'info');
-    const tx = await coreWithSigner.buyPackage(packageId, upline, leg);
-    await tx.wait();
-    toast('✅ Paquete comprado', 'success');
-    await updateRegistrationGate(true);
-  } catch (e) {
-    toast('Error al comprar paquete: ' + formatContractError(e), 'error');
-  }
-}
-
-async function fetchBinaryClaimable(addr, cachedFrontend=null){
-  const out = { totalClaimable:0n, currentPending:0n, weekIds:[], perWeek:{} };
-  if (!addr || !addresses.ranks || !provider) return out;
-  try {
-    const ranks = new ethers.Contract(addresses.ranks, RANKS_EXTENDED_ABI, provider);
-    let currentWeek = Number(cachedFrontend?.binary?.currentWeekId || 0);
-    if (!currentWeek && contracts.binary?.currentWeekId) currentWeek = Number(await contracts.binary.currentWeekId().catch(()=>0));
-    if (!currentWeek && ranks.currentWeekId) currentWeek = Number(await ranks.currentWeekId().catch(()=>0));
-    const startWeek = Math.max(1, currentWeek - 8);
-    for (let w = currentWeek; w >= startWeek; w--) {
-      const amt = BigInt(await ranks.pendingBinaryReward(addr, w).catch(()=>0n));
-      out.perWeek[w] = amt;
-      if (amt > 0n) {
-        if (w === currentWeek) out.currentPending += amt;
-        out.totalClaimable += amt;
-        out.weekIds.push(w);
-      }
-    }
-  } catch {}
-  return out;
-}
-
-function augmentEarningsBinary(){
-  const el = document.getElementById('earnings-list');
-  const data = window.__atlashBinaryEarnings || { totalClaimable:0n, currentPending:0n, weekIds:[] };
-  if (!el || !el.querySelector('.claim-hero')) return;
-  const existing = document.getElementById('binary-earning-row');
-  if (existing) existing.remove();
-  const row = document.createElement('div');
-  row.className = 'claim-row';
-  row.id = 'binary-earning-row';
-  const canClaim = !!(walletAddress && currentUser && walletAddress.toLowerCase() === currentUser.toLowerCase() && data.totalClaimable > 0n);
-  row.innerHTML = `<div class="claim-info"><div class="name">⚖️ Bono binario</div><div class="amount">${fmt18(data.totalClaimable || 0n)} USDT</div><div class="user-right-sub">Semanas con saldo: ${data.weekIds.length ? data.weekIds.map(w => '#' + w).join(', ') : 'ninguna'}${data.currentPending > 0n ? ' · Pendiente semana actual: ' + fmt18(data.currentPending) + ' USDT' : ''}</div></div>${canClaim ? `<button class="btn btn-dark" onclick="claimBinaryAllPending()">Reclamar</button>` : '<span style="font-size:11px;color:var(--gray-400);">Informativo</span>'}`;
-  const hero = el.querySelector('.claim-hero');
-  hero.after(row);
-}
-
-async function claimBinaryAllPending(){
-  if (!await ensureSigner()) return;
-  if (!addresses.ranks) { toast('RanksModule no configurado', 'error'); return; }
-  const data = window.__atlashBinaryEarnings || { weekIds:[] };
-  if (!data.weekIds.length) { toast('No hay binario pendiente', 'info'); return; }
-  try {
-    const ranks = new ethers.Contract(addresses.ranks, RANKS_EXTENDED_ABI, signer);
-    for (const weekId of data.weekIds.sort((a,b)=>a-b)) {
-      const amt = BigInt(data.perWeek?.[weekId] || 0n);
-      if (amt === 0n) continue;
-      toast('Reclamando binario semana #' + weekId + '...', 'info');
-      const tx = await ranks.claimMyBinary(weekId);
-      await tx.wait();
-    }
-    toast('✅ Binario reclamado', 'success');
-    await updateRegistrationGate(true);
-  } catch (e) {
-    toast('Error cobrando binario: ' + formatContractError(e), 'error');
-  }
-}
-
-async function loadBinaryEligibility(addr, cachedFrontend=null){
-  const val = document.getElementById('binary-eligibility-value');
-  const sub = document.getElementById('binary-eligibility-sub');
-  if (!val || !sub || !addr || !addresses.ranks) return;
-  try {
-    const st = currentUser && currentUser.toLowerCase() === String(addr).toLowerCase() ? (window.__atlashRegState || await getWalletRegistrationState(addr)) : await getWalletRegistrationState(addr);
-    const ranks = new ethers.Contract(addresses.ranks, RANKS_EXTENDED_ABI, provider);
-    let currentWeek = Number(cachedFrontend?.binary?.currentWeekId || 0);
-    if (!currentWeek && contracts.binary?.currentWeekId) currentWeek = Number(await contracts.binary.currentWeekId().catch(()=>0));
-    if (!currentWeek && ranks.currentWeekId) currentWeek = Number(await ranks.currentWeekId().catch(()=>0));
-    const rank = Number(cachedFrontend?.ranks?.currentRank || await ranks.userRank(addr).catch(()=>0));
-    const rolling = BigInt(await ranks.rollingVolume(addr, currentWeek).catch(()=>0n));
-    const reasons = [];
-    if (!st.exists) reasons.push('no registrado');
-    if (st.frozen) reasons.push('congelado');
-    if (!st.active) reasons.push('inactivo');
-    if (st.packageId < 3) reasons.push('paquete < 3');
-    if (rank === 0) reasons.push('sin rango');
-    if (rolling === 0n) reasons.push('sin rolling 4w');
-    const ok = reasons.length === 0;
-    val.textContent = ok ? 'Elegible' : 'No elegible';
-    val.className = 'kpi-value ' + (ok ? 'c-green' : 'c-amber');
-    sub.textContent = ok ? `Rank ${rank} · Rolling 4w: ${fmt18(rolling)} USDT` : 'Regla contrato: ' + reasons.join(' · ');
-  } catch (e) {
-    val.textContent = '—';
-    sub.textContent = 'No se pudo validar elegibilidad';
-  }
-}
-
-async function loadPoolsHistoryTab(){
-  const wrap = document.getElementById('pools-history-wrap');
-  if (!wrap) return;
-  if (!contracts.adminLens && !contracts.pools) {
-    wrap.innerHTML = '<div class="empty"><div class="empty-icon">⚙</div><div class="empty-title">AdminLens o Pools no configurado</div></div>';
-    return;
-  }
-  wrap.innerHTML = '<div style="color:var(--gray-400);font-size:13px;font-family:var(--mono);">Cargando meses de pools…</div>';
-  try {
-    let currentMonth = 0;
-    if (contracts.pools?.currentMonthIndex) currentMonth = Number(await contracts.pools.currentMonthIndex().catch(()=>0n));
-    const months = [];
-    for (let mi = currentMonth; mi >= Math.max(1, currentMonth - 6); mi--) {
-      let row = { monthIndex:mi, leadershipAccrued:0n, topTenAccrued:0n, leadershipClosed:false, topTenClosed:false, leadershipPoolTotal:0n, topTenPoolClosed:0n };
-      if (contracts.adminLens?.getAdminOverview) {
-        try {
-          const ov = await contracts.adminLens.getAdminOverview(mi);
-          const m = ov.month || ov[8] || {};
-          row = {
-            monthIndex: mi,
-            leadershipAccrued: BigInt(tupleVal(m,'leadershipAccrued',3,0n) || 0n),
-            topTenAccrued: BigInt(tupleVal(m,'topTenAccrued',4,0n) || 0n),
-            leadershipClosed: !!tupleVal(m,'leadershipClosed',5,false),
-            topTenClosed: !!tupleVal(m,'topTenClosed',6,false),
-            leadershipPoolTotal: BigInt(tupleVal(m,'leadershipPoolTotal',7,0n) || 0n),
-            topTenPoolClosed: BigInt(tupleVal(m,'topTenPoolClosed',12,0n) || 0n)
-          };
-        } catch {}
-      } else if (contracts.pools) {
-        row.leadershipPoolTotal = BigInt(await contracts.pools.leadershipPoolTotal(mi).catch(()=>0n));
-        row.topTenAccrued = BigInt(await contracts.pools.topTenAccruedByMonth(mi).catch(()=>0n));
-        row.leadershipClosed = !!(await contracts.pools.leadershipMonthClosed(mi).catch(()=>false));
-        row.topTenClosed = !!(await contracts.pools.topTenMonthClosed(mi).catch(()=>false));
-      }
-      months.push(row);
-    }
-    window.__atlashPoolsHistory = months;
-    const lastLiquidated = months.find(m => m.leadershipClosed || m.topTenClosed);
-    wrap.innerHTML = `
-      <div class="grid g3" style="margin-bottom:16px;">
-        <div class="kpi"><div class="kpi-label">Mes actual</div><div class="kpi-value c-blue" style="font-size:20px;">${monthNameFromIndex(currentMonth)}</div><div class="kpi-sub">#${currentMonth}</div></div>
-        <div class="kpi"><div class="kpi-label">Último mes liquidado</div><div class="kpi-value" style="font-size:20px;">${lastLiquidated ? monthNameFromIndex(lastLiquidated.monthIndex) : '—'}</div><div class="kpi-sub">${lastLiquidated ? '#' + lastLiquidated.monthIndex : 'Sin cierre'}</div></div>
-        <div class="kpi"><div class="kpi-label">Vista</div><div class="kpi-value" style="font-size:18px;">Histórico</div><div class="kpi-sub">Últimos 6 meses</div></div>
-      </div>
-      <table class="tbl"><thead><tr><th>Mes</th><th>Liderazgo</th><th>Top 10</th><th>Estado liderazgo</th><th>Estado Top 10</th></tr></thead><tbody>
-      ${months.map(m => `<tr><td>${monthNameFromIndex(m.monthIndex)} <span class="badge badge-gray">#${m.monthIndex}</span></td><td>${fmt18(m.leadershipAccrued || m.leadershipPoolTotal || 0n)} USDT</td><td>${fmt18(m.topTenAccrued || m.topTenPoolClosed || 0n)} USDT</td><td>${m.leadershipClosed ? '<span class="badge badge-green">Liquidado</span>' : '<span class="badge badge-amber">En curso</span>'}</td><td>${m.topTenClosed ? '<span class="badge badge-green">Liquidado</span>' : '<span class="badge badge-amber">En curso</span>'}</td></tr>`).join('')}
-      </tbody></table>`;
-  } catch (e) {
-    wrap.innerHTML = `<div class="empty"><div class="empty-icon">⚠</div><div class="empty-title">Error cargando pools</div><div class="empty-desc">${String(e?.message || e).slice(0,160)}</div></div>`;
-  }
-}
-
-async function updateRegistrationGate(loadSelf=false){
-  ensureProTabs();
-  if (!walletAddress || !contracts.core) {
-    window.__atlashRegState = { checked:false, exists:false, frozen:false, active:false, packageId:0, upline:ethers.ZeroAddress, validUntil:0n, monthlyIncludedUntil:0n };
-    setTabVisibility(false);
-    await renderOnboardingTab();
-    return;
-  }
-  const st = await getWalletRegistrationState(walletAddress);
-  window.__atlashRegState = st;
-  setTabVisibility(!!st.exists);
-  await renderOnboardingTab();
-  if (st.exists) {
-    hideLoginGate();
-    if (loadSelf) {
-      const search = document.getElementById('search-addr');
-      if (search) search.value = walletAddress;
-      currentUser = walletAddress;
-      await searchUser();
-      if (document.getElementById('tab-pools')?.classList.contains('active')) await loadPoolsHistoryTab();
-    }
-  } else {
-    const line = document.getElementById('login-status-line');
-    if (line) line.textContent = 'Wallet conectada, pero aún no está registrada. Compra un paquete inicial para habilitar el dashboard.';
-    switchTab('onboarding');
-  }
-}
-
-const __oldSwitchTab = switchTab;
-switchTab = function(name){
-  ensureProTabs();
-  const registered = !!window.__atlashRegState?.exists;
-  if (!registered && name !== 'onboarding' && name !== 'contracts') name = 'onboarding';
-  document.querySelectorAll('.nav-tab').forEach(btn => btn.classList.toggle('active', (btn.dataset.tab || '') === name));
-  document.querySelectorAll('.tab-pane').forEach(pane => pane.classList.toggle('active', pane.id === 'tab-' + name));
-  if (name === 'contracts' && contracts.core) { updateContractsTab(); loadCoreStatus(); }
-  if (name === 'marketplace' && (contracts.mktCatalog || contracts.mktRegistry)) loadMarketplace().catch(()=>{});
-  if (name === 'ranks') loadRanksTab(currentUser || null);
-  if (name === 'network' && currentUser && currentNetTab === 'binary') loadBinaryTree(currentUser);
-  if (name === 'admin' && authState.isAdmin) loadAdminDashboard().catch(()=>{});
-  if (name === 'pools') loadPoolsHistoryTab().catch(()=>{});
-  if (name === 'onboarding') renderOnboardingTab().catch(()=>{});
-};
-
-const __oldRenderPools = renderPools;
-renderPools = function(pools){
-  __oldRenderPools(pools);
-  const body = document.getElementById('pools-body');
-  if (body && !document.getElementById('open-pools-tab-btn')) {
-    const div = document.createElement('div');
-    div.style.marginTop = '14px';
-    div.innerHTML = '<button id="open-pools-tab-btn" class="btn btn-outline" onclick="switchTab(\'pools\')">Ver historial de pools</button>';
-    body.appendChild(div);
-  }
-};
-
-const __oldToggleWallet = toggleWallet;
-toggleWallet = async function(){
-  const before = walletAddress;
-  await __oldToggleWallet();
-  if (before !== walletAddress || walletAddress) {
-    await updateRegistrationGate(!!walletAddress);
-  }
-};
-
-const __oldRefreshAuthState = refreshAuthState;
-refreshAuthState = async function(){
-  await __oldRefreshAuthState();
-  await updateRegistrationGate(false);
-};
-
-const __oldLoadUserFromCore = loadUserFromCore;
-loadUserFromCore = async function(addr){
-  await __oldLoadUserFromCore(addr);
-  window.__atlashBinaryEarnings = await fetchBinaryClaimable(addr, currentUserFrontendCache);
-  augmentEarningsBinary();
-  await loadBinaryEligibility(addr, currentUserFrontendCache);
-};
-
-const __oldRenderUserFromUserLens = renderUserFromUserLens;
-renderUserFromUserLens = async function(addr,out){
-  await __oldRenderUserFromUserLens(addr,out);
-  window.__atlashBinaryEarnings = await fetchBinaryClaimable(addr, out);
-  augmentEarningsBinary();
-  await loadBinaryEligibility(addr, out);
-};
-
-if (window.ethereum) {
-  window.ethereum.on?.('accountsChanged', async () => {
-    setTimeout(async ()=>{ await updateRegistrationGate(true); }, 50);
-  });
-}
-
-document.addEventListener('DOMContentLoaded', () => {
-  ensureProTabs();
-  setTimeout(() => { updateRegistrationGate(false).catch(()=>{}); }, 300);
 });
 
 </script>
