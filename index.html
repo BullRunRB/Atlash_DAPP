@@ -3896,14 +3896,27 @@ async function loadYieldData(addr) {
       </div>`;
     }
 
-    if (currentUserFrontendCache && String(currentUserFrontendCache.coreUser?.user || '').toLowerCase() === String(addr).toLowerCase() && Array.isArray(currentUserFrontendCache.yieldPositions)) {
-      const lensPositions = currentUserFrontendCache.yieldPositions.map(normalizeYieldPosition).filter(p => Number(p?.positionId || 0) > 0);
-      if (lensPositions.length) {
-        renderPositionsData(addr, lensPositions, el, true);
-      } else {
-        el.innerHTML = '<div class="empty"><div class="empty-icon">📭</div><div class="empty-title">Sin posiciones</div><div class="empty-desc">Este usuario no tiene posiciones de yield aún</div></div>';
+    let usedLensPositions = false;
+    try {
+      const lensUser = currentUserFrontendCache?.coreUser?.user || currentUserFrontendCache?.coreUser?.[0] || '';
+      if (currentUserFrontendCache && String(lensUser).toLowerCase() === String(addr).toLowerCase()) {
+        const rawYieldPositions = currentUserFrontendCache.yieldPositions;
+        if (Array.isArray(rawYieldPositions)) {
+          const lensPositions = rawYieldPositions.map(normalizeYieldPosition).filter(p => Number(p?.positionId || 0) > 0);
+          if (lensPositions.length) {
+            renderPositionsData(addr, lensPositions, el, true);
+            usedLensPositions = true;
+          } else {
+            el.innerHTML = '<div class="empty"><div class="empty-icon">📭</div><div class="empty-title">Sin posiciones</div><div class="empty-desc">Este usuario no tiene posiciones de yield aún</div></div>';
+            usedLensPositions = true;
+          }
+        }
       }
-    } else {
+    } catch (lensErr) {
+      console.warn('[Yield] UserLens yieldPositions decode failed, falling back to direct scan:', lensErr?.message || lensErr);
+    }
+
+    if (!usedLensPositions) {
       const totalPositions = g(nextId) ? Number(g(nextId)) - 1 : 0;
       if (totalPositions === 0) {
         el.innerHTML = '<div class="empty"><div class="empty-icon">📭</div><div class="empty-title">Sin posiciones</div><div class="empty-desc">Este usuario no tiene posiciones de yield aun</div></div>';
