@@ -4360,7 +4360,7 @@ async function loadPoolsHistory() {
     for (let offset = 0; offset < 6; offset++) {
       const mi = BigInt(currentMonth) - BigInt(offset);
       if (mi <= 0n) continue;
-      const [startAt, endAt, leadTotal, topTotal, leadClaim, topClaim] = await Promise.all([
+      const [startAt, endAt, leadPoolTotal, topTotal, leadClaim, topClaim] = await Promise.all([
         contracts.pools.monthStartTimestamp(mi).catch(()=>0n),
         contracts.pools.monthEndTimestamp(mi).catch(()=>0n),
         contracts.pools.leadershipPoolTotal(mi).catch(()=>0n),
@@ -4368,6 +4368,28 @@ async function loadPoolsHistory() {
         user !== ethers.ZeroAddress ? contracts.pools.leadershipClaimable(mi, user).catch(()=>0n) : Promise.resolve(0n),
         user !== ethers.ZeroAddress ? contracts.pools.topTenClaimable(mi, user).catch(()=>0n) : Promise.resolve(0n),
       ]);
+
+      let leadTotal = leadPoolTotal || 0n;
+      if (contracts.adminLens && typeof contracts.adminLens.getAdminOverview === 'function') {
+        try {
+          const ov = await contracts.adminLens.getAdminOverview(mi).catch(() => null);
+          const monthBox = tupleVal(ov, 'month', 8, null);
+          const monthLeadership = tupleVal(monthBox, 'leadershipAccrued', 3, null);
+          const monthLeadershipPool = tupleVal(monthBox, 'leadershipPoolTotal', 7, null);
+          if (monthLeadership !== null && monthLeadership !== undefined) {
+            leadTotal = BigInt(monthLeadership || 0n);
+          } else if (monthLeadershipPool !== null && monthLeadershipPool !== undefined) {
+            leadTotal = BigInt(monthLeadershipPool || 0n);
+          }
+        } catch {}
+      }
+      if ((!leadTotal || leadTotal === 0n) && contracts.pools.totalLeadershipAccrued && offset === 0) {
+        try {
+          const totalAcc = await contracts.pools.totalLeadershipAccrued().catch(() => 0n);
+          if (totalAcc && totalAcc > 0n) leadTotal = BigInt(totalAcc);
+        } catch {}
+      }
+
       rows.push({ mi, startAt, endAt, leadTotal, topTotal, leadClaim, topClaim });
     }
     const first = rows[0] || null;
