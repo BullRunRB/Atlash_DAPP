@@ -829,7 +829,7 @@ body {
     </div>
 
     <div class="setup-h1">Configuración</div>
-    <div class="setup-sub">Solo necesitas la dirección del <strong>Core Contract</strong>. Los demás módulos son opcionales. La configuración de <strong>BSC Testnet</strong> queda precargada para arrancar rápido.</div>
+    <div class="setup-sub">Solo necesitas la dirección del <strong>Core Contract</strong>. Los demás módulos son opcionales. Esta versión queda precargada con tu despliegue de <strong>BSC Mainnet</strong>, y puedes alternar a <strong>BSC Testnet</strong> cuando lo necesites.</div>
 
     <!-- Network selector -->
     <div class="form-section">Red blockchain</div>
@@ -869,9 +869,14 @@ body {
     <div id="optional-fields" style="display:none;">
 
       <!-- Auto-fill testnet -->
-      <button class="btn-autofill" onclick="autoFillTestnet()" style="margin-bottom:16px;">
-        ↓ Auto-completar con direcciones BSC Testnet
-      </button>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;">
+        <button class="btn-autofill" onclick="autoFillMainnet()" style="margin-bottom:0;">
+          ↓ Auto-completar con direcciones BSC Mainnet
+        </button>
+        <button class="btn-autofill" onclick="autoFillTestnet()" style="margin-bottom:0;">
+          ↓ Auto-completar con direcciones BSC Testnet
+        </button>
+      </div>
 
       <div class="form-section">Módulos del ecosistema</div>
       <div class="field-grid">
@@ -903,7 +908,7 @@ body {
       <span>Los módulos se auto-detectan desde el Core. Solo ingresa los adicionales si los tienes desplegados.</span>
     </div>
 
-    <button class="btn-primary" id="btn-launch" onclick="launchDapp()">Iniciar dashboard</button>
+    <button class="btn-primary" id="btn-launch" onclick="launchDapp()">Iniciar dashboard mainnet</button>
     <div class="setup-err" id="setup-error"></div>
   </div>
 </div>
@@ -923,7 +928,7 @@ body {
     <div class="login-sub">Conecta la wallet para habilitar el dashboard. Si la wallet conectada coincide con <strong>owner</strong> o <strong>guardian</strong>, se habilitará automáticamente la pestaña administrativa.</div>
     <button class="btn-primary" id="login-connect-btn" onclick="toggleWallet()">Conectar wallet</button>
     <div class="login-role-box">
-      <div id="login-status-line" style="font-size:13px;color:var(--gray-700);">Configura contratos y conecta tu wallet para continuar.</div>
+      <div id="login-status-line" style="font-size:13px;color:var(--gray-700);">Dashboard precargado en BSC Mainnet. Conecta tu wallet para continuar.</div>
       <div id="login-role-badges" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px;"></div>
     </div>
   </div>
@@ -953,7 +958,7 @@ body {
         <button class="nav-tab" onclick="switchTab('yield')" data-tab="yield">Yield</button>
         <button class="nav-tab" onclick="switchTab('marketplace')" data-tab="marketplace">Marketplace</button>
         <button class="nav-tab" onclick="switchTab('contracts')" data-tab="contracts">Contratos</button>
-        <button class="nav-tab" id="nav-tab-admin" onclick="switchTab('admin')" data-tab="admin" style="display:inline-flex;">Admin</button>
+        <button class="nav-tab" id="nav-tab-admin" onclick="switchTab('admin')" data-tab="admin" style="display:none;">Admin</button>
       </div>
     </div>
     <div class="nav-right">
@@ -1340,6 +1345,23 @@ const TESTNET_ADDRESSES = {
   config:'0x45700C227c4D6FCF9f922a10493429471Ed54eA8',
   userLens:'0x8e64968Ba730F8E284aC11788c7aea5C4c96138A',
   adminLens:'0x5ced4763633A350D57073e7BdBdD1aD640e1B3e6',
+  mktRegistry:'', mktCatalog:'', mktCheckout:'',
+  mktTreasury:'', mktAccess:'', mktRenewal:'', mktViews:''
+};
+
+const MAINNET_ADDRESSES = {
+  registry:'0xBBb0C4b59017F1cD30956CC263488b54242aBb0E',
+  roleResolver:'0x843c98bDcCC42A6Ae03b4c6f9c26924c226377dd',
+  cashback:'0x2Ad263bd6331879BDedCA8007243Db7B5cb0a13a',
+  core:'0x22960D878AeeA7DC69e9c25a4A9638BB9e51332C',
+  ranks:'0x58725738b77c6f06aD22c89d827D478399EBe07c',
+  pools:'0x578243Ad0802b5CD299dF60b6677F6D061FE17dE',
+  binary:'0xE910C6dc1CEB0fFb3a9422Ca654E4b777384649A',
+  yield:'0x43aEb429BcD54F84C8FDC2d5b6Db4A2c8620fC3c',
+  admin:'0x0Db3f2F96A94FCb5B3b1D09d7Ad3d19AcaA98c43',
+  config:'0x77A9B1b483B78F3530d639911Ec7353F6D9CF6AE',
+  userLens:'0xDC3703C59e94Cc243f9C930221da1784c0b416e9',
+  adminLens:'',
   mktRegistry:'', mktCatalog:'', mktCheckout:'',
   mktTreasury:'', mktAccess:'', mktRenewal:'', mktViews:''
 };
@@ -1916,6 +1938,29 @@ function openConfig() {
 }
 
 // ─── AUTO-FILL TESTNET ───
+
+function autoFillMainnet() {
+  const opt = document.getElementById('optional-fields');
+  if (opt && opt.style.display !== 'block') toggleOptional();
+  const t = MAINNET_ADDRESSES;
+  const map = {
+    'inp-core': t.core, 'inp-user-lens': t.userLens, 'inp-admin-lens': t.adminLens, 'inp-ranks': t.ranks,
+    'inp-pools': t.pools, 'inp-binary': t.binary, 'inp-cashback': t.cashback,
+    'inp-yield': t.yield, 'inp-role': t.roleResolver, 'inp-admin': t.admin,
+    'inp-mkt-registry': t.mktRegistry, 'inp-mkt-catalog': t.mktCatalog,
+    'inp-mkt-checkout': t.mktCheckout, 'inp-mkt-treasury': t.mktTreasury,
+    'inp-mkt-access': t.mktAccess, 'inp-mkt-renewal': t.mktRenewal, 'inp-mkt-views': t.mktViews
+  };
+  Object.entries(map).forEach(([id, val]) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.value = val || '';
+    el.className = 'addr-inp' + (val ? ' ok' : '');
+  });
+  selectNetwork('mainnet');
+  toast('Direcciones BSC Mainnet cargadas', 'success');
+}
+
 function autoFillTestnet() {
   // Open optional fields if closed
   const opt = document.getElementById('optional-fields');
@@ -5823,28 +5868,35 @@ async function loadBinaryTree(addr) {
 
 async function bootstrapLoginMode() {
   try {
-    activeNetwork = NETWORKS.testnet;
+    const savedAddrs = (() => {
+      try { return JSON.parse(sessionStorage.getItem('atlash_addrs') || '{}'); } catch { return {}; }
+    })();
+    const useSaved = savedAddrs && Object.keys(savedAddrs).length > 0;
+    const preset = useSaved ? savedAddrs : MAINNET_ADDRESSES;
+    activeNetwork = useSaved && savedAddrs.core && String(savedAddrs.core).toLowerCase() === String(TESTNET_ADDRESSES.core).toLowerCase()
+      ? NETWORKS.testnet
+      : NETWORKS.mainnet;
     updateNavBadge();
     addresses = {
-      core: TESTNET_ADDRESSES.core,
-      userLens: TESTNET_ADDRESSES.userLens,
-      adminLens: TESTNET_ADDRESSES.adminLens,
-      ranks: TESTNET_ADDRESSES.ranks,
-      pools: TESTNET_ADDRESSES.pools,
-      binary: TESTNET_ADDRESSES.binary,
-      cashback: TESTNET_ADDRESSES.cashback,
-      yield: TESTNET_ADDRESSES.yield,
-      roleResolver: TESTNET_ADDRESSES.roleResolver,
-      admin: TESTNET_ADDRESSES.admin,
-      config: TESTNET_ADDRESSES.config,
-      registry: TESTNET_ADDRESSES.registry,
-      mktRegistry: TESTNET_ADDRESSES.mktRegistry,
-      mktCatalog: TESTNET_ADDRESSES.mktCatalog,
-      mktCheckout: TESTNET_ADDRESSES.mktCheckout,
-      mktTreasury: TESTNET_ADDRESSES.mktTreasury,
-      mktAccess: TESTNET_ADDRESSES.mktAccess,
-      mktRenewal: TESTNET_ADDRESSES.mktRenewal,
-      mktViews: TESTNET_ADDRESSES.mktViews,
+      core: preset.core || '',
+      userLens: preset.userLens || '',
+      adminLens: preset.adminLens || '',
+      ranks: preset.ranks || '',
+      pools: preset.pools || '',
+      binary: preset.binary || '',
+      cashback: preset.cashback || '',
+      yield: preset.yield || '',
+      roleResolver: preset.roleResolver || '',
+      admin: preset.admin || '',
+      config: preset.config || '',
+      registry: preset.registry || '',
+      mktRegistry: preset.mktRegistry || '',
+      mktCatalog: preset.mktCatalog || '',
+      mktCheckout: preset.mktCheckout || '',
+      mktTreasury: preset.mktTreasury || '',
+      mktAccess: preset.mktAccess || '',
+      mktRenewal: preset.mktRenewal || '',
+      mktViews: preset.mktViews || '',
     };
 
     provider = await createProvider(activeNetwork);
@@ -5912,6 +5964,8 @@ if (window.ethereum) {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
+  selectNetwork('mainnet');
+  autoFillMainnet();
   bootstrapLoginMode();
 });
 
