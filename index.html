@@ -829,7 +829,7 @@ body {
     </div>
 
     <div class="setup-h1">Configuración</div>
-    <div class="setup-sub">Solo necesitas la dirección del <strong>Core Contract</strong>. Los demás módulos son opcionales. La configuración de <strong>BSC Testnet</strong> queda precargada para arrancar rápido.</div>
+    <div class="setup-sub">Solo necesitas la dirección del <strong>Core Contract</strong>. Los demás módulos son opcionales. Esta versión queda precargada con tu despliegue de <strong>BSC Mainnet</strong>, y puedes alternar a <strong>BSC Testnet</strong> cuando lo necesites.</div>
 
     <!-- Network selector -->
     <div class="form-section">Red blockchain</div>
@@ -869,9 +869,14 @@ body {
     <div id="optional-fields" style="display:none;">
 
       <!-- Auto-fill testnet -->
-      <button class="btn-autofill" onclick="autoFillTestnet()" style="margin-bottom:16px;">
-        ↓ Auto-completar con direcciones BSC Testnet
-      </button>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;">
+        <button class="btn-autofill" onclick="autoFillMainnet()" style="margin-bottom:0;">
+          ↓ Auto-completar con direcciones BSC Mainnet
+        </button>
+        <button class="btn-autofill" onclick="autoFillTestnet()" style="margin-bottom:0;">
+          ↓ Auto-completar con direcciones BSC Testnet
+        </button>
+      </div>
 
       <div class="form-section">Módulos del ecosistema</div>
       <div class="field-grid">
@@ -903,7 +908,7 @@ body {
       <span>Los módulos se auto-detectan desde el Core. Solo ingresa los adicionales si los tienes desplegados.</span>
     </div>
 
-    <button class="btn-primary" id="btn-launch" onclick="launchDapp()">Iniciar dashboard</button>
+    <button class="btn-primary" id="btn-launch" onclick="launchDapp()">Iniciar dashboard mainnet</button>
     <div class="setup-err" id="setup-error"></div>
   </div>
 </div>
@@ -923,7 +928,7 @@ body {
     <div class="login-sub">Conecta la wallet para habilitar el dashboard. Si la wallet conectada coincide con <strong>owner</strong> o <strong>guardian</strong>, se habilitará automáticamente la pestaña administrativa.</div>
     <button class="btn-primary" id="login-connect-btn" onclick="toggleWallet()">Conectar wallet</button>
     <div class="login-role-box">
-      <div id="login-status-line" style="font-size:13px;color:var(--gray-700);">Configura contratos y conecta tu wallet para continuar.</div>
+      <div id="login-status-line" style="font-size:13px;color:var(--gray-700);">Dashboard precargado en BSC Mainnet. Conecta tu wallet para continuar.</div>
       <div id="login-role-badges" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px;"></div>
     </div>
   </div>
@@ -953,7 +958,7 @@ body {
         <button class="nav-tab" onclick="switchTab('yield')" data-tab="yield">Yield</button>
         <button class="nav-tab" onclick="switchTab('marketplace')" data-tab="marketplace">Marketplace</button>
         <button class="nav-tab" onclick="switchTab('contracts')" data-tab="contracts">Contratos</button>
-        <button class="nav-tab" id="nav-tab-admin" onclick="switchTab('admin')" data-tab="admin" style="display:inline-flex;">Admin</button>
+        <button class="nav-tab" id="nav-tab-admin" onclick="switchTab('admin')" data-tab="admin" style="display:none;">Admin</button>
       </div>
     </div>
     <div class="nav-right">
@@ -1340,6 +1345,23 @@ const TESTNET_ADDRESSES = {
   config:'0x45700C227c4D6FCF9f922a10493429471Ed54eA8',
   userLens:'0x8e64968Ba730F8E284aC11788c7aea5C4c96138A',
   adminLens:'0x5ced4763633A350D57073e7BdBdD1aD640e1B3e6',
+  mktRegistry:'', mktCatalog:'', mktCheckout:'',
+  mktTreasury:'', mktAccess:'', mktRenewal:'', mktViews:''
+};
+
+const MAINNET_ADDRESSES = {
+  registry:'0xBBb0C4b59017F1cD30956CC263488b54242aBb0E',
+  roleResolver:'0x843c98bDcCC42A6Ae03b4c6f9c26924c226377dd',
+  cashback:'0x2Ad263bd6331879BDedCA8007243Db7B5cb0a13a',
+  core:'0x22960D878AeeA7DC69e9c25a4A9638BB9e51332C',
+  ranks:'0x58725738b77c6f06aD22c89d827D478399EBe07c',
+  pools:'0x578243Ad0802b5CD299dF60b6677F6D061FE17dE',
+  binary:'0xE910C6dc1CEB0fFb3a9422Ca654E4b777384649A',
+  yield:'0x43aEb429BcD54F84C8FDC2d5b6Db4A2c8620fC3c',
+  admin:'0x0Db3f2F96A94FCb5B3b1D09d7Ad3d19AcaA98c43',
+  config:'0x77A9B1b483B78F3530d639911Ec7353F6D9CF6AE',
+  userLens:'0xDC3703C59e94Cc243f9C930221da1784c0b416e9',
+  adminLens:'',
   mktRegistry:'', mktCatalog:'', mktCheckout:'',
   mktTreasury:'', mktAccess:'', mktRenewal:'', mktViews:''
 };
@@ -1916,6 +1938,29 @@ function openConfig() {
 }
 
 // ─── AUTO-FILL TESTNET ───
+
+function autoFillMainnet() {
+  const opt = document.getElementById('optional-fields');
+  if (opt && opt.style.display !== 'block') toggleOptional();
+  const t = MAINNET_ADDRESSES;
+  const map = {
+    'inp-core': t.core, 'inp-user-lens': t.userLens, 'inp-admin-lens': t.adminLens, 'inp-ranks': t.ranks,
+    'inp-pools': t.pools, 'inp-binary': t.binary, 'inp-cashback': t.cashback,
+    'inp-yield': t.yield, 'inp-role': t.roleResolver, 'inp-admin': t.admin,
+    'inp-mkt-registry': t.mktRegistry, 'inp-mkt-catalog': t.mktCatalog,
+    'inp-mkt-checkout': t.mktCheckout, 'inp-mkt-treasury': t.mktTreasury,
+    'inp-mkt-access': t.mktAccess, 'inp-mkt-renewal': t.mktRenewal, 'inp-mkt-views': t.mktViews
+  };
+  Object.entries(map).forEach(([id, val]) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.value = val || '';
+    el.className = 'addr-inp' + (val ? ' ok' : '');
+  });
+  selectNetwork('mainnet');
+  toast('Direcciones BSC Mainnet cargadas', 'success');
+}
+
 function autoFillTestnet() {
   // Open optional fields if closed
   const opt = document.getElementById('optional-fields');
@@ -2374,6 +2419,7 @@ async function renderUserFromUserLens(addr, out) {
   await loadPackages(null, u.packageId);
   await loadYieldData(addr);
   await loadRanksTabFromUserLens(out);
+  await loadRanksTab(addr);
   try { renderBinary(out.binary.leftBV || 0n, out.binary.rightBV || 0n, out.coreUser.chosenLeg || 0); await loadBinaryEligibility(addr); await loadBinaryWeeksSection(addr, out); } catch {}
   await loadDirects(addr, directsCount);
 }
@@ -3170,7 +3216,7 @@ function pointsFromAmountWei(amountWei, level, isYield = false) {
 
 function makeTreeNodeCard(node, label, compact = false) {
   if (!node) return `
-    <div style="border:1.5px dashed var(--gray-200);border-radius:var(--radius-lg);padding:${compact ? '10px' : '12px'};text-align:center;min-width:${compact ? '150px' : '180px'};">
+    <div style="border:1.5px dashed var(--gray-200);border-radius:var(--radius-lg);padding:${compact ? '10px' : '12px'};text-align:center;min-width:${compact ? '130px' : '168px'};">
       <div style="font-size:11px;color:var(--gray-300);font-family:var(--mono);">Vacío</div>
       <div style="font-size:10px;color:var(--gray-300);margin-top:2px;">${label}</div>
     </div>`;
@@ -3179,16 +3225,16 @@ function makeTreeNodeCard(node, label, compact = false) {
   const pkgName = PACKAGE_NAMES[node.pkg] || ('Paquete ' + node.pkg);
   const yieldColor = node.yieldActive ? 'var(--gold)' : (node.hasYield ? 'var(--blue)' : 'var(--gray-300)');
   const personalValue = wholeUnits18(node.personalPts || 0n);
-  const expiryText = node.validUntil ? tsToDate(node.validUntil) : '-';
+  const licenseText = node.validUntil && Number(node.validUntil) > 0 ? tsToDate(node.validUntil) : '-';
 
   return `
-    <div style="border:1.5px solid ${color};border-radius:var(--radius-lg);padding:${compact ? '10px' : '12px'};text-align:center;min-width:${compact ? '150px' : '180px'};background:var(--white);position:relative;">
+    <div style="border:1.5px solid ${color};border-radius:var(--radius-lg);padding:${compact ? '10px' : '12px'};text-align:center;min-width:${compact ? '130px' : '168px'};background:var(--white);position:relative;">
       <div style="position:absolute;top:6px;right:8px;width:8px;height:8px;border-radius:50%;background:${color};"></div>
       <div style="font-family:var(--mono);font-size:10px;color:var(--gray-500);margin-bottom:4px;">${shortAddr(node.addr)}</div>
       <div style="font-size:${compact ? '10px' : '11px'};font-weight:700;color:var(--gray-800);margin-bottom:2px;">${pkgName}</div>
-      <div style="font-size:10px;color:${yieldColor};font-weight:600;margin-bottom:5px;">${node.yieldActive ? '★ ' : (node.hasYield ? '◔ ' : '○ ')}${node.yieldLabel}</div>
+      <div style="font-size:10px;color:${yieldColor};font-weight:600;margin-bottom:4px;">${node.yieldActive ? '★ ' : (node.hasYield ? '◔ ' : '○ ')}${node.yieldLabel}</div>
       <div style="font-size:10px;color:var(--gray-500);font-family:var(--mono);">Vol. pers.: ${fmtIntPoints(personalValue)}</div>
-      <div style="font-size:10px;color:${color};font-family:var(--mono);font-weight:700;margin-top:2px;">Licencia: ${expiryText}</div>
+      <div style="font-size:9px;color:var(--gray-400);font-family:var(--mono);">Licencia: ${licenseText}</div>
       <div style="font-size:9px;color:var(--gray-400);margin-top:3px;">${label}</div>
       <div style="margin-top:6px;"><button onclick="document.getElementById('search-addr').value='${node.addr}';searchUser();" class="btn btn-outline" style="padding:3px 10px;font-size:10px;">Ver</button></div>
     </div>`;
@@ -3240,8 +3286,8 @@ async function getNetworkNodeInfo(nodeAddr, coreRead = contracts.core, ranksRead
       addr: nodeAddr,
       pkg,
       exists,
-      isActive: validUntil > nowTs,
       validUntil,
+      isActive: validUntil > nowTs,
       totalPts,
       personalPts,
       contributionPts: 0n,
@@ -3256,8 +3302,8 @@ async function getNetworkNodeInfo(nodeAddr, coreRead = contracts.core, ranksRead
       addr: nodeAddr,
       pkg: 0,
       exists: true,
-      isActive: false,
       validUntil: 0,
+      isActive: false,
       totalPts: 0n,
       personalPts: 0n,
       contributionPts: 0n,
@@ -3310,7 +3356,7 @@ async function renderUnilevelTree(addr, directAddresses) {
     }
 
     const root = (await getNetworkNodeInfo(addr, coreRead, ranksRead, yieldRead, yieldStatusCache)) || {
-      addr, pkg: 0, exists: true, isActive: false, validUntil: 0, totalPts: 0n, personalPts: 0n, contributionPts: 0n, coreContributionPts: 0n, yieldContributionPts: 0n, hasYield: false, yieldActive: false, yieldLabel: 'Sin yield'
+      addr, pkg: 0, exists: true, isActive: false, totalPts: 0n, personalPts: 0n, contributionPts: 0n, coreContributionPts: 0n, yieldContributionPts: 0n, hasYield: false, yieldActive: false, yieldLabel: 'Sin yield'
     };
 
     const nodeMap = new Map();
@@ -3343,26 +3389,67 @@ async function renderUnilevelTree(addr, directAddresses) {
       currentParents = nextParents;
     }
 
-    const summaryHtml = levels.map(lvl => {
-      const activeCount = lvl.nodes.filter(n => n.isActive).length;
-      return `<div class="kpi" style="padding:12px 14px;"><div class="kpi-label">Nivel ${lvl.level}</div><div class="kpi-value" style="font-size:18px;">${lvl.nodes.length}</div><div class="kpi-sub">${activeCount} activo(s)</div></div>`;
-    }).join('');
+    const nodesByAddr = new Map(Array.from(nodeMap.values()).map(n => [String(n.addr).toLowerCase(), n]));
+    const downlineAddrs = Array.from(nodesByAddr.values()).filter(n => n.level > 0).map(n => n.addr);
+    const currentBlock = await provider.getBlockNumber().catch(() => null);
+    const startBlock = currentBlock != null ? Math.max(0, currentBlock - 350000) : 0;
+
+    // Core purchases => Paid.baseAmount * level%
+    if (coreRead?.filters?.Paid && currentBlock != null) {
+      for (const node of Array.from(nodesByAddr.values()).filter(n => n.level > 0)) {
+        try {
+          const logs = await coreRead.queryFilter(coreRead.filters.Paid(node.addr), startBlock, currentBlock).catch(() => []);
+          let corePts = 0n;
+          for (const log of logs) {
+            const baseAmount = BigInt(log?.args?.baseAmount ?? 0n);
+            corePts += pointsFromAmountWei(baseAmount, node.level, false);
+          }
+          node.coreContributionPts = corePts;
+        } catch {}
+      }
+    }
+
+    // Yield purchases => PositionOpened.amount * 50% * level%
+    if (yieldRead?.filters?.PositionOpened && currentBlock != null) {
+      for (const node of Array.from(nodesByAddr.values()).filter(n => n.level > 0)) {
+        try {
+          const logs = await yieldRead.queryFilter(yieldRead.filters.PositionOpened(null, node.addr), startBlock, currentBlock).catch(() => []);
+          let yieldPts = 0n;
+          for (const log of logs) {
+            const amount = BigInt(log?.args?.amount ?? 0n);
+            yieldPts += pointsFromAmountWei(amount, node.level, true);
+          }
+          node.yieldContributionPts = yieldPts;
+        } catch {}
+      }
+    }
+
+    for (const node of Array.from(nodesByAddr.values()).filter(n => n.level > 0)) {
+      node.contributionPts = BigInt(node.coreContributionPts || 0n) + BigInt(node.yieldContributionPts || 0n);
+    }
+
+    const summaryHtml = levels.map(lvl => `
+      <div class="kpi" style="padding:12px 14px;">
+        <div class="kpi-label">Nivel ${lvl.level}</div>
+        <div class="kpi-value" style="font-size:18px;">${lvl.nodes.length}</div>
+        <div class="kpi-sub">usuario(s)</div>
+      </div>`).join('');
 
     const levelsHtml = levels.map(lvl => {
       if (lvl.level === 1) {
         return `
           <div class="sec" style="margin:14px 0 8px;"><span class="sec-label">Nivel 1</span><span class="sec-line"></span></div>
           <div style="display:flex;gap:14px;overflow-x:auto;padding-bottom:8px;align-items:flex-start;">
-            ${lvl.nodes.length ? lvl.nodes.map(ch => makeTreeNodeCard(ch, 'Nivel 1', true)).join('') : '<div class="empty"><div class="empty-icon">○</div><div class="empty-title">Sin usuarios</div></div>'}
+            ${lvl.nodes.length ? lvl.nodes.map(ch => makeTreeNodeCard(ch, 'Nivel 1', false)).join('') : '<div class="empty"><div class="empty-icon">○</div><div class="empty-title">Sin usuarios</div></div>'}
           </div>`;
       }
       return `
         <div class="sec" style="margin:14px 0 8px;"><span class="sec-label">Nivel ${lvl.level}</span><span class="sec-line"></span></div>
-        <div style="display:flex;flex-direction:column;gap:12px;">
+        <div style="display:flex;gap:14px;overflow-x:auto;padding-bottom:8px;align-items:flex-start;">
           ${lvl.groups.length ? lvl.groups.map(g => `
-            <div style="background:var(--gray-50);border:1px solid var(--gray-200);border-radius:14px;padding:10px;">
+            <div style="min-width:620px;background:var(--gray-50);border:1px solid var(--gray-200);border-radius:14px;padding:10px;">
               <div style="font-size:10px;color:var(--gray-400);font-family:var(--mono);margin-bottom:8px;">Bajo ${shortAddr(g.parent)}</div>
-              <div style="display:grid;grid-template-columns:repeat(3,minmax(150px,1fr));gap:8px;align-items:start;">
+              <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;align-items:start;">
                 ${g.children.length ? g.children.map(ch => makeTreeNodeCard(ch, 'Nivel ' + lvl.level, true)).join('') : '<div style="font-size:11px;color:var(--gray-400);">Sin descendientes</div>'}
               </div>
             </div>`).join('') : '<div class="empty"><div class="empty-icon">○</div><div class="empty-title">Sin usuarios</div></div>'}
@@ -3375,7 +3462,6 @@ async function renderUnilevelTree(addr, directAddresses) {
           <div style="display:flex;justify-content:center;margin-bottom:10px;">${makeTreeNodeCard(root, 'Raíz')}</div>
           <div class="grid g4" style="margin-bottom:4px;">${summaryHtml || '<div class="empty" style="grid-column:1/-1"><div class="empty-title">Sin niveles</div></div>'}</div>
           ${levelsHtml || '<div class="empty"><div class="empty-icon">👤</div><div class="empty-title">Sin red unilevel</div></div>'}
-          <div style="font-size:11px;color:var(--gray-400);font-family:var(--mono);text-align:center;">Cada tarjeta muestra paquete, estado del yield, volumen personal y fecha de vencimiento de la licencia.</div>
         </div>
       </div>`;
   } catch (e) {
@@ -5232,11 +5318,18 @@ const RANKS_EXTENDED_ABI = [
   "function pendingRankReward(address, uint8) view returns (uint256)",
   "function rankTargets(uint256) view returns (uint256)",
   "function rankBonuses(uint256) view returns (uint256)",
+  "function targets(uint256) view returns (uint256)",
+  "function bonuses(uint256) view returns (uint256)",
   "function minPersonalVolume(uint256) view returns (uint256)",
+  "function minPVs(uint256) view returns (uint256)",
   "function minDirects(uint256) view returns (uint8)",
+  "function minDs(uint256) view returns (uint8)",
   "function minDirectRank(uint256) view returns (uint8)",
+  "function minDRs(uint256) view returns (uint8)",
   "function minDirectRankCount(uint256) view returns (uint8)",
+  "function minDRCs(uint256) view returns (uint8)",
   "function minCorePackageForRank(uint256) view returns (uint8)",
+  "function minPkgs(uint256) view returns (uint8)",
   "function availablePool() view returns (uint256)",
   "function rollingVolume(address, uint32) view returns (uint256)",
   "function currentWeekId() view returns (uint32)",
@@ -5248,13 +5341,85 @@ const RANKS_EXTENDED_ABI = [
 const RANK_NAMES = ['—','Rango 1','Rango 2','Rango 3','Rango 4','Rango 5',
                     'Rango 6','Rango 7','Rango 8','Rango 9','Rango 10'];
 
-async function loadRanksTab(addr) {
-  console.log('[Ranks] loadRanksTab called, addr:', addr, 'contracts.ranks:', !!contracts.ranks, 'addresses.ranks:', addresses.ranks);
-  const progressionEl = document.getElementById('ranks-progression');
-  if (!progressionEl) { console.log('[Ranks] no progressionEl found'); return; }
+const PROD_RANK_DEFAULTS = [
+  { target: 1000n,    bonus: ethers.parseUnits('100', 18),    minPV: ethers.parseUnits('150', 18),   minD: 2,  minDR: 0, minDRC: 0, minPkg: 2 },
+  { target: 5000n,    bonus: ethers.parseUnits('500', 18),    minPV: ethers.parseUnits('250', 18),   minD: 3,  minDR: 0, minDRC: 0, minPkg: 2 },
+  { target: 20000n,   bonus: ethers.parseUnits('2000', 18),   minPV: ethers.parseUnits('500', 18),   minD: 4,  minDR: 1, minDRC: 1, minPkg: 2 },
+  { target: 60000n,   bonus: ethers.parseUnits('6000', 18),   minPV: ethers.parseUnits('1000', 18),  minD: 5,  minDR: 1, minDRC: 2, minPkg: 3 },
+  { target: 150000n,  bonus: ethers.parseUnits('15000', 18),  minPV: ethers.parseUnits('2000', 18),  minD: 6,  minDR: 2, minDRC: 2, minPkg: 3 },
+  { target: 350000n,  bonus: ethers.parseUnits('35000', 18),  minPV: ethers.parseUnits('3500', 18),  minD: 8,  minDR: 3, minDRC: 2, minPkg: 3 },
+  { target: 800000n,  bonus: ethers.parseUnits('80000', 18),  minPV: ethers.parseUnits('6000', 18),  minD: 10, minDR: 4, minDRC: 3, minPkg: 3 },
+  { target: 1600000n, bonus: ethers.parseUnits('160000', 18), minPV: ethers.parseUnits('12000', 18), minD: 12, minDR: 5, minDRC: 3, minPkg: 4 },
+  { target: 3000000n, bonus: ethers.parseUnits('300000', 18), minPV: ethers.parseUnits('25000', 18), minD: 16, minDR: 6, minDRC: 4, minPkg: 4 },
+  { target: 5000000n, bonus: ethers.parseUnits('500000', 18), minPV: ethers.parseUnits('50000', 18), minD: 20, minDR: 7, minDRC: 4, minPkg: 4 },
+];
 
-  if (!contracts.ranks) {
-    console.log('[Ranks] contracts.ranks is null, addresses.ranks:', addresses.ranks);
+function normalizeRankCfg(x = {}) {
+  return {
+    target: BigInt(x.target || 0n),
+    bonus: BigInt(x.bonus || 0n),
+    minPV: BigInt(x.minPV || 0n),
+    minD: Number(x.minD || 0),
+    minDR: Number(x.minDR || 0),
+    minDRC: Number(x.minDRC || 0),
+    minPkg: Number(x.minPkg || 0),
+    __source: x.__source || 'unknown',
+    __index: x.__index ?? null,
+  };
+}
+
+function looksLikeRankCfg(cfg) {
+  cfg = normalizeRankCfg(cfg);
+  return cfg.target > 0n || cfg.minPV > 0n || cfg.bonus > 0n || cfg.minD > 0 || cfg.minDR > 0 || cfg.minDRC > 0 || cfg.minPkg > 0;
+}
+
+function pickBestRankCfg(rankNum, zeroBasedCfg, oneBasedCfg) {
+  const expected = normalizeRankCfg(PROD_RANK_DEFAULTS[rankNum - 1] || {});
+  const candidates = [
+    normalizeRankCfg({ ...zeroBasedCfg, __source: '0-based', __index: rankNum - 1 }),
+    normalizeRankCfg({ ...oneBasedCfg, __source: '1-based', __index: rankNum }),
+  ];
+
+  const score = (cfg) => {
+    let s = 0;
+    if (cfg.target > 0n) s += 50;
+    if (cfg.minPV > 0n) s += 30;
+    if (cfg.bonus > 0n) s += 20;
+    if (cfg.minD > 0) s += 10;
+    if (cfg.minPkg > 0) s += 10;
+    if (cfg.minDRC > 0 || cfg.minDR > 0) s += 10;
+
+    if (expected.target > 0n && cfg.target === expected.target) s += 200;
+    if (expected.minPV > 0n && cfg.minPV === expected.minPV) s += 120;
+    if (expected.bonus > 0n && cfg.bonus === expected.bonus) s += 80;
+    if (cfg.minD === expected.minD) s += 40;
+    if (cfg.minDR === expected.minDR) s += 25;
+    if (cfg.minDRC === expected.minDRC) s += 25;
+    if (cfg.minPkg === expected.minPkg) s += 30;
+    return s;
+  };
+
+  candidates.sort((a, b) => score(b) - score(a));
+  const picked = candidates[0];
+
+  if (!looksLikeRankCfg(picked)) {
+    return normalizeRankCfg({ ...expected, __source: 'prod-source-defaults', __index: rankNum - 1 });
+  }
+
+  const sparse = (picked.target === 0n && expected.target > 0n) || (picked.minPV === 0n && expected.minPV > 0n);
+  if (sparse) {
+    return normalizeRankCfg({ ...expected, __source: 'prod-source-defaults', __index: rankNum - 1 });
+  }
+
+  return picked;
+}
+
+
+async function loadRanksTab(addr) {
+  const progressionEl = document.getElementById('ranks-progression');
+  if (!progressionEl) return;
+
+  if (!addresses.ranks || !provider) {
     progressionEl.innerHTML = '<div class="empty"><div class="empty-icon">⚙</div><div class="empty-title">RanksModule no configurado</div><div class="empty-desc">Ingresa la dirección del RanksModule en la configuración</div></div>';
     return;
   }
@@ -5262,48 +5427,59 @@ async function loadRanksTab(addr) {
   progressionEl.innerHTML = '<div style="color:var(--gray-400);font-size:13px;padding:16px;font-family:var(--mono);">Cargando configuración de rangos...</div>';
 
   const ranksExt = new ethers.Contract(addresses.ranks, RANKS_EXTENDED_ABI, provider);
-  console.log('[Ranks] ranksExt created, calling rankTargets(0)...');
 
-  // ── Step 1: Load rank config for all 10 ranks in ONE batch ──
-  let rankTargets=[], rankBonuses=[], minPVs=[], minDs=[], minDRs=[], minDRCs=[], minPkgs=[];
-  try {
-    // Test single call first
-    const testVal = await ranksExt.rankTargets(0).catch(e => { console.error('[Ranks] rankTargets(0) failed:', e.message); return null; });
-    console.log('[Ranks] rankTargets(0):', testVal?.toString());
-    
-    const configCalls = [];
-    for (let i = 0; i < 10; i++) {
-      configCalls.push(
-        ranksExt.rankTargets(i).catch(()=>0n),
-        ranksExt.rankBonuses(i).catch(()=>0n),
-        ranksExt.minPersonalVolume(i).catch(()=>0n),
-        ranksExt.minDirects(i).catch(()=>0),
-        ranksExt.minDirectRank(i).catch(()=>0),
-        ranksExt.minDirectRankCount(i).catch(()=>0),
-        ranksExt.minCorePackageForRank(i).catch(()=>0)
-      );
+  const methodValue = async (names, args = [], fallback = 0n) => {
+    for (const name of names) {
+      try {
+        const fn = ranksExt[name];
+        if (typeof fn !== 'function') continue;
+        const val = await fn(...args);
+        if (val !== undefined && val !== null) return val;
+      } catch {}
     }
-    const results = await Promise.all(configCalls);
-    console.log('[Ranks] config loaded, first target:', results[0]?.toString());
-    for (let i = 0; i < 10; i++) {
-      const base = i * 7;
-      rankTargets.push(results[base]);
-      rankBonuses.push(results[base+1]);
-      minPVs.push(results[base+2]);
-      minDs.push(Number(results[base+3]));
-      minDRs.push(Number(results[base+4]));
-      minDRCs.push(Number(results[base+5]));
-      minPkgs.push(Number(results[base+6]));
+    return fallback;
+  };
+
+  const readRankConfigAt = async (idx) => {
+    const [target, bonus, minPV, minD, minDR, minDRC, minPkg] = await Promise.all([
+      methodValue(['rankTargets','targets'], [idx], 0n),
+      methodValue(['rankBonuses','bonuses'], [idx], 0n),
+      methodValue(['minPersonalVolume','minPVs'], [idx], 0n),
+      methodValue(['minDirects','minDs'], [idx], 0),
+      methodValue(['minDirectRank','minDRs'], [idx], 0),
+      methodValue(['minDirectRankCount','minDRCs'], [idx], 0),
+      methodValue(['minCorePackageForRank','minPkgs'], [idx], 0),
+    ]);
+    return normalizeRankCfg({
+      target,
+      bonus,
+      minPV,
+      minD,
+      minDR,
+      minDRC,
+      minPkg,
+    });
+  };
+
+  let rankConfigs = [];
+  try {
+    const zeroBased = await Promise.all(Array.from({length:10}, (_, i) => readRankConfigAt(i)));
+    const oneBased  = await Promise.all(Array.from({length:10}, (_, i) => readRankConfigAt(i + 1)));
+
+    rankConfigs = Array.from({length:10}, (_, i) => pickBestRankCfg(i + 1, zeroBased[i], oneBased[i]));
+
+    if (!rankConfigs.some(x => looksLikeRankCfg(x))) {
+      rankConfigs = PROD_RANK_DEFAULTS.map((cfg, i) => normalizeRankCfg({ ...cfg, __source: 'prod-source-defaults', __index: i }));
     }
   } catch(e) {
-    progressionEl.innerHTML = `<div class="empty"><div class="empty-icon">⚠</div><div class="empty-title">Error leyendo configuración</div><div class="empty-desc">${e.message.slice(0,100)}</div></div>`;
+    progressionEl.innerHTML = `<div class="empty"><div class="empty-icon">⚠</div><div class="empty-title">Error leyendo configuración</div><div class="empty-desc">${String(e.message || e).slice(0,120)}</div></div>`;
     return;
   }
 
-  // ── Step 2: Load user-specific data if addr provided ──
   let userRankNum = 0, totalPts = 0n, persVol = 0n, pendTotal = 0n;
   let pendingPerRank = new Array(11).fill(0n);
-  let directCount = 0, qualifiedByRank = {};
+  let directCount = 0, currentPkg = Number(currentUserPackageId || 0);
+  let qualifiedByRank = {};
   for (let r = 1; r <= 10; r++) qualifiedByRank[r] = 0;
 
   if (addr) {
@@ -5314,26 +5490,31 @@ async function loadRanksTab(addr) {
         ranksExt.personalVolume(addr).catch(()=>0n),
         ranksExt.pendingTotal(addr).catch(()=>0n),
       ]);
-      userRankNum = Number(curRank);
-      totalPts = tPts; persVol = pVol; pendTotal = pTot;
+      userRankNum = Number(curRank || 0);
+      totalPts = BigInt(tPts || 0n);
+      persVol = BigInt(pVol || 0n);
+      pendTotal = BigInt(pTot || 0n);
     } catch {}
 
-    // Load pending per rank
     try {
       const pendingCalls = [];
       for (let i = 1; i <= 10; i++) pendingCalls.push(ranksExt.pendingRankReward(addr, i).catch(()=>0n));
       const pResults = await Promise.all(pendingCalls);
-      for (let i = 0; i < 10; i++) pendingPerRank[i+1] = pResults[i];
-      if (!pendTotal || pendTotal === 0n) {
-        pendTotal = pResults.reduce((acc, v) => acc + BigInt(v || 0n), 0n);
+      for (let i = 0; i < 10; i++) pendingPerRank[i+1] = BigInt(pResults[i] || 0n);
+      if (pendTotal === 0n) pendTotal = pResults.reduce((acc, v) => acc + BigInt(v || 0n), 0n);
+    } catch {}
+
+    try {
+      if (contracts.core?.users) {
+        const userData = await contracts.core.users(addr).catch(()=>null);
+        if (userData) currentPkg = Number(userData[3] || currentPkg || 0);
       }
     } catch {}
 
-    // Get directs count + their ranks
     try {
       directCount = Number(await contracts.core.directCount(addr).catch(()=>0));
       if (directCount > 0) {
-        const limit = Math.min(directCount, 30);
+        const limit = Math.min(directCount, 100);
         const directAddrs = await Promise.all(
           Array.from({length: limit}, (_, i) => contracts.core.directAt(addr, i).catch(()=>null))
         );
@@ -5341,69 +5522,56 @@ async function loadRanksTab(addr) {
           directAddrs.filter(Boolean).map(d => ranksExt.userRank(d).catch(()=>0n))
         );
         directRanks.forEach(dr => {
-          const r = Number(dr);
-          for (let lvl = 1; lvl <= r; lvl++) qualifiedByRank[lvl] = (qualifiedByRank[lvl]||0)+1;
+          const r = Number(dr || 0);
+          for (let lvl = 1; lvl <= r; lvl++) qualifiedByRank[lvl] = (qualifiedByRank[lvl] || 0) + 1;
         });
       }
     } catch {}
   }
 
-  // ── Step 3: Update KPIs ──
   const kpis = {
-    'rank-current':      addr ? (userRankNum > 0 ? RANK_NAMES[userRankNum] : 'Sin rango') : '—',
-    'rank-next-label':   addr ? (userRankNum < 10 ? 'Siguiente: ' + RANK_NAMES[userRankNum+1] : 'Rango máximo alcanzado') : 'Busca un usuario',
-    'rank-personal-pts': addr ? fmtIntPoints(totalPts) : '—',
-    'rank-personal-vol': addr ? fmt18(persVol) + ' USDT' : '—',
-    'rank-pending-total':addr ? fmt18(pendTotal) + ' USDT' : '—',
+    'rank-current':       addr ? (userRankNum > 0 ? RANK_NAMES[userRankNum] : 'Sin rango') : '—',
+    'rank-next-label':    addr ? (userRankNum < 10 ? 'Siguiente: ' + RANK_NAMES[userRankNum+1] : 'Rango máximo alcanzado') : 'Busca un usuario',
+    'rank-personal-pts':  addr ? fmtIntPoints(totalPts) : '—',
+    'rank-personal-vol':  addr ? fmt18(persVol) + ' USDT' : '—',
+    'rank-pending-total': addr ? fmt18(pendTotal) + ' USDT' : '—',
   };
   Object.entries(kpis).forEach(([id, val]) => {
-    const el = document.getElementById(id); if (el) el.textContent = val;
+    const el = document.getElementById(id);
+    if (el) el.textContent = val;
   });
 
-  // ── Step 4: Render progression table ──
   let html = '<div style="display:flex;flex-direction:column;gap:10px;">';
 
   for (let i = 0; i < 10; i++) {
-    const rankNum   = i + 1;
-    const target    = rankTargets[i] || 0n;
-    const bonus     = rankBonuses[i] || 0n;
-    const minPV     = minPVs[i]     || 0n;
-    const minD      = minDs[i]      || 0;
-    const minDR     = minDRs[i]     || 0;
-    const minDRC    = minDRCs[i]    || 0;
-    const pending   = pendingPerRank[rankNum];
+    const rankNum = i + 1;
+    const cfg = rankConfigs[i] || {};
+    const target = BigInt(cfg.target || 0n);
+    const bonus = BigInt(cfg.bonus || 0n);
+    const minPV = BigInt(cfg.minPV || 0n);
+    const minD = Number(cfg.minD || 0);
+    const minDR = Number(cfg.minDR || 0);
+    const minDRC = Number(cfg.minDRC || 0);
+    const minPkg = Number(cfg.minPkg || 0);
+    const pending = BigInt(pendingPerRank[rankNum] || 0n);
 
-    const achieved  = userRankNum >= rankNum;
-    const isCurrent = userRankNum === rankNum;
-    const isNext    = userRankNum + 1 === rankNum;
+    const achieved  = addr ? userRankNum >= rankNum : false;
+    const isCurrent = addr ? userRankNum === rankNum : false;
+    const isNext    = addr ? (userRankNum + 1 === rankNum) : false;
 
-    // La barra principal debe reflejar el avance REAL del rango, no solo los puntos.
-    const ptsNum    = Number(totalPts || 0n);
-    const targetNum = Number(target || 0n);
-    const ptsPct    = targetNum > 0
-      ? Math.min(100, Math.round(ptsNum * 100 / targetNum))
-      : (achieved ? 100 : 0);
-    const ptsDisplay    = addr ? fmtIntPoints(totalPts) : '—';
-    const targetDisplay = fmtIntPoints(target);
+    const pointsOk = addr ? (totalPts >= target) : null;
+    const pvOk     = addr ? (persVol >= minPV) : null;
+    const dOk      = addr ? (directCount >= minD) : null;
+    const dRkOk    = addr ? (minDRC === 0 || (qualifiedByRank[minDR] || 0) >= minDRC) : null;
+    const pkgOk    = addr ? (minPkg === 0 || currentPkg >= minPkg) : null;
 
-    const pvOk   = addr ? (Number(persVol) >= Number(minPV)) : null;
-    const dOk    = addr ? (directCount >= minD) : null;
-    const dRkOk  = addr ? (minDRC === 0 || (qualifiedByRank[minDR]||0) >= minDRC) : null;
-    const pointsOk = addr ? (targetNum > 0 ? ptsNum >= targetNum : achieved) : null;
-    const allOk  = !!(pointsOk && pvOk && dOk && dRkOk);
-
-    const reqChecks = [pointsOk, pvOk, dOk, dRkOk].filter(v => v !== null);
-    const overallPct = reqChecks.length
-      ? Math.round((reqChecks.filter(Boolean).length * 100) / reqChecks.length)
-      : 0;
-    const progressPct = achieved ? 100 : overallPct;
+    const reqChecks = [pointsOk, pvOk, dOk, dRkOk, pkgOk].filter(v => v !== null);
+    const progressPct = achieved ? 100 : (reqChecks.length ? Math.round((reqChecks.filter(Boolean).length * 100) / reqChecks.length) : 0);
     const statusHint = !addr
       ? '—'
       : achieved
         ? 'Todos los requisitos completos'
-        : (pointsOk && !allOk)
-          ? 'Puntos completos, faltan otros requisitos'
-          : 'Avance real del rango';
+        : 'Avance sobre requisitos del rango';
 
     const reqColor = (ok) => ok === null ? 'var(--gray-400)' : ok ? 'var(--green)' : 'var(--red)';
     const reqIcon  = (ok) => ok === null ? '—' : ok ? '✓' : '✗';
@@ -5414,9 +5582,13 @@ async function loadRanksTab(addr) {
     const numColor    = achieved || isNext ? 'white' : 'var(--gray-500)';
     const barColor    = achieved ? 'var(--green)' : isNext ? 'var(--gray-800)' : 'var(--gray-400)';
 
+    const targetDisplay = fmtIntPoints(target);
+    const pointsDisplay = addr ? fmtIntPoints(totalPts) : '—';
+    const userDirRankCount = addr ? (qualifiedByRank[minDR] || 0) : 0;
+
     html += `
     <div style="border:1.5px solid ${borderColor};border-radius:var(--radius-lg);padding:16px 18px;background:${bgColor};">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;gap:12px;flex-wrap:wrap;">
         <div style="display:flex;align-items:center;gap:12px;">
           <div style="width:36px;height:36px;border-radius:8px;background:${numBg};display:flex;align-items:center;justify-content:center;font-weight:800;font-size:15px;color:${numColor};flex-shrink:0;">${rankNum}</div>
           <div>
@@ -5426,39 +5598,48 @@ async function loadRanksTab(addr) {
         </div>
         <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;justify-content:flex-end;">
           ${pending > 0n ? `<span class="badge badge-green">${fmt18(pending)} USDT pendiente</span>` : ''}
-          ${achieved     ? '<span class="badge badge-green">✓ Alcanzado</span>' : ''}
-          ${isCurrent    ? '<span class="badge badge-blue">Rango actual</span>' : ''}
-          ${isNext && allOk ? '<span class="badge badge-blue">Listo ↑</span>' : ''}
-          ${!achieved && pointsOk && !allOk ? '<span class="badge badge-gray">Puntos completos, faltan requisitos</span>' : ''}
-          ${!achieved && !addr ? '<span class="badge badge-gray">Sin usuario</span>' : ''}
+          ${achieved ? '<span class="badge badge-green">✓ Alcanzado</span>' : ''}
+          ${isCurrent ? '<span class="badge badge-blue">Rango actual</span>' : ''}
+          ${isNext ? '<span class="badge badge-gray">Siguiente objetivo</span>' : ''}
+          ${!addr ? '<span class="badge badge-gray">Sin usuario</span>' : ''}
         </div>
       </div>
 
       <div style="margin-bottom:12px;">
         <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--gray-400);margin-bottom:5px;font-family:var(--mono);">
-          <span>Avance real del rango</span>
+          <span>Avance del rango</span>
           <span>${addr ? progressPct + '%' : '—'}</span>
         </div>
         <div class="prog"><div class="prog-fill" style="width:${progressPct}%;background:${barColor};"></div></div>
         <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--gray-400);margin-top:5px;font-family:var(--mono);gap:8px;flex-wrap:wrap;">
-          <span>Puntos: ${ptsDisplay} / ${targetDisplay}</span>
+          <span>Puntos requeridos: ${targetDisplay}</span>
           <span>${statusHint}</span>
         </div>
       </div>
 
-      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;font-size:11px;">
+      <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px;font-size:11px;">
+        <div style="background:var(--gray-50);border:1px solid var(--gray-200);border-radius:6px;padding:8px 10px;">
+          <div style="color:var(--gray-400);margin-bottom:3px;font-size:10px;text-transform:uppercase;letter-spacing:.5px;">Puntos</div>
+          <div style="font-weight:700;color:${reqColor(pointsOk)};font-family:var(--mono);">${reqIcon(pointsOk)} ${targetDisplay}</div>
+          ${addr ? `<div style="font-size:10px;color:var(--gray-400);margin-top:2px;">Tienes: ${pointsDisplay}</div>` : ''}
+        </div>
         <div style="background:var(--gray-50);border:1px solid var(--gray-200);border-radius:6px;padding:8px 10px;">
           <div style="color:var(--gray-400);margin-bottom:3px;font-size:10px;text-transform:uppercase;letter-spacing:.5px;">Vol. personal</div>
           <div style="font-weight:700;color:${reqColor(pvOk)};font-family:var(--mono);">${reqIcon(pvOk)} ${fmt18(minPV)} USDT</div>
-          ${addr ? `<div style="font-size:10px;color:var(--gray-400);margin-top:2px;">Tienes: ${fmt18(persVol)}</div>` : ''}
+          ${addr ? `<div style="font-size:10px;color:var(--gray-400);margin-top:2px;">Tienes: ${fmt18(persVol)} USDT</div>` : ''}
         </div>
         <div style="background:var(--gray-50);border:1px solid var(--gray-200);border-radius:6px;padding:8px 10px;">
           <div style="color:var(--gray-400);margin-bottom:3px;font-size:10px;text-transform:uppercase;letter-spacing:.5px;">Directos activos</div>
-          <div style="font-weight:700;color:${reqColor(dOk)};font-family:var(--mono);">${reqIcon(dOk)} ${addr ? directCount+'/'+minD : minD+' mín.'}</div>
+          <div style="font-weight:700;color:${reqColor(dOk)};font-family:var(--mono);">${reqIcon(dOk)} ${addr ? directCount + '/' + minD : minD + ' mín.'}</div>
         </div>
         <div style="background:var(--gray-50);border:1px solid var(--gray-200);border-radius:6px;padding:8px 10px;">
-          <div style="color:var(--gray-400);margin-bottom:3px;font-size:10px;text-transform:uppercase;letter-spacing:.5px;">Dir. rango ≥${minDR}</div>
-          <div style="font-weight:700;color:${reqColor(dRkOk)};font-family:var(--mono);">${reqIcon(dRkOk)} ${addr ? (qualifiedByRank[minDR]||0)+'/'+minDRC : minDRC+' mín.'}</div>
+          <div style="color:var(--gray-400);margin-bottom:3px;font-size:10px;text-transform:uppercase;letter-spacing:.5px;">Dir. con rango</div>
+          <div style="font-weight:700;color:${reqColor(dRkOk)};font-family:var(--mono);">${reqIcon(dRkOk)} ≥${minDR} x ${addr ? userDirRankCount + '/' + minDRC : minDRC + ' mín.'}</div>
+        </div>
+        <div style="background:var(--gray-50);border:1px solid var(--gray-200);border-radius:6px;padding:8px 10px;">
+          <div style="color:var(--gray-400);margin-bottom:3px;font-size:10px;text-transform:uppercase;letter-spacing:.5px;">Paquete mínimo</div>
+          <div style="font-weight:700;color:${reqColor(pkgOk)};font-family:var(--mono);">${reqIcon(pkgOk)} ${minPkg > 0 ? ('Paquete ' + minPkg) : 'Sin requisito'}</div>
+          ${addr ? `<div style="font-size:10px;color:var(--gray-400);margin-top:2px;">Tienes: ${currentPkg > 0 ? ('Paquete ' + currentPkg) : 'Ninguno'}</div>` : ''}
         </div>
       </div>
 
@@ -5474,7 +5655,6 @@ async function loadRanksTab(addr) {
   html += '</div>';
   progressionEl.innerHTML = html;
 }
-
 
 async function claimSingleRank(rankNum) {
   if (!await ensureSigner()) return;
@@ -5790,28 +5970,35 @@ async function loadBinaryTree(addr) {
 
 async function bootstrapLoginMode() {
   try {
-    activeNetwork = NETWORKS.testnet;
+    const savedAddrs = (() => {
+      try { return JSON.parse(sessionStorage.getItem('atlash_addrs') || '{}'); } catch { return {}; }
+    })();
+    const useSaved = savedAddrs && Object.keys(savedAddrs).length > 0;
+    const preset = useSaved ? savedAddrs : MAINNET_ADDRESSES;
+    activeNetwork = useSaved && savedAddrs.core && String(savedAddrs.core).toLowerCase() === String(TESTNET_ADDRESSES.core).toLowerCase()
+      ? NETWORKS.testnet
+      : NETWORKS.mainnet;
     updateNavBadge();
     addresses = {
-      core: TESTNET_ADDRESSES.core,
-      userLens: TESTNET_ADDRESSES.userLens,
-      adminLens: TESTNET_ADDRESSES.adminLens,
-      ranks: TESTNET_ADDRESSES.ranks,
-      pools: TESTNET_ADDRESSES.pools,
-      binary: TESTNET_ADDRESSES.binary,
-      cashback: TESTNET_ADDRESSES.cashback,
-      yield: TESTNET_ADDRESSES.yield,
-      roleResolver: TESTNET_ADDRESSES.roleResolver,
-      admin: TESTNET_ADDRESSES.admin,
-      config: TESTNET_ADDRESSES.config,
-      registry: TESTNET_ADDRESSES.registry,
-      mktRegistry: TESTNET_ADDRESSES.mktRegistry,
-      mktCatalog: TESTNET_ADDRESSES.mktCatalog,
-      mktCheckout: TESTNET_ADDRESSES.mktCheckout,
-      mktTreasury: TESTNET_ADDRESSES.mktTreasury,
-      mktAccess: TESTNET_ADDRESSES.mktAccess,
-      mktRenewal: TESTNET_ADDRESSES.mktRenewal,
-      mktViews: TESTNET_ADDRESSES.mktViews,
+      core: preset.core || '',
+      userLens: preset.userLens || '',
+      adminLens: preset.adminLens || '',
+      ranks: preset.ranks || '',
+      pools: preset.pools || '',
+      binary: preset.binary || '',
+      cashback: preset.cashback || '',
+      yield: preset.yield || '',
+      roleResolver: preset.roleResolver || '',
+      admin: preset.admin || '',
+      config: preset.config || '',
+      registry: preset.registry || '',
+      mktRegistry: preset.mktRegistry || '',
+      mktCatalog: preset.mktCatalog || '',
+      mktCheckout: preset.mktCheckout || '',
+      mktTreasury: preset.mktTreasury || '',
+      mktAccess: preset.mktAccess || '',
+      mktRenewal: preset.mktRenewal || '',
+      mktViews: preset.mktViews || '',
     };
 
     provider = await createProvider(activeNetwork);
@@ -5879,6 +6066,8 @@ if (window.ethereum) {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
+  selectNetwork('mainnet');
+  autoFillMainnet();
   bootstrapLoginMode();
 });
 
