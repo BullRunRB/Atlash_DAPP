@@ -5375,13 +5375,35 @@ async function loadRanksTab(addr) {
     const zeroBased = await Promise.all(Array.from({length:10}, (_, i) => readRankConfigAt(i)));
     const oneBased  = await Promise.all(Array.from({length:10}, (_, i) => readRankConfigAt(i + 1)));
 
-    const score = (arr) => arr.reduce((acc, x) => acc + (x.target > 0n ? 2 : 0) + (x.minPV > 0n ? 1 : 0) + (x.bonus > 0n ? 1 : 0) + (x.minD > 0 ? 1 : 0) + (x.minPkg > 0 ? 1 : 0), 0);
-    const zScore = score(zeroBased);
-    const oScore = score(oneBased);
+    const itemScore = (x) => {
+      if (!x) return 0;
+      let s = 0;
+      if (BigInt(x.target || 0n) > 0n) s += 5;
+      if (BigInt(x.minPV || 0n) > 0n) s += 3;
+      if (BigInt(x.bonus || 0n) > 0n) s += 2;
+      if (Number(x.minD || 0) > 0) s += 2;
+      if (Number(x.minDRC || 0) > 0) s += 2;
+      if (Number(x.minPkg || 0) > 0) s += 1;
+      return s;
+    };
 
-    rankConfigs = oScore > zScore ? oneBased : zeroBased;
+    // Elegir por rango, no por bloque completo.
+    // Algunos despliegues exponen parte de la configuración 0-based y otra parte 1-based.
+    rankConfigs = Array.from({length:10}, (_, i) => {
+      const zb = zeroBased[i];
+      const ob = oneBased[i];
+      const zScore = itemScore(zb);
+      const oScore = itemScore(ob);
+      if (oScore > zScore) return { ...ob, __source: '1-based', __index: i + 1 };
+      if (zScore > oScore) return { ...zb, __source: '0-based', __index: i };
+      // Empate: preferir el que tenga target > 0; si ambos empatan, priorizar 1-based solo si trae algo útil.
+      if (BigInt(ob?.target || 0n) > BigInt(zb?.target || 0n)) return { ...ob, __source: '1-based', __index: i + 1 };
+      if (BigInt(zb?.target || 0n) > BigInt(ob?.target || 0n)) return { ...zb, __source: '0-based', __index: i };
+      if (oScore > 0) return { ...ob, __source: '1-based', __index: i + 1 };
+      return { ...zb, __source: '0-based', __index: i };
+    });
 
-    if (!rankConfigs.some(x => x.target > 0n || x.minPV > 0n || x.minD > 0 || x.minPkg > 0)) {
+    if (!rankConfigs.some(x => x.target > 0n || x.minPV > 0n || x.minD > 0 || x.minPkg > 0 || x.minDRC > 0)) {
       progressionEl.innerHTML = '<div class="empty"><div class="empty-icon">⚠</div><div class="empty-title">Sin configuración legible</div><div class="empty-desc">El módulo de rangos no devolvió objetivos ni requisitos.</div></div>';
       return;
     }
