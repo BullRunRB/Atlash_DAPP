@@ -5311,11 +5311,18 @@ const RANKS_EXTENDED_ABI = [
   "function pendingRankReward(address, uint8) view returns (uint256)",
   "function rankTargets(uint256) view returns (uint256)",
   "function rankBonuses(uint256) view returns (uint256)",
+  "function targets(uint256) view returns (uint256)",
+  "function bonuses(uint256) view returns (uint256)",
   "function minPersonalVolume(uint256) view returns (uint256)",
+  "function minPVs(uint256) view returns (uint256)",
   "function minDirects(uint256) view returns (uint8)",
+  "function minDs(uint256) view returns (uint8)",
   "function minDirectRank(uint256) view returns (uint8)",
+  "function minDRs(uint256) view returns (uint8)",
   "function minDirectRankCount(uint256) view returns (uint8)",
+  "function minDRCs(uint256) view returns (uint8)",
   "function minCorePackageForRank(uint256) view returns (uint8)",
+  "function minPkgs(uint256) view returns (uint8)",
   "function availablePool() view returns (uint256)",
   "function rollingVolume(address, uint32) view returns (uint256)",
   "function currentWeekId() view returns (uint32)",
@@ -5341,23 +5348,40 @@ async function loadRanksTab(addr) {
 
   const ranksExt = new ethers.Contract(addresses.ranks, RANKS_EXTENDED_ABI, provider);
 
+  const methodValue = async (names, args = [], fallback = 0n) => {
+    for (const name of names) {
+      try {
+        const fn = ranksExt[name];
+        if (typeof fn !== 'function') continue;
+        const val = await fn(...args);
+        if (val !== undefined && val !== null) return val;
+      } catch {}
+    }
+    return fallback;
+  };
+
+  const scoreCfg = (x) => {
+    if (!x) return 0;
+    let s = 0;
+    if (BigInt(x.target || 0n) > 0n) s += 5;
+    if (BigInt(x.minPV || 0n) > 0n) s += 3;
+    if (BigInt(x.bonus || 0n) > 0n) s += 2;
+    if (Number(x.minD || 0) > 0) s += 2;
+    if (Number(x.minDR || 0) > 0) s += 1;
+    if (Number(x.minDRC || 0) > 0) s += 2;
+    if (Number(x.minPkg || 0) > 0) s += 1;
+    return s;
+  };
+
   const readRankConfigAt = async (idx) => {
-    const [
-      target,
-      bonus,
-      minPV,
-      minD,
-      minDR,
-      minDRC,
-      minPkg
-    ] = await Promise.all([
-      ranksExt.rankTargets(idx).catch(()=>0n),
-      ranksExt.rankBonuses(idx).catch(()=>0n),
-      ranksExt.minPersonalVolume(idx).catch(()=>0n),
-      ranksExt.minDirects(idx).catch(()=>0),
-      ranksExt.minDirectRank(idx).catch(()=>0),
-      ranksExt.minDirectRankCount(idx).catch(()=>0),
-      ranksExt.minCorePackageForRank(idx).catch(()=>0)
+    const [target, bonus, minPV, minD, minDR, minDRC, minPkg] = await Promise.all([
+      methodValue(['rankTargets','targets'], [idx], 0n),
+      methodValue(['rankBonuses','bonuses'], [idx], 0n),
+      methodValue(['minPersonalVolume','minPVs'], [idx], 0n),
+      methodValue(['minDirects','minDs'], [idx], 0),
+      methodValue(['minDirectRank','minDRs'], [idx], 0),
+      methodValue(['minDirectRankCount','minDRCs'], [idx], 0),
+      methodValue(['minCorePackageForRank','minPkgs'], [idx], 0),
     ]);
     return {
       target: BigInt(target || 0n),
@@ -5372,39 +5396,24 @@ async function loadRanksTab(addr) {
 
   let rankConfigs = [];
   try {
+    const directConfigs = await Promise.all(Array.from({length: 10}, (_, i) => readRankConfigAt(i + 1)));
     const zeroBased = await Promise.all(Array.from({length:10}, (_, i) => readRankConfigAt(i)));
     const oneBased  = await Promise.all(Array.from({length:10}, (_, i) => readRankConfigAt(i + 1)));
 
-    const itemScore = (x) => {
-      if (!x) return 0;
-      let s = 0;
-      if (BigInt(x.target || 0n) > 0n) s += 5;
-      if (BigInt(x.minPV || 0n) > 0n) s += 3;
-      if (BigInt(x.bonus || 0n) > 0n) s += 2;
-      if (Number(x.minD || 0) > 0) s += 2;
-      if (Number(x.minDRC || 0) > 0) s += 2;
-      if (Number(x.minPkg || 0) > 0) s += 1;
-      return s;
-    };
-
-    // Elegir por rango, no por bloque completo.
-    // Algunos despliegues exponen parte de la configuración 0-based y otra parte 1-based.
     rankConfigs = Array.from({length:10}, (_, i) => {
+      const direct = directConfigs[i];
       const zb = zeroBased[i];
       const ob = oneBased[i];
-      const zScore = itemScore(zb);
-      const oScore = itemScore(ob);
-      if (oScore > zScore) return { ...ob, __source: '1-based', __index: i + 1 };
-      if (zScore > oScore) return { ...zb, __source: '0-based', __index: i };
-      // Empate: preferir el que tenga target > 0; si ambos empatan, priorizar 1-based solo si trae algo útil.
-      if (BigInt(ob?.target || 0n) > BigInt(zb?.target || 0n)) return { ...ob, __source: '1-based', __index: i + 1 };
-      if (BigInt(zb?.target || 0n) > BigInt(ob?.target || 0n)) return { ...zb, __source: '0-based', __index: i };
-      if (oScore > 0) return { ...ob, __source: '1-based', __index: i + 1 };
-      return { ...zb, __source: '0-based', __index: i };
+      const candidates = [
+        { ...direct, __source: 'direct-rank', __index: i + 1 },
+        { ...ob, __source: '1-based', __index: i + 1 },
+        { ...zb, __source: '0-based', __index: i },
+      ].sort((a, b) => scoreCfg(b) - scoreCfg(a));
+      return candidates[0];
     });
 
-    if (!rankConfigs.some(x => x.target > 0n || x.minPV > 0n || x.minD > 0 || x.minPkg > 0 || x.minDRC > 0)) {
-      progressionEl.innerHTML = '<div class="empty"><div class="empty-icon">⚠</div><div class="empty-title">Sin configuración legible</div><div class="empty-desc">El módulo de rangos no devolvió objetivos ni requisitos.</div></div>';
+    if (!rankConfigs.some(x => scoreCfg(x) > 0)) {
+      progressionEl.innerHTML = '<div class="empty"><div class="empty-icon">⚠</div><div class="empty-title">Sin configuración legible</div><div class="empty-desc">El módulo de rangos no devolvió objetivos ni requisitos con ninguno de los getters compatibles.</div></div>';
       return;
     }
   } catch(e) {
