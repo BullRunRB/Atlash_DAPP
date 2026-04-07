@@ -5334,6 +5334,79 @@ const RANKS_EXTENDED_ABI = [
 const RANK_NAMES = ['—','Rango 1','Rango 2','Rango 3','Rango 4','Rango 5',
                     'Rango 6','Rango 7','Rango 8','Rango 9','Rango 10'];
 
+const PROD_RANK_DEFAULTS = [
+  { target: 1000n,    bonus: ethers.parseUnits('100', 18),    minPV: ethers.parseUnits('150', 18),   minD: 2,  minDR: 0, minDRC: 0, minPkg: 2 },
+  { target: 5000n,    bonus: ethers.parseUnits('500', 18),    minPV: ethers.parseUnits('250', 18),   minD: 3,  minDR: 0, minDRC: 0, minPkg: 2 },
+  { target: 20000n,   bonus: ethers.parseUnits('2000', 18),   minPV: ethers.parseUnits('500', 18),   minD: 4,  minDR: 1, minDRC: 1, minPkg: 2 },
+  { target: 60000n,   bonus: ethers.parseUnits('6000', 18),   minPV: ethers.parseUnits('1000', 18),  minD: 5,  minDR: 1, minDRC: 2, minPkg: 3 },
+  { target: 150000n,  bonus: ethers.parseUnits('15000', 18),  minPV: ethers.parseUnits('2000', 18),  minD: 6,  minDR: 2, minDRC: 2, minPkg: 3 },
+  { target: 350000n,  bonus: ethers.parseUnits('35000', 18),  minPV: ethers.parseUnits('3500', 18),  minD: 8,  minDR: 3, minDRC: 2, minPkg: 3 },
+  { target: 800000n,  bonus: ethers.parseUnits('80000', 18),  minPV: ethers.parseUnits('6000', 18),  minD: 10, minDR: 4, minDRC: 3, minPkg: 3 },
+  { target: 1600000n, bonus: ethers.parseUnits('160000', 18), minPV: ethers.parseUnits('12000', 18), minD: 12, minDR: 5, minDRC: 3, minPkg: 4 },
+  { target: 3000000n, bonus: ethers.parseUnits('300000', 18), minPV: ethers.parseUnits('25000', 18), minD: 16, minDR: 6, minDRC: 4, minPkg: 4 },
+  { target: 5000000n, bonus: ethers.parseUnits('500000', 18), minPV: ethers.parseUnits('50000', 18), minD: 20, minDR: 7, minDRC: 4, minPkg: 4 },
+];
+
+function normalizeRankCfg(x = {}) {
+  return {
+    target: BigInt(x.target || 0n),
+    bonus: BigInt(x.bonus || 0n),
+    minPV: BigInt(x.minPV || 0n),
+    minD: Number(x.minD || 0),
+    minDR: Number(x.minDR || 0),
+    minDRC: Number(x.minDRC || 0),
+    minPkg: Number(x.minPkg || 0),
+    __source: x.__source || 'unknown',
+    __index: x.__index ?? null,
+  };
+}
+
+function looksLikeRankCfg(cfg) {
+  cfg = normalizeRankCfg(cfg);
+  return cfg.target > 0n || cfg.minPV > 0n || cfg.bonus > 0n || cfg.minD > 0 || cfg.minDR > 0 || cfg.minDRC > 0 || cfg.minPkg > 0;
+}
+
+function pickBestRankCfg(rankNum, zeroBasedCfg, oneBasedCfg) {
+  const expected = normalizeRankCfg(PROD_RANK_DEFAULTS[rankNum - 1] || {});
+  const candidates = [
+    normalizeRankCfg({ ...zeroBasedCfg, __source: '0-based', __index: rankNum - 1 }),
+    normalizeRankCfg({ ...oneBasedCfg, __source: '1-based', __index: rankNum }),
+  ];
+
+  const score = (cfg) => {
+    let s = 0;
+    if (cfg.target > 0n) s += 50;
+    if (cfg.minPV > 0n) s += 30;
+    if (cfg.bonus > 0n) s += 20;
+    if (cfg.minD > 0) s += 10;
+    if (cfg.minPkg > 0) s += 10;
+    if (cfg.minDRC > 0 || cfg.minDR > 0) s += 10;
+
+    if (expected.target > 0n && cfg.target === expected.target) s += 200;
+    if (expected.minPV > 0n && cfg.minPV === expected.minPV) s += 120;
+    if (expected.bonus > 0n && cfg.bonus === expected.bonus) s += 80;
+    if (cfg.minD === expected.minD) s += 40;
+    if (cfg.minDR === expected.minDR) s += 25;
+    if (cfg.minDRC === expected.minDRC) s += 25;
+    if (cfg.minPkg === expected.minPkg) s += 30;
+    return s;
+  };
+
+  candidates.sort((a, b) => score(b) - score(a));
+  const picked = candidates[0];
+
+  if (!looksLikeRankCfg(picked)) {
+    return normalizeRankCfg({ ...expected, __source: 'prod-source-defaults', __index: rankNum - 1 });
+  }
+
+  const sparse = (picked.target === 0n && expected.target > 0n) || (picked.minPV === 0n && expected.minPV > 0n);
+  if (sparse) {
+    return normalizeRankCfg({ ...expected, __source: 'prod-source-defaults', __index: rankNum - 1 });
+  }
+
+  return picked;
+}
+
 
 async function loadRanksTab(addr) {
   const progressionEl = document.getElementById('ranks-progression');
@@ -5360,19 +5433,6 @@ async function loadRanksTab(addr) {
     return fallback;
   };
 
-  const scoreCfg = (x) => {
-    if (!x) return 0;
-    let s = 0;
-    if (BigInt(x.target || 0n) > 0n) s += 5;
-    if (BigInt(x.minPV || 0n) > 0n) s += 3;
-    if (BigInt(x.bonus || 0n) > 0n) s += 2;
-    if (Number(x.minD || 0) > 0) s += 2;
-    if (Number(x.minDR || 0) > 0) s += 1;
-    if (Number(x.minDRC || 0) > 0) s += 2;
-    if (Number(x.minPkg || 0) > 0) s += 1;
-    return s;
-  };
-
   const readRankConfigAt = async (idx) => {
     const [target, bonus, minPV, minD, minDR, minDRC, minPkg] = await Promise.all([
       methodValue(['rankTargets','targets'], [idx], 0n),
@@ -5383,38 +5443,26 @@ async function loadRanksTab(addr) {
       methodValue(['minDirectRankCount','minDRCs'], [idx], 0),
       methodValue(['minCorePackageForRank','minPkgs'], [idx], 0),
     ]);
-    return {
-      target: BigInt(target || 0n),
-      bonus: BigInt(bonus || 0n),
-      minPV: BigInt(minPV || 0n),
-      minD: Number(minD || 0),
-      minDR: Number(minDR || 0),
-      minDRC: Number(minDRC || 0),
-      minPkg: Number(minPkg || 0),
-    };
+    return normalizeRankCfg({
+      target,
+      bonus,
+      minPV,
+      minD,
+      minDR,
+      minDRC,
+      minPkg,
+    });
   };
 
   let rankConfigs = [];
   try {
-    const directConfigs = await Promise.all(Array.from({length: 10}, (_, i) => readRankConfigAt(i + 1)));
     const zeroBased = await Promise.all(Array.from({length:10}, (_, i) => readRankConfigAt(i)));
     const oneBased  = await Promise.all(Array.from({length:10}, (_, i) => readRankConfigAt(i + 1)));
 
-    rankConfigs = Array.from({length:10}, (_, i) => {
-      const direct = directConfigs[i];
-      const zb = zeroBased[i];
-      const ob = oneBased[i];
-      const candidates = [
-        { ...direct, __source: 'direct-rank', __index: i + 1 },
-        { ...ob, __source: '1-based', __index: i + 1 },
-        { ...zb, __source: '0-based', __index: i },
-      ].sort((a, b) => scoreCfg(b) - scoreCfg(a));
-      return candidates[0];
-    });
+    rankConfigs = Array.from({length:10}, (_, i) => pickBestRankCfg(i + 1, zeroBased[i], oneBased[i]));
 
-    if (!rankConfigs.some(x => scoreCfg(x) > 0)) {
-      progressionEl.innerHTML = '<div class="empty"><div class="empty-icon">⚠</div><div class="empty-title">Sin configuración legible</div><div class="empty-desc">El módulo de rangos no devolvió objetivos ni requisitos con ninguno de los getters compatibles.</div></div>';
-      return;
+    if (!rankConfigs.some(x => looksLikeRankCfg(x))) {
+      rankConfigs = PROD_RANK_DEFAULTS.map((cfg, i) => normalizeRankCfg({ ...cfg, __source: 'prod-source-defaults', __index: i }));
     }
   } catch(e) {
     progressionEl.innerHTML = `<div class="empty"><div class="empty-icon">⚠</div><div class="empty-title">Error leyendo configuración</div><div class="empty-desc">${String(e.message || e).slice(0,120)}</div></div>`;
