@@ -5327,13 +5327,12 @@ const RANKS_EXTENDED_ABI = [
 const RANK_NAMES = ['—','Rango 1','Rango 2','Rango 3','Rango 4','Rango 5',
                     'Rango 6','Rango 7','Rango 8','Rango 9','Rango 10'];
 
-async function loadRanksTab(addr) {
-  console.log('[Ranks] loadRanksTab called, addr:', addr, 'contracts.ranks:', !!contracts.ranks, 'addresses.ranks:', addresses.ranks);
-  const progressionEl = document.getElementById('ranks-progression');
-  if (!progressionEl) { console.log('[Ranks] no progressionEl found'); return; }
 
-  if (!contracts.ranks) {
-    console.log('[Ranks] contracts.ranks is null, addresses.ranks:', addresses.ranks);
+async function loadRanksTab(addr) {
+  const progressionEl = document.getElementById('ranks-progression');
+  if (!progressionEl) return;
+
+  if (!addresses.ranks || !provider) {
     progressionEl.innerHTML = '<div class="empty"><div class="empty-icon">⚙</div><div class="empty-title">RanksModule no configurado</div><div class="empty-desc">Ingresa la dirección del RanksModule en la configuración</div></div>';
     return;
   }
@@ -5341,48 +5340,60 @@ async function loadRanksTab(addr) {
   progressionEl.innerHTML = '<div style="color:var(--gray-400);font-size:13px;padding:16px;font-family:var(--mono);">Cargando configuración de rangos...</div>';
 
   const ranksExt = new ethers.Contract(addresses.ranks, RANKS_EXTENDED_ABI, provider);
-  console.log('[Ranks] ranksExt created, calling rankTargets(0)...');
 
-  // ── Step 1: Load rank config for all 10 ranks in ONE batch ──
-  let rankTargets=[], rankBonuses=[], minPVs=[], minDs=[], minDRs=[], minDRCs=[], minPkgs=[];
+  const readRankConfigAt = async (idx) => {
+    const [
+      target,
+      bonus,
+      minPV,
+      minD,
+      minDR,
+      minDRC,
+      minPkg
+    ] = await Promise.all([
+      ranksExt.rankTargets(idx).catch(()=>0n),
+      ranksExt.rankBonuses(idx).catch(()=>0n),
+      ranksExt.minPersonalVolume(idx).catch(()=>0n),
+      ranksExt.minDirects(idx).catch(()=>0),
+      ranksExt.minDirectRank(idx).catch(()=>0),
+      ranksExt.minDirectRankCount(idx).catch(()=>0),
+      ranksExt.minCorePackageForRank(idx).catch(()=>0)
+    ]);
+    return {
+      target: BigInt(target || 0n),
+      bonus: BigInt(bonus || 0n),
+      minPV: BigInt(minPV || 0n),
+      minD: Number(minD || 0),
+      minDR: Number(minDR || 0),
+      minDRC: Number(minDRC || 0),
+      minPkg: Number(minPkg || 0),
+    };
+  };
+
+  let rankConfigs = [];
   try {
-    // Test single call first
-    const testVal = await ranksExt.rankTargets(0).catch(e => { console.error('[Ranks] rankTargets(0) failed:', e.message); return null; });
-    console.log('[Ranks] rankTargets(0):', testVal?.toString());
-    
-    const configCalls = [];
-    for (let i = 0; i < 10; i++) {
-      configCalls.push(
-        ranksExt.rankTargets(i).catch(()=>0n),
-        ranksExt.rankBonuses(i).catch(()=>0n),
-        ranksExt.minPersonalVolume(i).catch(()=>0n),
-        ranksExt.minDirects(i).catch(()=>0),
-        ranksExt.minDirectRank(i).catch(()=>0),
-        ranksExt.minDirectRankCount(i).catch(()=>0),
-        ranksExt.minCorePackageForRank(i).catch(()=>0)
-      );
-    }
-    const results = await Promise.all(configCalls);
-    console.log('[Ranks] config loaded, first target:', results[0]?.toString());
-    for (let i = 0; i < 10; i++) {
-      const base = i * 7;
-      rankTargets.push(results[base]);
-      rankBonuses.push(results[base+1]);
-      minPVs.push(results[base+2]);
-      minDs.push(Number(results[base+3]));
-      minDRs.push(Number(results[base+4]));
-      minDRCs.push(Number(results[base+5]));
-      minPkgs.push(Number(results[base+6]));
+    const zeroBased = await Promise.all(Array.from({length:10}, (_, i) => readRankConfigAt(i)));
+    const oneBased  = await Promise.all(Array.from({length:10}, (_, i) => readRankConfigAt(i + 1)));
+
+    const score = (arr) => arr.reduce((acc, x) => acc + (x.target > 0n ? 2 : 0) + (x.minPV > 0n ? 1 : 0) + (x.bonus > 0n ? 1 : 0) + (x.minD > 0 ? 1 : 0) + (x.minPkg > 0 ? 1 : 0), 0);
+    const zScore = score(zeroBased);
+    const oScore = score(oneBased);
+
+    rankConfigs = oScore > zScore ? oneBased : zeroBased;
+
+    if (!rankConfigs.some(x => x.target > 0n || x.minPV > 0n || x.minD > 0 || x.minPkg > 0)) {
+      progressionEl.innerHTML = '<div class="empty"><div class="empty-icon">⚠</div><div class="empty-title">Sin configuración legible</div><div class="empty-desc">El módulo de rangos no devolvió objetivos ni requisitos.</div></div>';
+      return;
     }
   } catch(e) {
-    progressionEl.innerHTML = `<div class="empty"><div class="empty-icon">⚠</div><div class="empty-title">Error leyendo configuración</div><div class="empty-desc">${e.message.slice(0,100)}</div></div>`;
+    progressionEl.innerHTML = `<div class="empty"><div class="empty-icon">⚠</div><div class="empty-title">Error leyendo configuración</div><div class="empty-desc">${String(e.message || e).slice(0,120)}</div></div>`;
     return;
   }
 
-  // ── Step 2: Load user-specific data if addr provided ──
   let userRankNum = 0, totalPts = 0n, persVol = 0n, pendTotal = 0n;
   let pendingPerRank = new Array(11).fill(0n);
-  let directCount = 0, qualifiedByRank = {};
+  let directCount = 0, currentPkg = Number(currentUserPackageId || 0);
+  let qualifiedByRank = {};
   for (let r = 1; r <= 10; r++) qualifiedByRank[r] = 0;
 
   if (addr) {
@@ -5393,26 +5404,31 @@ async function loadRanksTab(addr) {
         ranksExt.personalVolume(addr).catch(()=>0n),
         ranksExt.pendingTotal(addr).catch(()=>0n),
       ]);
-      userRankNum = Number(curRank);
-      totalPts = tPts; persVol = pVol; pendTotal = pTot;
+      userRankNum = Number(curRank || 0);
+      totalPts = BigInt(tPts || 0n);
+      persVol = BigInt(pVol || 0n);
+      pendTotal = BigInt(pTot || 0n);
     } catch {}
 
-    // Load pending per rank
     try {
       const pendingCalls = [];
       for (let i = 1; i <= 10; i++) pendingCalls.push(ranksExt.pendingRankReward(addr, i).catch(()=>0n));
       const pResults = await Promise.all(pendingCalls);
-      for (let i = 0; i < 10; i++) pendingPerRank[i+1] = pResults[i];
-      if (!pendTotal || pendTotal === 0n) {
-        pendTotal = pResults.reduce((acc, v) => acc + BigInt(v || 0n), 0n);
+      for (let i = 0; i < 10; i++) pendingPerRank[i+1] = BigInt(pResults[i] || 0n);
+      if (pendTotal === 0n) pendTotal = pResults.reduce((acc, v) => acc + BigInt(v || 0n), 0n);
+    } catch {}
+
+    try {
+      if (contracts.core?.users) {
+        const userData = await contracts.core.users(addr).catch(()=>null);
+        if (userData) currentPkg = Number(userData[3] || currentPkg || 0);
       }
     } catch {}
 
-    // Get directs count + their ranks
     try {
       directCount = Number(await contracts.core.directCount(addr).catch(()=>0));
       if (directCount > 0) {
-        const limit = Math.min(directCount, 30);
+        const limit = Math.min(directCount, 100);
         const directAddrs = await Promise.all(
           Array.from({length: limit}, (_, i) => contracts.core.directAt(addr, i).catch(()=>null))
         );
@@ -5420,69 +5436,56 @@ async function loadRanksTab(addr) {
           directAddrs.filter(Boolean).map(d => ranksExt.userRank(d).catch(()=>0n))
         );
         directRanks.forEach(dr => {
-          const r = Number(dr);
-          for (let lvl = 1; lvl <= r; lvl++) qualifiedByRank[lvl] = (qualifiedByRank[lvl]||0)+1;
+          const r = Number(dr || 0);
+          for (let lvl = 1; lvl <= r; lvl++) qualifiedByRank[lvl] = (qualifiedByRank[lvl] || 0) + 1;
         });
       }
     } catch {}
   }
 
-  // ── Step 3: Update KPIs ──
   const kpis = {
-    'rank-current':      addr ? (userRankNum > 0 ? RANK_NAMES[userRankNum] : 'Sin rango') : '—',
-    'rank-next-label':   addr ? (userRankNum < 10 ? 'Siguiente: ' + RANK_NAMES[userRankNum+1] : 'Rango máximo alcanzado') : 'Busca un usuario',
-    'rank-personal-pts': addr ? fmtIntPoints(totalPts) : '—',
-    'rank-personal-vol': addr ? fmt18(persVol) + ' USDT' : '—',
-    'rank-pending-total':addr ? fmt18(pendTotal) + ' USDT' : '—',
+    'rank-current':       addr ? (userRankNum > 0 ? RANK_NAMES[userRankNum] : 'Sin rango') : '—',
+    'rank-next-label':    addr ? (userRankNum < 10 ? 'Siguiente: ' + RANK_NAMES[userRankNum+1] : 'Rango máximo alcanzado') : 'Busca un usuario',
+    'rank-personal-pts':  addr ? fmtIntPoints(totalPts) : '—',
+    'rank-personal-vol':  addr ? fmt18(persVol) + ' USDT' : '—',
+    'rank-pending-total': addr ? fmt18(pendTotal) + ' USDT' : '—',
   };
   Object.entries(kpis).forEach(([id, val]) => {
-    const el = document.getElementById(id); if (el) el.textContent = val;
+    const el = document.getElementById(id);
+    if (el) el.textContent = val;
   });
 
-  // ── Step 4: Render progression table ──
   let html = '<div style="display:flex;flex-direction:column;gap:10px;">';
 
   for (let i = 0; i < 10; i++) {
-    const rankNum   = i + 1;
-    const target    = rankTargets[i] || 0n;
-    const bonus     = rankBonuses[i] || 0n;
-    const minPV     = minPVs[i]     || 0n;
-    const minD      = minDs[i]      || 0;
-    const minDR     = minDRs[i]     || 0;
-    const minDRC    = minDRCs[i]    || 0;
-    const pending   = pendingPerRank[rankNum];
+    const rankNum = i + 1;
+    const cfg = rankConfigs[i] || {};
+    const target = BigInt(cfg.target || 0n);
+    const bonus = BigInt(cfg.bonus || 0n);
+    const minPV = BigInt(cfg.minPV || 0n);
+    const minD = Number(cfg.minD || 0);
+    const minDR = Number(cfg.minDR || 0);
+    const minDRC = Number(cfg.minDRC || 0);
+    const minPkg = Number(cfg.minPkg || 0);
+    const pending = BigInt(pendingPerRank[rankNum] || 0n);
 
-    const achieved  = userRankNum >= rankNum;
-    const isCurrent = userRankNum === rankNum;
-    const isNext    = userRankNum + 1 === rankNum;
+    const achieved  = addr ? userRankNum >= rankNum : false;
+    const isCurrent = addr ? userRankNum === rankNum : false;
+    const isNext    = addr ? (userRankNum + 1 === rankNum) : false;
 
-    // La barra principal debe reflejar el avance REAL del rango, no solo los puntos.
-    const ptsNum    = Number(totalPts || 0n);
-    const targetNum = Number(target || 0n);
-    const ptsPct    = targetNum > 0
-      ? Math.min(100, Math.round(ptsNum * 100 / targetNum))
-      : (achieved ? 100 : 0);
-    const ptsDisplay    = addr ? fmtIntPoints(totalPts) : '—';
-    const targetDisplay = fmtIntPoints(target);
+    const pointsOk = addr ? (totalPts >= target) : null;
+    const pvOk     = addr ? (persVol >= minPV) : null;
+    const dOk      = addr ? (directCount >= minD) : null;
+    const dRkOk    = addr ? (minDRC === 0 || (qualifiedByRank[minDR] || 0) >= minDRC) : null;
+    const pkgOk    = addr ? (minPkg === 0 || currentPkg >= minPkg) : null;
 
-    const pvOk   = addr ? (Number(persVol) >= Number(minPV)) : null;
-    const dOk    = addr ? (directCount >= minD) : null;
-    const dRkOk  = addr ? (minDRC === 0 || (qualifiedByRank[minDR]||0) >= minDRC) : null;
-    const pointsOk = addr ? (targetNum > 0 ? ptsNum >= targetNum : achieved) : null;
-    const allOk  = !!(pointsOk && pvOk && dOk && dRkOk);
-
-    const reqChecks = [pointsOk, pvOk, dOk, dRkOk].filter(v => v !== null);
-    const overallPct = reqChecks.length
-      ? Math.round((reqChecks.filter(Boolean).length * 100) / reqChecks.length)
-      : 0;
-    const progressPct = achieved ? 100 : overallPct;
+    const reqChecks = [pointsOk, pvOk, dOk, dRkOk, pkgOk].filter(v => v !== null);
+    const progressPct = achieved ? 100 : (reqChecks.length ? Math.round((reqChecks.filter(Boolean).length * 100) / reqChecks.length) : 0);
     const statusHint = !addr
       ? '—'
       : achieved
         ? 'Todos los requisitos completos'
-        : (pointsOk && !allOk)
-          ? 'Puntos completos, faltan otros requisitos'
-          : 'Avance real del rango';
+        : 'Avance sobre requisitos del rango';
 
     const reqColor = (ok) => ok === null ? 'var(--gray-400)' : ok ? 'var(--green)' : 'var(--red)';
     const reqIcon  = (ok) => ok === null ? '—' : ok ? '✓' : '✗';
@@ -5493,9 +5496,13 @@ async function loadRanksTab(addr) {
     const numColor    = achieved || isNext ? 'white' : 'var(--gray-500)';
     const barColor    = achieved ? 'var(--green)' : isNext ? 'var(--gray-800)' : 'var(--gray-400)';
 
+    const targetDisplay = fmtIntPoints(target);
+    const pointsDisplay = addr ? fmtIntPoints(totalPts) : '—';
+    const userDirRankCount = addr ? (qualifiedByRank[minDR] || 0) : 0;
+
     html += `
     <div style="border:1.5px solid ${borderColor};border-radius:var(--radius-lg);padding:16px 18px;background:${bgColor};">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;gap:12px;flex-wrap:wrap;">
         <div style="display:flex;align-items:center;gap:12px;">
           <div style="width:36px;height:36px;border-radius:8px;background:${numBg};display:flex;align-items:center;justify-content:center;font-weight:800;font-size:15px;color:${numColor};flex-shrink:0;">${rankNum}</div>
           <div>
@@ -5505,39 +5512,48 @@ async function loadRanksTab(addr) {
         </div>
         <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;justify-content:flex-end;">
           ${pending > 0n ? `<span class="badge badge-green">${fmt18(pending)} USDT pendiente</span>` : ''}
-          ${achieved     ? '<span class="badge badge-green">✓ Alcanzado</span>' : ''}
-          ${isCurrent    ? '<span class="badge badge-blue">Rango actual</span>' : ''}
-          ${isNext && allOk ? '<span class="badge badge-blue">Listo ↑</span>' : ''}
-          ${!achieved && pointsOk && !allOk ? '<span class="badge badge-gray">Puntos completos, faltan requisitos</span>' : ''}
-          ${!achieved && !addr ? '<span class="badge badge-gray">Sin usuario</span>' : ''}
+          ${achieved ? '<span class="badge badge-green">✓ Alcanzado</span>' : ''}
+          ${isCurrent ? '<span class="badge badge-blue">Rango actual</span>' : ''}
+          ${isNext ? '<span class="badge badge-gray">Siguiente objetivo</span>' : ''}
+          ${!addr ? '<span class="badge badge-gray">Sin usuario</span>' : ''}
         </div>
       </div>
 
       <div style="margin-bottom:12px;">
         <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--gray-400);margin-bottom:5px;font-family:var(--mono);">
-          <span>Avance real del rango</span>
+          <span>Avance del rango</span>
           <span>${addr ? progressPct + '%' : '—'}</span>
         </div>
         <div class="prog"><div class="prog-fill" style="width:${progressPct}%;background:${barColor};"></div></div>
         <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--gray-400);margin-top:5px;font-family:var(--mono);gap:8px;flex-wrap:wrap;">
-          <span>Puntos: ${ptsDisplay} / ${targetDisplay}</span>
+          <span>Puntos requeridos: ${targetDisplay}</span>
           <span>${statusHint}</span>
         </div>
       </div>
 
-      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;font-size:11px;">
+      <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px;font-size:11px;">
+        <div style="background:var(--gray-50);border:1px solid var(--gray-200);border-radius:6px;padding:8px 10px;">
+          <div style="color:var(--gray-400);margin-bottom:3px;font-size:10px;text-transform:uppercase;letter-spacing:.5px;">Puntos</div>
+          <div style="font-weight:700;color:${reqColor(pointsOk)};font-family:var(--mono);">${reqIcon(pointsOk)} ${targetDisplay}</div>
+          ${addr ? `<div style="font-size:10px;color:var(--gray-400);margin-top:2px;">Tienes: ${pointsDisplay}</div>` : ''}
+        </div>
         <div style="background:var(--gray-50);border:1px solid var(--gray-200);border-radius:6px;padding:8px 10px;">
           <div style="color:var(--gray-400);margin-bottom:3px;font-size:10px;text-transform:uppercase;letter-spacing:.5px;">Vol. personal</div>
           <div style="font-weight:700;color:${reqColor(pvOk)};font-family:var(--mono);">${reqIcon(pvOk)} ${fmt18(minPV)} USDT</div>
-          ${addr ? `<div style="font-size:10px;color:var(--gray-400);margin-top:2px;">Tienes: ${fmt18(persVol)}</div>` : ''}
+          ${addr ? `<div style="font-size:10px;color:var(--gray-400);margin-top:2px;">Tienes: ${fmt18(persVol)} USDT</div>` : ''}
         </div>
         <div style="background:var(--gray-50);border:1px solid var(--gray-200);border-radius:6px;padding:8px 10px;">
           <div style="color:var(--gray-400);margin-bottom:3px;font-size:10px;text-transform:uppercase;letter-spacing:.5px;">Directos activos</div>
-          <div style="font-weight:700;color:${reqColor(dOk)};font-family:var(--mono);">${reqIcon(dOk)} ${addr ? directCount+'/'+minD : minD+' mín.'}</div>
+          <div style="font-weight:700;color:${reqColor(dOk)};font-family:var(--mono);">${reqIcon(dOk)} ${addr ? directCount + '/' + minD : minD + ' mín.'}</div>
         </div>
         <div style="background:var(--gray-50);border:1px solid var(--gray-200);border-radius:6px;padding:8px 10px;">
-          <div style="color:var(--gray-400);margin-bottom:3px;font-size:10px;text-transform:uppercase;letter-spacing:.5px;">Dir. rango ≥${minDR}</div>
-          <div style="font-weight:700;color:${reqColor(dRkOk)};font-family:var(--mono);">${reqIcon(dRkOk)} ${addr ? (qualifiedByRank[minDR]||0)+'/'+minDRC : minDRC+' mín.'}</div>
+          <div style="color:var(--gray-400);margin-bottom:3px;font-size:10px;text-transform:uppercase;letter-spacing:.5px;">Dir. con rango</div>
+          <div style="font-weight:700;color:${reqColor(dRkOk)};font-family:var(--mono);">${reqIcon(dRkOk)} ≥${minDR} x ${addr ? userDirRankCount + '/' + minDRC : minDRC + ' mín.'}</div>
+        </div>
+        <div style="background:var(--gray-50);border:1px solid var(--gray-200);border-radius:6px;padding:8px 10px;">
+          <div style="color:var(--gray-400);margin-bottom:3px;font-size:10px;text-transform:uppercase;letter-spacing:.5px;">Paquete mínimo</div>
+          <div style="font-weight:700;color:${reqColor(pkgOk)};font-family:var(--mono);">${reqIcon(pkgOk)} ${minPkg > 0 ? ('Paquete ' + minPkg) : 'Sin requisito'}</div>
+          ${addr ? `<div style="font-size:10px;color:var(--gray-400);margin-top:2px;">Tienes: ${currentPkg > 0 ? ('Paquete ' + currentPkg) : 'Ninguno'}</div>` : ''}
         </div>
       </div>
 
@@ -5553,7 +5569,6 @@ async function loadRanksTab(addr) {
   html += '</div>';
   progressionEl.innerHTML = html;
 }
-
 
 async function claimSingleRank(rankNum) {
   if (!await ensureSigner()) return;
